@@ -121,7 +121,17 @@ document.addEventListener('touchmove', function(e) {
             }
             const smallKeys = ['settings', 'api', 'activated', 'activated_device', 'discord_user', 'appOrder', 'appCustomizations'];
             if (smallKeys.includes(key)) {
-                try { localStorage.setItem('suowu_' + key, JSON.stringify(val)); } catch (e) {}
+                try { 
+                    const dataStr = JSON.stringify(val);
+                    if (dataStr.length < 4000000) { 
+                        localStorage.setItem('suowu_' + key, dataStr); 
+                    }
+                } catch (e) {
+                    console.warn('LocalStorage quota exceeded, relying on IndexedDB.');
+                    if (e.name === 'QuotaExceededError') {
+                        localStorage.removeItem('suowu_settings');
+                    }
+                }
             }
         }
     };
@@ -679,7 +689,26 @@ async function checkDiscordCallback() {
         }, 2600);
     }
 
-    updateTime(); setInterval(updateTime, 60000); 
+    updateTime(); 
+    setTimeout(() => {
+        updateTime();
+        setInterval(updateTime, 60000);
+    }, (60 - new Date().getSeconds()) * 1000);
+    
+    if (navigator.getBattery) {
+        navigator.getBattery().then(b => {
+            const updateBattery = () => {
+                const levelEl = document.getElementById('battery-level');
+                if (levelEl) {
+                    levelEl.style.width = (b.level * 100) + '%';
+                    levelEl.style.background = b.level < 0.2 ? '#ff3b30' : (b.charging ? '#34c759' : 'currentColor');
+                }
+            };
+            updateBattery();
+            b.addEventListener('levelchange', updateBattery);
+            b.addEventListener('chargingchange', updateBattery);
+        });
+    }
     applySettings(); 
     renderAll(); 
     updateNotifyInChatUI();
@@ -736,8 +765,11 @@ async function checkDiscordCallback() {
             island.style.transform = `translateX(${initialTransformX + dx}px) translateY(${initialTransformY + dy}px) scale(1)`;
         }, {passive: true});
 
-        island.addEventListener('touchend', () => {
-            if (!isDraggingIsland) return;
+        island.addEventListener('touchend', (e) => {
+            if (!isDraggingIsland) {
+                openApp('music');
+                return;
+            }
             isDraggingIsland = false;
             island.style.transition = 'all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)';
             
@@ -843,7 +875,42 @@ function processPendingBgMessages() {
 }
     function renderAll() { renderDesktop(); renderRecent(); renderContacts(); renderWorldbooks(); renderMasks(); renderWeather(); renderAlbums(); renderStickers(); renderMemoryView(); renderTimeAwarenessStatus(); renderAppearanceApp(); renderFeeds(); renderMusicApp(); renderBubbleCountStatus(); renderTranslationStatus(); renderForum(); cipherRenderMenu();}
     function updateTime() { $('#time').innerText = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }); }
-    function setupKeyboardShortcuts() { $('#chat-input').addEventListener('keydown', function(e) { if (e.isComposing || e.keyCode === 229) return; if (e.key === 'Enter' && !e.shiftKey && !e.ctrlKey && !e.metaKey) { e.preventDefault(); sendMessage(); } else if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); triggerAI(); } }); }
+    function setupKeyboardShortcuts() { 
+        const chatInput = $('#chat-input');
+        chatInput.addEventListener('keydown', function(e) { 
+            if (e.isComposing || e.keyCode === 229) return; 
+            if (navigator.vibrate && e.key !== 'Enter') {
+                try { navigator.vibrate(5); } catch(err){}
+            }
+            if (e.key === 'Enter' && !e.shiftKey && !e.ctrlKey && !e.metaKey) { 
+                e.preventDefault(); 
+                if (navigator.vibrate) try { navigator.vibrate(15); } catch(err){}
+                sendMessage(); 
+            } else if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { 
+                e.preventDefault(); 
+                if (navigator.vibrate) try { navigator.vibrate(15); } catch(err){}
+                triggerAI(); 
+            } 
+        }); 
+        chatInput.addEventListener('input', function() {
+            this.style.height = '38px';
+            this.style.height = Math.min(this.scrollHeight, 120) + 'px';
+        });
+        chatInput.addEventListener('focus', function() {
+            setTimeout(() => {
+                const container = $('#chat-messages');
+                if (container) container.scrollTop = container.scrollHeight;
+            }, 300);
+        });
+        const chatMessages = $('#chat-messages');
+        if (chatMessages) {
+            chatMessages.addEventListener('touchstart', function() {
+                if (document.activeElement === chatInput) {
+                    chatInput.blur();
+                }
+            }, { passive: true });
+        }
+    }
 
 function getOrCreateDeviceId() {
     let did = null;
@@ -1039,6 +1106,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const appNames = { messages:'微信', contacts:'通讯录', feed:'动态', music:'音乐', calendar:'日历', forum:'叙欲论坛', cipher:'情绪密码', reincarnation:'前世今生', takeout:'外卖', wallet:'钱包', ourspace:'心动日常', album:'相册', stickers:'表情包', map:'高德地图', grimoire:'命之书' };
         trackAppSwitch(appNames[appId] || appId);
         
+        history.pushState({ appOpen: true, appId: appId }, '');
+
         const appView = document.getElementById(`view-${appId}`);
         if (!appView) return;
 
@@ -1086,40 +1155,52 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     
     function closeApp(appId) {
-    trackAppSwitch('桌面');
-    
-    if (appId === 'profile' && window.storageRefreshInterval) {
-        clearInterval(window.storageRefreshInterval);
+        trackAppSwitch('桌面');
+        
+        if (appId === 'profile' && window.storageRefreshInterval) {
+            clearInterval(window.storageRefreshInterval);
+        }
+        
+        const appView = $(`#view-${appId}`);
+        if (!appView) return;
+
+        appView.classList.remove('active');
+
+        const desktop = $('#view-desktop');
+        if (desktop) {
+            desktop.style.opacity = '1';
+            desktop.style.pointerEvents = 'auto';
+            desktop.style.visibility = 'visible';
+        }
+
+        const pagination = $('#desktop-pagination');
+        if (pagination) {
+            pagination.style.opacity = '1';
+            pagination.style.visibility = 'visible';
+        }
+
+        const dock = $('#desktop-dock');
+        if (dock) {
+            dock.style.opacity = '1';
+            dock.style.pointerEvents = 'auto';
+            dock.style.visibility = 'visible';
+        }
+
+        if (appId === 'feed') openCommentFeedId = null;
+        if (appId === 'music' && isFullScreenPlayerVisible) hideFullScreenPlayer();
     }
-    
-    const appView = $(`#view-${appId}`);
-    if (!appView) return;
 
-    appView.classList.remove('active');
-
-    const desktop = $('#view-desktop');
-    if (desktop) {
-        desktop.style.opacity = '1';
-        desktop.style.pointerEvents = 'auto';
-        desktop.style.visibility = 'visible';
-    }
-
-    const pagination = $('#desktop-pagination');
-    if (pagination) {
-        pagination.style.opacity = '1';
-        pagination.style.visibility = 'visible';
-    }
-
-    const dock = $('#desktop-dock');
-    if (dock) {
-        dock.style.opacity = '1';
-        dock.style.pointerEvents = 'auto';
-        dock.style.visibility = 'visible';
-    }
-
-    if (appId === 'feed') openCommentFeedId = null;
-    if (appId === 'music' && isFullScreenPlayerVisible) hideFullScreenPlayer();
-}
+    window.addEventListener('popstate', (event) => {
+        document.querySelectorAll('.view-container').forEach(v => {
+            if (v.classList.contains('active')) {
+                const appId = v.id.replace('view-', '');
+                closeApp(appId);
+            }
+        });
+        if (currentChatRoleId) {
+            closeChat();
+        }
+    });
 
     function toggleTheme() { settings.theme = settings.theme === 'light' ? 'dark' : 'light'; DB.set('settings', settings); applySettings(); }
     function toggleFullscreen() { $('#phone-shell').classList.toggle('fullscreen'); }
@@ -1227,6 +1308,37 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
 function showInAppNotification(roleId, title, body, icon) {
+    const di = document.getElementById('dynamic-island');
+    if (settings.showDynamicIsland !== false && di) {
+        const origHtml = di.innerHTML;
+        const origClass = di.className;
+        
+        di.innerHTML = `<img src="${icon || 'https://image.uglycat.cc/06gh2h.png'}" style="width:24px; height:24px; border-radius:50%; object-fit:cover;"><div style="flex:1; overflow:hidden; display:flex; flex-direction:column;"><div style="font-size:11px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${title}</div><div style="font-size:9px; color:var(--text-secondary); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${body}</div></div>`;
+        di.classList.add('active');
+        di.style.maxWidth = '300px';
+        di.style.transform = 'translateX(-50%) translateY(0) scale(1.05)';
+        
+        if (navigator.vibrate) try { navigator.vibrate([10, 30, 10]); } catch(e){}
+        
+        const clickHandler = () => {
+            if (roleId) { window.focus(); openChat(roleId); }
+        };
+        di.addEventListener('click', clickHandler, { once: true });
+        
+        setTimeout(() => {
+            di.removeEventListener('click', clickHandler);
+            di.style.transform = '';
+            di.style.maxWidth = '';
+            di.innerHTML = origHtml;
+            di.className = origClass;
+            if (musicIsPlaying && musicPlaylist[musicCurrentTrackIndex]) {
+                const track = musicPlaylist[musicCurrentTrackIndex];
+                updatePlayerUI(track.name, track.artist, track.picUrl, null, true);
+            }
+        }, 4000);
+        return;
+    }
+
     let container = document.getElementById('in-app-notify-container');
     if (!container) {
         container = document.createElement('div');
@@ -1259,8 +1371,10 @@ function showSystemNotification(roleId, title, body, icon) {
         return; 
     }
 
+    // 强制触发应用内横幅通知，确保无论浏览器是否拦截，用户都能看到弹窗
+    showInAppNotification(roleId, title, cleanBody, icon);
+
     if (!("Notification" in window) || Notification.permission === "denied" || Notification.permission === "default") {
-        showInAppNotification(roleId, title, cleanBody, icon);
         return;
     }
 
@@ -1271,7 +1385,7 @@ function showSystemNotification(roleId, title, body, icon) {
         if ('serviceWorker' in navigator && navigator.serviceWorker.ready) {
             navigator.serviceWorker.ready.then(function(registration) {
                 registration.showNotification(title, options).catch(function(err) {
-                    showInAppNotification(roleId, title, cleanBody, icon);
+                    console.log("SW Notification failed", err);
                 });
             });
         } else {
@@ -1280,7 +1394,7 @@ function showSystemNotification(roleId, title, body, icon) {
                 sysNotif.onclick = function(e) { e.preventDefault(); window.focus(); if (roleId) openChat(roleId); sysNotif.close(); };
                 setTimeout(function() { sysNotif.close(); }, 8000);
             } catch (e) {
-                showInAppNotification(roleId, title, cleanBody, icon);
+                console.log("Notification API failed", e);
             }
         }
     }
@@ -1465,7 +1579,8 @@ function updateKeepAliveUI(isOn) {
             const heartHtml = settings.showHeart ? `<div class="bubble-heart" style="display:flex; align-items:center; justify-content:center;"><svg width="8" height="8" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="1"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg></div>` : '';
             
             let contentHtml = escapeHTML(m.content);
-            contentHtml = contentHtml.replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"');
+            contentHtml = contentHtml.replace(/&lt;img src=&quot;(.*?)&quot; class=&quot;chat-inline-img&quot;&gt;/g, '<img src="$1" class="chat-inline-img">');
+            contentHtml = contentHtml.replace(/&lt;div class=&quot;bubble-typing-indicator&quot;&gt;&lt;div&gt;&lt;\/div&gt;&lt;div&gt;&lt;\/div&gt;&lt;div&gt;&lt;\/div&gt;&lt;\/div&gt;/g, '<div class="bubble-typing-indicator"><div></div><div></div><div></div></div>');
             const touchHandlers = `onmousedown="handleTouchStart(event, ${realIndex})" onmouseup="handleTouchEnd()" onmouseleave="handleTouchEnd()" ontouchstart="handleTouchStart(event, ${realIndex})" ontouchend="handleTouchEnd()" ontouchcancel="handleTouchEnd()"`;
 
             if (contentHtml.startsWith('[REAL_CALL:')) {
@@ -1735,7 +1850,7 @@ function updateKeepAliveUI(isOn) {
         chats[currentChatRoleId].push(msgObj);
         updateChatStreak(currentChatRoleId);
         checkAutoSummarize(currentChatRoleId);
-        DB.set('chats', chats); resetUserActivity(); input.value = ''; input.style.height = '36px'; 
+        DB.set('chats', chats); resetUserActivity(); input.value = ''; input.style.height = '38px'; 
         $('#attachment-popup').style.display = 'none'; renderMessages();
     }
     function toggleAttachmentPopup(e) { e.stopPropagation(); const menu = $('#attachment-popup'); menu.style.display = menu.style.display === 'none' || menu.style.display === '' ? 'flex' : 'none'; }
@@ -2344,15 +2459,16 @@ let currentCallAudioId = null;
         async function triggerAI(isReroll = false) {
         if (!currentChatRoleId || window.isAiResponding) return;
 
-        const role = roles.find(r => r.id === currentChatRoleId);
+        const targetRoleId = currentChatRoleId;
+        const role = roles.find(r => r.id === targetRoleId);
         if (!role) return;
 
-        if (role.canBlock && blockList.blockedByRole.includes(currentChatRoleId)) {
-            triggerRoleBlocksUserReply(currentChatRoleId);
+        if (role.canBlock && blockList.blockedByRole.includes(targetRoleId)) {
+            triggerRoleBlocksUserReply(targetRoleId);
             return;
         }
 
-        let msgs = chats[currentChatRoleId] || [];
+        let msgs = chats[targetRoleId] || [];
         if (!isReroll && msgs.length === 0) return;
 
         window.isAiResponding = true;
@@ -2388,8 +2504,8 @@ let currentCallAudioId = null;
             mode: finalChatMode, 
             id: msgId 
         };
-        chats[currentChatRoleId].push(placeholderMsg);
-        renderMessages();
+        chats[targetRoleId].push(placeholderMsg);
+        if (currentChatRoleId === targetRoleId) renderMessages();
         const bubbleContentEl = document.querySelector(`#${msgId} .msg-bubble-content`);
 
         try {
@@ -2405,26 +2521,16 @@ let currentCallAudioId = null;
             const maxB = settings.bubbleCountMax || 5;
             let modeRules = '';
             if (finalChatMode === 'online') {
-                modeRules = `【线上聊天模式强制规则】
-- 保持简短、自然的网聊风格。
-- 必须严格输出 ${minB} 到 ${maxB} 句话（行）。如果设置了最少${minB}条，你绝对不能少于${minB}条！
-- 每句话必须独占一行（按回车换行），系统会根据换行自动切分为多个气泡。
-- 句末绝对不要加句号。`;
+                modeRules = `【线上聊天模式强制规则】\n- 保持简短、自然的网聊风格。\n- 必须严格输出 ${minB} 到 ${maxB} 句话（行）。如果设置了最少${minB}条，你绝对不能少于${minB}条！\n- 每句话必须独占一行（按回车换行），系统会根据换行自动切分为多个气泡。\n- 句末绝对不要加句号。`;
             } else {
-                modeRules = `【线下叙事模式强制规则】
-- 严格控制总字数在 ${settings.memoirMaxLength || 400} 字左右。
-- 必须严格按照以下三段式结构输出，绝对不能把对话和旁白揉在同一段里：
-第一段：纯粹的环境描写或心理描写（绝对不含任何对话）
-第二段："双引号包裹的对话文本"（必须独占一段）
-第三段：纯粹的环境描写或心理描写（绝对不含任何对话）`;
+                modeRules = `【线下叙事模式强制规则】\n- 严格控制总字数在 ${settings.memoirMaxLength || 400} 字左右。\n- 必须严格按照以下三段式结构输出，绝对不能把对话和旁白揉在同一段里：\n第一段：纯粹的环境描写或心理描写（绝对不含任何对话）\n第二段："双引号包裹的对话文本"（必须独占一段）\n第三段：纯粹的环境描写或心理描写（绝对不含任何对话）`;
             }
 
             let translationRule = '';
             if (settings.translationMode) {
                 translationRule = `\n8. 【双语翻译模式】你必须将你的回复翻译成${settings.translationTargetLang}。格式要求：先输出${settings.translationSourceLang}原文，然后换行，输出 "===TRANSLATION==="，再换行，输出${settings.translationTargetLang}翻译。`;
             }
-
-            const systemPrompt = `你是 ${role.realName}。请严格遵循以下设定进行角色扮演，绝对不要破坏沉浸感：
+                const systemPrompt = `你是 ${role.realName}。请严格遵循以下设定进行角色扮演，绝对不要破坏沉浸感：
 
 <persona>
 ${role.persona}
@@ -2442,7 +2548,7 @@ ${memories[role.id] ? `<shared_memory>\n${memories[role.id]}\n</shared_memory>` 
 </context>
 
 <rules>
-1. 【强制状态感知】在输出正式回复前，你必须先输出 <state>你当前的情绪、对用户的态度、以及你准备用什么语气回复（至少50字，深入思考）</state>。这能帮你找准感觉，防止OOC。每次回复都必须包含此标签！
+1. 【内置思维链与极速回复】为了保证聊天极速响应，你必须**先直接输出回复内容**！在回复内容结束后，另起一行输出 <state>你当前的情绪、对用户的态度、以及你刚才为什么这么回复（至少50字，深入思考）</state>。这能帮你维持人设，防止OOC。每次回复都必须在**末尾**包含此标签！
 2. 【去油腻】绝对禁止使用：轻笑、挑眉、眼眸深邃、喉结滚动、丫头、女人、呵、嘴角勾起一抹邪魅的弧度。说话必须口语化、自然。
 3. 【互动反应】对转账、礼物、代付、一起听歌、动态分享等系统提示，必须给出符合人设的真实反应。
 4. 【情侣空间】收到绑定邀请且同意时，回复包含 [ACCEPT_OURSPACE:配码]，并把配对码发给用户。
@@ -2579,7 +2685,7 @@ ${modeRules}
                         const parsed = JSON.parse(jsonStr);
                         const delta = parsed.choices[0]?.delta?.content;
                         if (delta) {
-                            if (isFirstChunk) { bubbleContentEl.innerHTML = ''; isFirstChunk = false; }
+                            if (isFirstChunk) { if (bubbleContentEl) bubbleContentEl.innerHTML = ''; isFirstChunk = false; }
                             fullReply += delta;
                             
                             const now = Date.now();
@@ -2600,7 +2706,9 @@ ${modeRules}
                                     if (currentBubbleEl) {
                                         currentBubbleEl.innerHTML = cleanDisplay.replace(/\n/g, '<br>');
                                     }
-                                    $('#chat-messages').scrollTop = $('#chat-messages').scrollHeight;
+                                    if (currentChatRoleId === targetRoleId) {
+                                        $('#chat-messages').scrollTop = $('#chat-messages').scrollHeight;
+                                    }
                                 });
                             }
                         }
@@ -2618,11 +2726,13 @@ ${modeRules}
                 cleanDisplay = cleanDisplay.replace(/<thought>([\s\S]*?)(<\/thought>|$)/gi, '<div style="opacity:0.6; font-size:0.85em; border-left:2px solid currentColor; padding-left:8px; margin-bottom:8px; font-style:italic;">$1</div>')
                                            .replace(/<state>[\s\S]*?(<\/state>|$)/gi, '');
             }
-            const currentBubbleEl = document.querySelector(`#${msgId} .msg-bubble-content`);
-            if (currentBubbleEl) {
-                currentBubbleEl.innerHTML = cleanDisplay.replace(/\n/g, '<br>');
+            const finalBubbleEl = document.querySelector(`#${msgId} .msg-bubble-content`);
+            if (finalBubbleEl) {
+                finalBubbleEl.innerHTML = cleanDisplay.replace(/\n/g, '<br>');
             }
-            $('#chat-messages').scrollTop = $('#chat-messages').scrollHeight;
+            if (currentChatRoleId === targetRoleId) {
+                $('#chat-messages').scrollTop = $('#chat-messages').scrollHeight;
+            }
 
             const stateMatch = fullReply.match(/<state>([\s\S]*?)<\/state>/i);
             if (stateMatch) {
@@ -2635,9 +2745,8 @@ ${modeRules}
                     rawMatch: stateMatch[0], 
                     time: new Date().toLocaleString('zh-CN') 
                 });
-                updateStatusBarButton();
+                if (currentChatRoleId === targetRoleId) updateStatusBarButton();
             }
-
 
             if (!settings.showCoT) {
                 fullReply = fullReply.replace(/<thought>[\s\S]*?<\/thought>/gi, '').replace(/思考：[\s\S]*?(?=\n\n|$)/gi, '').replace(/<state>[\s\S]*?<\/state>/gi, '').trim();
@@ -2651,8 +2760,10 @@ ${modeRules}
                 role.avatar = avatarMatch[1].trim();
                 DB.set('roles', roles);
                 fullReply = fullReply.replace(avatarMatch[0], '');
-                const avatarContainer = document.getElementById('chat-header-avatar');
-                if (avatarContainer) avatarContainer.src = role.avatar;
+                if (currentChatRoleId === targetRoleId) {
+                    const avatarContainer = document.getElementById('chat-header-avatar');
+                    if (avatarContainer) avatarContainer.src = role.avatar;
+                }
             }
             
             const photoMatches = [...fullReply.matchAll(/\[SAVE_PHOTO:(.*?)\|(.*?)\]/g)];
@@ -2674,8 +2785,8 @@ ${modeRules}
                 const code = osMatch[1].trim();
                 fullReply = fullReply.replace(osMatch[0], ''); 
                 
-                for (let i = chats[currentChatRoleId].length - 1; i >= 0; i--) {
-                    let m = chats[currentChatRoleId][i];
+                for (let i = chats[targetRoleId].length - 1; i >= 0; i--) {
+                    let m = chats[targetRoleId][i];
                     if (m.role === 'user' && m.content.includes('[OURSPACE_INVITE:')) {
                         try {
                             let raw = m.content.match(/\[OURSPACE_INVITE:(.*?)\]/)[1];
@@ -2690,29 +2801,30 @@ ${modeRules}
 
             fullReply = fullReply.trim();
             
-            const pIndex = chats[currentChatRoleId].findIndex(m => m.id === msgId);
+            const pIndex = chats[targetRoleId].findIndex(m => m.id === msgId);
             if (pIndex > -1) {
-                chats[currentChatRoleId].splice(pIndex, 1);
+                chats[targetRoleId].splice(pIndex, 1);
             } else {
-                chats[currentChatRoleId].pop();
+                chats[targetRoleId].pop();
             }
             
-            if (finalChatMode === 'offline') {
-                const formattedReply = fullReply.replace(/\n+/g, '<br><br>');
-                chats[currentChatRoleId].push({ role: 'ai', content: formattedReply, time: timeStr, rawTime: now.getTime(), mode: 'offline' });
+            let formattedReply = "";
+            let finalSentences = [];
+            if (finalChatMode === 'offline' || fullReply.includes('===TRANSLATION===')) {
+                formattedReply = fullReply.replace(/\n+/g, '\n');
+                chats[targetRoleId].push({ role: 'ai', content: formattedReply, time: timeStr, rawTime: now.getTime(), mode: finalChatMode });
             } else {
-                const finalSentences = fullReply.split('\n').map(s => s.trim()).filter(s => s);
+                finalSentences = fullReply.split('\n').map(s => s.trim()).filter(s => s);
                 finalSentences.forEach(sentence => {
-                    chats[currentChatRoleId].push({ role: 'ai', content: sentence, time: timeStr, rawTime: now.getTime(), mode: 'online' });
+                    chats[targetRoleId].push({ role: 'ai', content: sentence, time: timeStr, rawTime: now.getTime(), mode: 'online' });
                 });
             }
             
             DB.set('chats', chats);
-            renderMessages();
+            if (currentChatRoleId === targetRoleId) renderMessages();
             
-            // 修复：如果用户切到了后台，AI回复完成后弹出通知
             if (document.hidden) {
-                showSystemNotification(currentChatRoleId, getDisplayName(role), finalChatMode === 'offline' ? formattedReply : finalSentences.join(' '), role.avatar);
+                showSystemNotification(targetRoleId, getDisplayName(role), finalChatMode === 'offline' ? formattedReply : finalSentences.join(' '), role.avatar);
             }
 
         } catch (err) {
@@ -2731,16 +2843,16 @@ ${modeRules}
                 solution = "API 返回的数据格式异常。可能是模型不支持流式输出，或者接口地址填错了。";
             }
 
-            const lastMsg = chats[currentChatRoleId][chats[currentChatRoleId].length - 1];
+            const lastMsg = chats[targetRoleId][chats[targetRoleId].length - 1];
             if (lastMsg && lastMsg.id === msgId) {
                 lastMsg.content = `<span style="color:#ff4d4d;">[API 请求中断/报错] ${err.message}<br><br>💡 建议：${solution}</span>`;
                 lastMsg.role = 'system';
                 lastMsg.mode = 'online';
             } else {
-                chats[currentChatRoleId].push({ role: 'system', content: `<span style="color:#ff4d4d;">[API 请求中断/报错] ${err.message}<br><br>💡 建议：${solution}</span>`, time: timeStr, rawTime: now.getTime(), mode: 'online' });
+                chats[targetRoleId].push({ role: 'system', content: `<span style="color:#ff4d4d;">[API 请求中断/报错] ${err.message}<br><br>💡 建议：${solution}</span>`, time: timeStr, rawTime: now.getTime(), mode: 'online' });
             }
             DB.set('chats', chats);
-            renderMessages();
+            if (currentChatRoleId === targetRoleId) renderMessages();
             
             alert(`⚠️ AI 回复中断/报错！\n\n【错误信息】\n${err.message}\n\n【解决方案】\n${solution}`);
         } finally {
@@ -2748,6 +2860,7 @@ ${modeRules}
             if (typeof hideGlobalTyping === 'function') hideGlobalTyping();
         }
     }
+    
     function renderWeather() { 
         const form = $('#weather-form'); 
         form.innerHTML = Object.entries({ 
@@ -3257,45 +3370,49 @@ function addStickerToGroup() { const url = $('#sticker-url').value.trim(); const
         event.target.value = '';
     }
 
+    let _stickerSearchTimer = null;
     function checkStickerSuggestions() {
-        const input = document.getElementById('chat-input');
-        const text = input.value.trim();
-        const container = document.getElementById('sticker-suggestions');
-        
-        if (!text || text.length < 1) { 
-            container.style.display = 'none'; 
-            return; 
-        }
-        
-        let matchedStickers = [];
-        stickers.forEach(group => {
-            let boundIds = group.boundRoleIds || (group.boundRoleId ? [group.boundRoleId] : []);
-            if (boundIds.length > 0 && !boundIds.includes(currentChatRoleId)) return; 
+        clearTimeout(_stickerSearchTimer);
+        _stickerSearchTimer = setTimeout(() => {
+            const input = document.getElementById('chat-input');
+            const text = input.value.trim();
+            const container = document.getElementById('sticker-suggestions');
             
-            group.items.forEach(item => {
-                if (item.virtual && item.virtual.includes(text)) {
-                    matchedStickers.push(item);
+            if (!text || text.length < 1) { 
+                container.style.display = 'none'; 
+                return; 
+            }
+            
+            let matchedStickers = [];
+            stickers.forEach(group => {
+                let boundIds = group.boundRoleIds || (group.boundRoleId ? [group.boundRoleId] : []);
+                if (boundIds.length > 0 && !boundIds.includes(currentChatRoleId)) return; 
+                
+                group.items.forEach(item => {
+                    if (item.virtual && item.virtual.includes(text)) {
+                        matchedStickers.push(item);
+                    }
+                });
+            });
+            
+            const uniqueStickers = [];
+            const seenUrls = new Set();
+            matchedStickers.forEach(s => {
+                if (!seenUrls.has(s.url)) { 
+                    seenUrls.add(s.url); 
+                    uniqueStickers.push(s); 
                 }
             });
-        });
-        
-        const uniqueStickers = [];
-        const seenUrls = new Set();
-        matchedStickers.forEach(s => {
-            if (!seenUrls.has(s.url)) { 
-                seenUrls.add(s.url); 
-                uniqueStickers.push(s); 
+            
+            if (uniqueStickers.length > 0) {
+                container.innerHTML = uniqueStickers.slice(0, 15).map(s => 
+                    `<div class="suggestion-item" style="background-image: url('${s.url}')" onclick="sendSuggestedSticker('${s.url}')" title="${s.virtual}"></div>`
+                ).join('');
+                container.style.display = 'flex';
+            } else {
+                container.style.display = 'none';
             }
-        });
-        
-        if (uniqueStickers.length > 0) {
-            container.innerHTML = uniqueStickers.slice(0, 15).map(s => 
-                `<div class="suggestion-item" style="background-image: url('${s.url}')" onclick="sendSuggestedSticker('${s.url}')" title="${s.virtual}"></div>`
-            ).join('');
-            container.style.display = 'flex';
-        } else {
-            container.style.display = 'none';
-        }
+        }, 300); // 增加 300ms 防抖，彻底解决打字卡顿
     }
 
     function sendSuggestedSticker(url) {
@@ -5547,6 +5664,13 @@ ${extraLorePrompt}
     }
 
     async function startMusicQrLogin() {
+        if (window.isGeneratingQr) return;
+        window.isGeneratingQr = true;
+        if (musicQrCheckInterval) {
+            clearInterval(musicQrCheckInterval);
+            musicQrCheckInterval = null;
+        }
+
         const btn = $('#music-login-btn');
         const statusEl = $('#music-login-status');
         const qrImg = $('#music-qr-img');
@@ -5614,6 +5738,8 @@ ${extraLorePrompt}
             statusEl.innerText = '生成二维码失败: ' + e.message;
             btn.innerHTML = 'RETRY<span>重试</span>';
             btn.disabled = false;
+        } finally {
+            window.isGeneratingQr = false;
         }
     }
 
@@ -5755,10 +5881,12 @@ ${extraLorePrompt}
         } 
     }
     
+    let currentPlayId = 0;
     async function playMusicTrack(index) {
         if (index < 0 || index >= musicPlaylist.length) return;
         musicCurrentTrackIndex = index;
         const track = musicPlaylist[index];
+        const playId = ++currentPlayId;
 
         try {
             updatePlayerUI(track.name, track.artist, track.picUrl, null, null);
@@ -5772,11 +5900,11 @@ ${extraLorePrompt}
                 musicLyrics = [{ time: 0, text: "纯音乐 / 暂无歌词" }];
             }
 
-            const songUrl = `${AUDIO_API_METING}${track.id}`;
-            
-            updatePlayerUI(track.name, track.artist, track.picUrl, songUrl, true);
+            if (playId !== currentPlayId) return;
+            const songUrl = `${AUDIO_API_METING}${trac
             
             musicAudio.onerror = async () => {
+                musicAudio.onerror = null; 
                 console.warn("Meting 播放失败，尝试备用接口...");
                 try {
                     const fallbackRes = await fetch(`${MUSIC_API_BASE}/song/url/v1?id=${track.id}&level=exhigh`);
@@ -6377,7 +6505,7 @@ async function generateAutoMsg(roleId) {
         
         const apiMessages = [];
 
-        const systemPrompt = `[CORE DIRECTIVE - 活人感主动消息模式]\n你是${role.realName}。以下是你的完整人设，你必须100%遵守，绝对不能OOC：\n${role.persona}${maskPrompt}${wbPrompt}${mapContext}${memorySummary}${osContext}\n\n[当前情境与时间感知]\n- ${timeContext}，${weekday}，${now.getFullYear()}年${now.getMonth()+1}月${now.getDate()}日 ${String(hour).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}\n- 距离用户上一条消息已经过去了 ${silenceDuration || '一段时间'}。\n- 你们上次聊天的最后内容是：【${lastTopic}】\n\n[活人感终极要求]\n1. 【强制状态感知】在输出正式回复前，你必须先输出 <state>你在这 ${silenceDuration || '一段时间'} 里做了什么、现在的心情、以及你找用户的目的（至少50字，深入思考）</state>。这能帮你找准语气。每次回复都必须包含此标签！\n2. 【承上启下】结合上次聊天的内容和流逝的时间，自然地开启话题。比如上次聊到睡觉，现在是早晨，就可以说“昨晚睡得好吗”。绝对不要像机器人一样干巴巴地问“在吗”。\n3. 【去油腻】说话必须口语化、自然、接地气。绝对禁止使用霸总、娇妻等夸张做作的语调。\n4. 【格式限制】严格输出 ${minB} 到 ${maxB} 句话！每句话独占一行。日常聊天绝对不要在句末加句号。\n5. 直接输出消息内容，不加引号，不加任何解释。`;
+        const systemPrompt = `[CORE DIRECTIVE - 活人感主动消息模式]\n你是${role.realName}。以下是你的完整人设，你必须100%遵守，绝对不能OOC：\n${role.persona}${maskPrompt}${wbPrompt}${mapContext}${memorySummary}${osContext}\n\n[当前情境与时间感知]\n- ${timeContext}，${weekday}，${now.getFullYear()}年${now.getMonth()+1}月${now.getDate()}日 ${String(hour).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}\n- 距离用户上一条消息已经过去了 ${silenceDuration || '一段时间'}。\n- 你们上次聊天的最后内容是：【${lastTopic}】\n\n[活人感终极要求]\n1. 【极速回复与状态后置】你必须**先直接输出回复内容**！在回复结束后，另起一行输出 <state>你在这 ${silenceDuration || '一段时间'} 里做了什么、现在的心情、以及你找用户的目的（至少50字，深入思考）</state>。这能帮你找准语气。每次回复都必须在**末尾**包含此标签！\n2. 【承上启下】结合上次聊天的内容和流逝的时间，自然地开启话题。比如上次聊到睡觉，现在是早晨，就可以说“昨晚睡得好吗”。绝对不要像机器人一样干巴巴地问“在吗”。\n3. 【去油腻】说话必须口语化、自然、接地气。绝对禁止使用霸总、娇妻等夸张做作的语调。\n4. 【格式限制】严格输出 ${minB} 到 ${maxB} 句话！每句话独占一行。日常聊天绝对不要在句末加句号。\n5. 直接输出消息内容，不加引号，不加任何解释。`;
 
         apiMessages.push({ role: 'system', content: systemPrompt });
         
@@ -9290,11 +9418,11 @@ function onAiAvatarDblClick() {
         }
         
         let start;
-        if (startStr.includes('T')) {
-            start = new Date(startStr).getTime();
-        } else {
-            start = new Date(startStr + 'T00:00:00').getTime();
+        let safeDateStr = startStr;
+        if (!safeDateStr.includes('T')) {
+            safeDateStr = safeDateStr.replace(/-/g, '/') + ' 00:00:00';
         }
+        start = new Date(safeDateStr).getTime();
         
         if (isNaN(start)) {
             start = Date.now();
@@ -11227,4 +11355,20 @@ async function playCachedAudio(audioId) {
 
 document.addEventListener('DOMContentLoaded', () => {
     bootDatabase();
+});
+
+document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') {
+        const criticalKeys = ['chats', 'roles', 'walletData', 'ourSpaceData'];
+        criticalKeys.forEach(key => {
+            if (DB.cache[key]) {
+                try {
+                    const dataStr = JSON.stringify(DB.cache[key]);
+                    if (dataStr.length < 4500000) { 
+                        localStorage.setItem('suowu_' + key, dataStr);
+                    }
+                } catch (e) {}
+            }
+        });
+    }
 });
