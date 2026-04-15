@@ -288,6 +288,7 @@
                 <button class="text-btn" onclick="closeApp('forum')">RETURN<span>返回</span></button>
                 <h2 class="title-serif">BBS.<span class="title-sub">暗网论坛</span></h2>
                 <div style="display: flex; align-items: center; gap: 5px;">
+                    <button class="text-btn" onclick="openSubApiModal('forum')">ENGINE<span>引擎</span></button>
                     <button class="text-btn" onclick="openModal('modal-forum-wb')">LORE<span>设定</span></button>
                     
                     <select id="forum-generate-count" style="background: transparent; border: 1px solid var(--border-color); color: var(--text-color); font-size: 9px; padding: 2px; outline: none;">
@@ -343,6 +344,7 @@
         <button class="text-btn" onclick="cipherGlobalBack()">RETURN<span>返回</span></button>
         <h2 class="title-serif">Cipher.<span class="title-sub">情绪密码</span></h2>
         <div style="display:flex; align-items:center; gap:10px;">
+            <button class="text-btn" onclick="openSubApiModal('cipher')">ENGINE<span>引擎</span></button>
             <button class="text-btn" style="color:var(--text-color);" onclick="cipherSummarizeMemory(true)">SAVE MEMORY<span>保存记忆</span></button>
             <div style="font-size:9px; font-weight:600; letter-spacing:1px;">✦ <span id="cipher-score-top">0</span></div>
         </div>
@@ -501,7 +503,10 @@
     <div class="view-header">
         <button class="text-btn" onclick="reincGlobalBack()">RETURN<span>返回</span></button>
         <h2 class="title-serif">Pastlife.<span class="title-sub">物品前世今生</span></h2>
-        <button class="text-btn" style="color:var(--text-color);" onclick="reincSummarizeMemory(true)">SAVE MEMORY<span>保存记忆</span></button>
+        <div style="display:flex; align-items:center; gap:10px;">
+            <button class="text-btn" onclick="openSubApiModal('reincarnation')">ENGINE<span>引擎</span></button>
+            <button class="text-btn" style="color:var(--text-color);" onclick="reincSummarizeMemory(true)">SAVE MEMORY<span>保存记忆</span></button>
+        </div>
     </div>
     <div class="view-content">
         
@@ -662,19 +667,19 @@
             </div>
         </div>
 
-<!-- 外卖专属 API 配置弹窗 -->
-<div class="modal-overlay" id="modal-takeout-api">
+<!-- 通用副 API 配置弹窗 -->
+<div class="modal-overlay" id="modal-sub-api">
     <div class="modal">
-        <h3>Takeout Engine <span>外卖副API配置</span></h3>
+        <h3>Sub Engine <span>应用专属副API配置</span></h3>
         <div class="setting-group" style="border:none; padding:0;">
-            <input type="text" id="takeout-api-url" placeholder="API ENDPOINT">
-            <input type="password" id="takeout-api-key" placeholder="API KEY" style="margin-top:10px;">
-            <input type="text" id="takeout-api-model" placeholder="MODEL ID" style="margin-top:10px;">
-            <div style="font-size: 9px; color: var(--text-secondary); margin-top: 10px; line-height: 1.5;">* 配置后，外卖的商品解析、分类生成将使用此副API。留空则默认使用系统主API。</div>
+            <input type="text" id="sub-api-url" placeholder="API ENDPOINT">
+            <input type="password" id="sub-api-key" placeholder="API KEY" style="margin-top:10px;">
+            <input type="text" id="sub-api-model" placeholder="MODEL ID" style="margin-top:10px;">
+            <div style="font-size: 9px; color: var(--text-secondary); margin-top: 10px; line-height: 1.5;">* 配置后，当前应用（如外卖、论坛、游戏等）的AI生成将优先使用此副API。留空则默认使用系统主API。</div>
         </div>
         <div class="modal-btns">
-            <button class="btn-cancel" onclick="closeModal('modal-takeout-api')">CANCEL<span>取消</span></button>
-            <button class="btn-confirm" onclick="saveTakeoutApi()">SAVE<span>保存</span></button>
+            <button class="btn-cancel" onclick="closeModal('modal-sub-api')">CANCEL<span>取消</span></button>
+            <button class="btn-confirm" onclick="saveSubApi()">SAVE<span>保存</span></button>
         </div>
     </div>
 </div>
@@ -727,9 +732,9 @@
                 <div class="to-profile-card"><div class="to-profile-avatar" id="to-profile-avatar-icon">👤</div><div><div class="to-profile-name" id="to-profile-name-text">用户</div><div class="to-profile-sub">普通会员</div></div></div>
                 <div class="to-profile-menu-item" onclick="toNavTo('to-address')"><span class="to-profile-menu-label">📍 收货地址管理</span><span class="to-profile-menu-arrow">›</span></div>
                 <div class="to-profile-menu-item" onclick="toSwitchTab(document.querySelectorAll('.to-nav-item')[2],'orders')"><span class="to-profile-menu-label">📋 我的订单</span><span class="to-profile-menu-arrow">›</span></div>
-                <div class="to-profile-menu-item"><span class="to-profile-menu-label">🎫 优惠券</span><span class="to-profile-menu-arrow">›</span></div>
-                <div class="to-profile-menu-item"><span class="to-profile-menu-label">⭐ 我的收藏</span><span class="to-profile-menu-arrow">›</span></div>
-                <div class="to-profile-menu-item"><span class="to-profile-menu-label">⚙️ 设置</span><span class="to-profile-menu-arrow">›</span></div>
+        <div class="to-profile-menu-item"><span class="to-profile-menu-label">🎫 优惠券</span><span class="to-profile-menu-arrow">›</span></div>
+        <div class="to-profile-menu-item"><span class="to-profile-menu-label">⭐ 我的收藏</span><span class="to-profile-menu-arrow">›</span></div>
+        <div class="to-profile-menu-item" onclick="openSubApiModal('takeout')"><span class="to-profile-menu-label">⚙️ 引擎设置</span><span class="to-profile-menu-arrow">›</span></div>
             </div></div>
         </div>
         <!-- 地址管理 -->
@@ -763,7 +768,10 @@
             <button id="tab-btn-vmap" class="action-btn primary" style="margin: 0; padding: 6px 12px; font-size: 9px; border-radius: 10px; border: none;" onclick="switchMapMode('virtual')">VIRTUAL</button>
             <button id="tab-btn-rmap" class="action-btn" style="margin: 0; padding: 6px 12px; font-size: 9px; border-radius: 10px; border: none; background: transparent; color: var(--text-color);" onclick="switchMapMode('real')">REAL</button>
         </div>
-        <button class="text-btn" id="btn-map-top-action" onclick="openVmapPresetsModal()">PRESETS<span>预设</span></button>
+        <div style="display:flex; align-items:center; gap:10px;">
+            <button class="text-btn" onclick="openSubApiModal('map')">ENGINE<span>引擎</span></button>
+            <button class="text-btn" id="btn-map-top-action" onclick="openVmapPresetsModal()">PRESETS<span>预设</span></button>
+        </div>
     </div>
     <div class="view-content" style="padding: 0; display: flex; flex-direction: column; background: #e5e5ea; position: relative;">
         
@@ -1096,14 +1104,20 @@
                 <div class="status-panel-content">
                     <div class="status-panel-header">
                         <div class="status-panel-title">Status</div>
-                        <button class="close-status-panel" onclick="closeStatusPanel()">
-                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-                        </button>
+                        <div style="display:flex; gap:10px;">
+                            <button class="text-btn" style="padding:0; font-size:10px;" onclick="toggleStatusManageMode()" id="btn-manage-status">MANAGE</button>
+                            <button class="close-status-panel" onclick="closeStatusPanel()">
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                            </button>
+                        </div>
                     </div>
-                    <div id="char-status-body">
+                    <div id="char-status-body" style="display:flex; flex-direction:column; gap:10px; max-height:50vh; overflow-y:auto;">
                         <div style="text-align:center; color:var(--text-secondary); font-size:10px; padding:20px;">暂无状态数据</div>
                     </div>
-                    <div class="status-history-indicator" id="status-history-dots"></div>
+                    <div id="status-selection-bar" style="display:none; justify-content:space-between; margin-top:15px; padding-top:10px; border-top:1px solid var(--gray-light);">
+                        <button class="action-btn primary" style="width:48%; margin:0;" onclick="deleteSelectedStatus()">DELETE</button>
+                        <button class="action-btn" style="width:48%; margin:0;" onclick="toggleStatusManageMode()">CANCEL</button>
+                    </div>
                 </div>
             </div>
 
@@ -1384,7 +1398,7 @@
         </div>
 
         <div class="setting-group" style="border:none; padding:0; margin-top: 10px; display: flex; gap: 10px;">
-            <div style="flex: 1; min-width: 0;"><label style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">CONTEXT LIMIT / 上下文读取</label><input type="number" id="role-context-limit" placeholder="默认 50" style="width: 100%; padding: 10px 12px; border: 1px solid var(--border-color); background: transparent; color: var(--text-color); font-family: var(--font-sans); font-size: 11px; outline: none; box-sizing: border-box;"></div>
+            <div style="flex: 1; min-width: 0;"><label style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">CONTEXT LIMIT / 上下文读取</label><input type="number" id="role-context-limit" placeholder="默认 30" style="width: 100%; padding: 10px 12px; border: 1px solid var(--border-color); background: transparent; color: var(--text-color); font-family: var(--font-sans); font-size: 11px; outline: none; box-sizing: border-box;"></div>
             <div style="flex: 1; min-width: 0;"><label style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">AUTO SUMMARY / 自动总结</label><input type="number" id="role-summary-threshold" placeholder="默认 100" style="width: 100%; padding: 10px 12px; border: 1px solid var(--border-color); background: transparent; color: var(--text-color); font-family: var(--font-sans); font-size: 11px; outline: none; box-sizing: border-box;"></div>
         </div>
         
@@ -1701,10 +1715,13 @@
     <div class="view-header">
         <button class="text-btn" onclick="closeApp('wallet')">RETURN<span>返回</span></button>
         <h2 class="title-serif">Wallet.<span class="title-sub">数字资产</span></h2>
-        <button class="text-btn" onclick="generateWalletAssets()" id="btn-wallet-ai" style="display:none;">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path></svg>
-            <span>生成</span>
-        </button>
+        <div style="display:flex; align-items:center; gap:10px;">
+            <button class="text-btn" onclick="openSubApiModal('wallet')">ENGINE<span>引擎</span></button>
+            <button class="text-btn" onclick="generateWalletAssets()" id="btn-wallet-ai" style="display:none;">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path></svg>
+                <span>生成</span>
+            </button>
+        </div>
     </div>
     <div class="view-content">
         <div style="padding: 15px 20px; background: var(--glass-bg); border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center;">
@@ -1838,7 +1855,7 @@
     <div class="view-header" style="border-bottom: none; padding-bottom: 0;">
         <button class="text-btn" onclick="closeApp('ourspace')">RETURN<span>返回</span></button>
         <h2 class="title-serif">OurSpace.<span class="title-sub">心动日常</span></h2>
-        <div style="width: 60px;"></div>
+        <button class="text-btn" onclick="openSubApiModal('ourspace')">ENGINE<span>引擎</span></button>
     </div>
     <div class="view-content" style="position: relative;">
         

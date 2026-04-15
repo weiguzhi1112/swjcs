@@ -15,16 +15,13 @@ function showGlobalTyping(name) {
     const isChatActive = chatView && chatView.classList.contains('active');
     
     if (isChatActive) {
-        // 1. 如果在聊天界面：修改备注标题
         const titleEl = document.getElementById('chat-title');
         if (titleEl) {
             titleEl.innerText = "正在输入...";
-            // 顺便隐藏可能正在显示的灵动岛
             const el = document.getElementById('global-typing-indicator');
             if (el) el.style.display = 'none';
         }
     } else {
-        // 2. 如果不在聊天界面：显示灵动岛
         const el = document.getElementById('global-typing-indicator');
         if (el) {
             document.getElementById('global-typing-name').innerText = name || 'AI';
@@ -37,7 +34,6 @@ function showGlobalTyping(name) {
 }
 
 function hideGlobalTyping() {
-    // 1. 隐藏灵动岛
     const el = document.getElementById('global-typing-indicator');
     if (el) {
         el.style.opacity = '0';
@@ -45,7 +41,6 @@ function hideGlobalTyping() {
         setTimeout(() => el.style.display = 'none', 300);
     }
     
-    // 2. 恢复聊天界面的标题
     if (currentChatRoleId) {
         const role = roles.find(r => r.id === currentChatRoleId);
         const titleEl = document.getElementById('chat-title');
@@ -55,40 +50,28 @@ function hideGlobalTyping() {
     }
 }
 
-
-
-// ==========================================
-// iOS 视口高度适配与防缩放逻辑 (提取自附件)
-// ==========================================
 function updateAppViewportVars() {
     const docStyle = document.documentElement.style;
     const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
     
     if (isIOS && window.visualViewport) {
-        // 通过高度差精准判断键盘是否弹出
         const isKeyboardOpen = (window.screen.height - window.visualViewport.height) > 150;
         
         if (isKeyboardOpen) {
-            // 键盘弹起时，高度缩小到可视区域
             docStyle.setProperty('--app-height', `${window.visualViewport.height}px`);
         } else {
-            // 键盘收起时，恢复最大高度，彻底消灭底部黑边
             const candidates = [window.innerHeight, document.documentElement.clientHeight, window.visualViewport.height];
             if (window.navigator.standalone === true) candidates.push(window.screen.height);
             docStyle.setProperty('--app-height', `${Math.max(...candidates)}px`);
         }
-        // 强制回滚，防止 iOS 页面错位
         window.scrollTo(0, 0);
         document.body.scrollTop = 0;
     } else {
-        // 安卓或其他设备直接使用 innerHeight
         docStyle.setProperty('--app-height', `${window.innerHeight}px`);
     }
 }
 
-// 监听键盘弹出和屏幕旋转
 if (window.visualViewport) {
-    // 使用节流函数包装，每 200ms 最多执行一次，大幅降低性能消耗
     const throttledUpdate = throttle(updateAppViewportVars, 200);
     window.visualViewport.addEventListener('resize', throttledUpdate);
     
@@ -101,17 +84,13 @@ if (window.visualViewport) {
 }
 updateAppViewportVars();
 
-// 检测是否为添加到主屏幕模式
 if (window.navigator.standalone) document.body.classList.add('ios-standalone');
 
-// 彻底禁止双指缩放
 document.addEventListener('touchmove', function(event) {
     if (event.touches.length > 1) event.preventDefault();
 }, { passive: false });
 
-// --- 防止 iOS 橡皮筋滚动导致页面被拖出空白 ---
 document.addEventListener('touchmove', function(e) {
-    // 检查事件目标是否在一个可滚动的容器内
     let target = e.target;
     let isScrollable = false;
     while (target && target !== document.body && target !== document.documentElement) {
@@ -119,7 +98,6 @@ document.addEventListener('touchmove', function(e) {
         const overflowY = style.getPropertyValue('overflow-y');
         const overflowX = style.getPropertyValue('overflow-x');
         if (overflowY === 'auto' || overflowY === 'scroll' || overflowX === 'auto' || overflowX === 'scroll') {
-            // 检查这个元素是否真的有内容可以滚动
             if (target.scrollHeight > target.clientHeight || target.scrollWidth > target.clientWidth) {
                 isScrollable = true;
                 break;
@@ -127,16 +105,12 @@ document.addEventListener('touchmove', function(e) {
         }
         target = target.parentNode;
     }
-    // 如果不在任何可滚动容器内，阻止默认的拖拽行为
     if (!isScrollable) {
         e.preventDefault();
     }
 }, { passive: false });
     function throttle(func, delay) { let timer = null; let startTime = Date.now(); return function(...args) { let curTime = Date.now(); let remaining = delay - (curTime - startTime); const context = this; clearTimeout(timer); if (remaining <= 0) { func.apply(context, args); startTime = Date.now(); } else { timer = setTimeout(() => { func.apply(context, args); }, remaining); } }; }
    
-    // This block has been removed as it was a duplicate of the function above.
-
-    // --- Data Management (升级版：IndexedDB大容量 + 持久化) ---
     const DB = {
         cache: {},
         get: (key, def) => {
@@ -147,7 +121,6 @@ document.addEventListener('touchmove', function(e) {
             if (window.idbStore) {
                 window.idbStore.put(val, key).catch(e => console.warn('IDB Save Error', e));
             }
-            // 核心修复：只将小体积的配置项存入 localStorage，防止 5MB 限制导致崩溃和严重卡顿
             const smallKeys = ['settings', 'api', 'activated', 'activated_device', 'discord_user', 'appOrder', 'appCustomizations'];
             if (smallKeys.includes(key)) {
                 try { localStorage.setItem('suowu_' + key, JSON.stringify(val)); } catch (e) {}
@@ -155,7 +128,6 @@ document.addEventListener('touchmove', function(e) {
         }
     };
 
-       // --- Data State (全局变量声明) ---
     let roles, chats, worldbooks, masks, memories, memoirStyles, weatherData, albums, stickers, fontPresets, appCustomizations, apiPresets, apiConfig, feeds, reincBank, reincCurrent, reincChats, forumPosts, currentForumFilter, isForumSelectionMode, selectedForumPosts, forumPressTimer, currentThreadId, settings, advancedMemories, chatStreaks, memorySettings, blockList, walletData, walletCreds, currentWalletAccount, ourSpaceData, virtualLocations, vmapPresets, mapConfig, vmapRoutes, grimoires;
     let cipherState, cipherBank, cipherPool, cipherCurrent, cipherKbCat;
     let calendarEvents, calendarSettings, calViewYear, calViewMonth, calSelectedDate, editingCalEventId;
@@ -164,10 +136,9 @@ document.addEventListener('touchmove', function(e) {
     let musicPlaylist, savedPlaylists, musicCurrentTrackIndex, musicAudio, musicIsPlaying, musicLyrics, musicActiveTab, isFullScreenPlayerVisible;
     let statusBarData, statusPresets;
     let toCart, toCurrentShopIdx, toSelectedPayMethod, toAddresses, toSelectedAddrId, toOrderHistory, toCurrentTab, toReceiptReturnPage, toPageHistory, toFavorites, toSearchResults, toPendingDaifuOrder;
-    let listenTogetherSession, listenTogetherHistory, musicUserInfo, autoMsgLastSent, autoFeedLastSent, takeoutApiConfig;
+    let listenTogetherSession, listenTogetherHistory, musicUserInfo, autoMsgLastSent, autoFeedLastSent, subApiConfigs;
     const aliveHumanPrompt = "【活人感指令】请表现得像一个真实的人类，有自己的情绪、思考和反应，不要像一个AI助手。";
 
-    // --- 数据库启动与数据迁移 ---
     async function bootDatabase() {
         if (navigator.storage && navigator.storage.persist) {
             try { await navigator.storage.persist(); } catch(e) {}
@@ -192,7 +163,6 @@ document.addEventListener('touchmove', function(e) {
                 };
                 request.onerror = () => resolve(null);
             } catch (e) {
-                // 核心修复：捕获浏览器隐私模式或本地文件协议下的数据库拦截报错
                 console.warn("IndexedDB 被拦截，降级使用内存模式", e);
                 resolve(null);
             }
@@ -262,7 +232,6 @@ document.addEventListener('touchmove', function(e) {
         reincBank = DB.get('reincBank', [{ name: '鼠标', past: '宫廷玉如意', present: '天天被手摸，偶尔还被摔' }, { name: '水杯', past: '太上老君的炼丹炉', present: '天天被灌水，冷暖自知' }]);
     reincCurrent = { mode: 'user', roleId: null, aiItem: null };
 
-// --- 核心修复：从数据库读取游戏历史记录 ---
     reincChats = DB.get('reincChats', []); 
 cipherState = DB.get('cipherState', {score:0,created:0,solved:0,collection:[], history:[]});
         
@@ -296,13 +265,12 @@ cipherState = DB.get('cipherState', {score:0,created:0,solved:0,collection:[], h
         musicUserInfo = DB.get('musicUserInfo', null);
         autoMsgLastSent = DB.get('autoMsgLastSent', {});
         autoFeedLastSent = DB.get('autoFeedLastSent', {});
-        takeoutApiConfig = DB.get('takeoutApiConfig', { url: '', key: '', model: '' });
+        subApiConfigs = DB.get('subApiConfigs', {});
         appOrder = DB.get('appOrder', []);
         appGrid = DB.get('appGrid', null);
         statusBarData = DB.get('statusBarData', {});
         statusPresets = DB.get('statusPresets', []);
 
-        // 核心修复：将外卖数据的初始化移入异步数据库加载完成后，解决“无法保存到本地”的毒瘤
         let defaultAddresses = [
             {id:'a1',tag:'公司',addr:'科技园A座 3楼',name:'张三',phone:'138****8888'},
             {id:'a2',tag:'家',addr:'幸福小区 12栋 801',name:'张三',phone:'138****8888'}
@@ -364,53 +332,40 @@ cipherState = DB.get('cipherState', {score:0,created:0,solved:0,collection:[], h
         closeModal('modal-image-quality');
         alert('图片压缩清晰度已保存！后续上传的图片将应用此设置。');
     };
-// blockedByUser: 用户拉黑的角色id数组
-// blockedByRole: { roleId, enabled } 角色拉黑用户的开关
-
-// ==========================================
-// --- Discord OAuth2 登录系统 ---
-// ==========================================
 
 const DISCORD_CONFIG = {
-    clientId: '1487795780818309292',          // 你的 App ID
-    guildId: '1488113054003626126',            // 你的服务器 ID
-    redirectUri: 'https://weiguzhi1112.github.io/suowuji/', // 当前页面地址
-    // 需要的权限范围：identify（获取用户信息）+ guilds（检查服务器成员）
+    clientId: '1487795780818309292',          
+    guildId: '1488113054003626126',            
+    redirectUri: 'https://weiguzhi1112.github.io/suowuji/', 
     scope: 'identify guilds'
 };
 
-// 生成 Discord 授权链接
 function getDiscordAuthUrl() {
     const params = new URLSearchParams({
         client_id: DISCORD_CONFIG.clientId,
         redirect_uri: DISCORD_CONFIG.redirectUri,
-        response_type: 'token',  // 使用隐式授权（纯前端，无需后端）
+        response_type: 'token',  
         scope: DISCORD_CONFIG.scope,
         prompt: 'consent'
     });
     return `https://discord.com/api/oauth2/authorize?${params.toString()}`;
 }
 
-// 点击 Discord 登录按钮
 function loginWithDiscord() {
     const authUrl = getDiscordAuthUrl();
     window.location.href = authUrl;
 }
 
-// 检查 URL 中是否有 Discord 回调的 access_token
 async function checkDiscordCallback() {
-    // Discord 隐式授权会把 token 放在 URL 的 hash 中
     const hash = window.location.hash;
     if (!hash || !hash.includes('access_token')) return false;
 
-    // 解析 hash 参数
     const params = new URLSearchParams(hash.substring(1));
     const accessToken = params.get('access_token');
     const tokenType = params.get('token_type');
 
     if (!accessToken) return false;
 
-    // 清除 URL 中的 hash，避免刷新时重复处理
     try {
         history.replaceState(null, '', window.location.pathname + window.location.search);
     } catch(e) {
@@ -421,25 +376,21 @@ async function checkDiscordCallback() {
     if (statusEl) statusEl.textContent = 'VERIFYING DISCORD IDENTITY...';
 
     try {
-        // 1. 获取用户信息
         const userRes = await fetch('https://discord.com/api/users/@me', {
             headers: { 'Authorization': `${tokenType} ${accessToken}` }
         });
         if (!userRes.ok) throw new Error('Failed to fetch user info');
         const user = await userRes.json();
 
-        // 2. 获取用户加入的服务器列表
         const guildsRes = await fetch('https://discord.com/api/users/@me/guilds', {
             headers: { 'Authorization': `${tokenType} ${accessToken}` }
         });
         if (!guildsRes.ok) throw new Error('Failed to fetch guilds');
         const guilds = await guildsRes.json();
 
-        // 3. 检查用户是否在你的服务器中
         const isMember = guilds.some(g => g.id === DISCORD_CONFIG.guildId);
 
         if (isMember) {
-            // 验证通过！保存登录状态
             DB.set('activated', true);
             DB.set('discord_user', {
                 id: user.id,
@@ -450,7 +401,6 @@ async function checkDiscordCallback() {
                     : null
             });
 
-            // 可选：自动设置用户名和头像
             const discordUser = DB.get('discord_user', null);
             if (discordUser) {
                 if (!settings.userName || settings.userName === 'ME') {
@@ -467,7 +417,6 @@ async function checkDiscordCallback() {
             setTimeout(() => showDesktop(), 800);
             return true;
         } else {
-            // 不在服务器中
             if (statusEl) {
                 statusEl.style.color = '#ff4d4d';
                 statusEl.textContent = 'ACCESS DENIED: NOT A SERVER MEMBER';
@@ -486,7 +435,6 @@ async function checkDiscordCallback() {
     }
 }
 
-    // --- App State ---
     let currentChatRoleId = null;
     let currentChatMode = 'online';
     let editingMsgIndex = -1;
@@ -502,7 +450,6 @@ async function checkDiscordCallback() {
     let internalNotiTimeout;
     let currentMusicInvite = null;
     
-    // --- Interaction State ---
     let isSelectionMode = false;
     let selectedMsgs = new Set();
         let pressTimer;
@@ -511,9 +458,8 @@ async function checkDiscordCallback() {
     let collapsedAlbums = new Set();
     let collapsedStickers = new Set();
     let appOrder = [];
-    let appGrid = null; // 用于存储多页网格数据
+    let appGrid = null; 
 
-    // --- Music App State ---
     musicPlaylist = [];
     savedPlaylists = [];
     musicCurrentTrackIndex = -1;
@@ -526,13 +472,9 @@ async function checkDiscordCallback() {
     const DEFAULT_AVATAR = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0iI2NjYyI+PHBhdGggZD0iTTEyIDJhNSA1IDAgMSAwIDAgMTAgNSA1IDAgMCAwIDAtMTB6bS03IDhhNyA3IDAgMCAxIDE0IDB2MWExIDEgMCAwIDEtMSAxSDZhMSAxIDAgMCAxLTEtMXYtMXoiLz48L3N2Zz4=';
     const SECRET_KEY = "锁雾机_OS_2026_ULTIMATE_SECRET_DO_NOT_LEAK";
     
-    // ==========================================
-    // 音乐 API 配置
-    // ==========================================
     const MUSIC_API_BASE = "https://ncm.zhenxin.me";
     const AUDIO_API_METING = 'https://api.qijieya.cn/meting/?server=netease&type=url&id=';
 
-    // --- Utility Functions ---
     const $ = (selector) => document.querySelector(selector);
     const $$ = (selector) => document.querySelectorAll(selector);
     function getDisplayName(role) { return role.remark || role.realName || 'UNKNOWN'; }
@@ -544,7 +486,6 @@ async function checkDiscordCallback() {
         const file = inputEl.files[0];
         if (!file) return;
         
-        // 动态使用传入的最大限制（字体传50MB，图片传20MB）
         if (file.size > maxSizeMB * 1024 * 1024) {
             alert(`SIZE EXCEEDS ${maxSizeMB}MB. 请上传 ${maxSizeMB}MB 以下的文件。`);
             inputEl.value = '';
@@ -555,9 +496,7 @@ async function checkDiscordCallback() {
         reader.onload = (e) => {
             let resultData = e.target.result;
 
-            // 如果是图片，执行智能压缩逻辑
             if (type === 'IMAGE' && file.type.startsWith('image/')) {
-                // GIF 动图无法通过 Canvas 压缩，直接放行，但给出过大警告
                 if (file.type === 'image/gif') {
                     if (file.size > 2 * 1024 * 1024) {
                         alert('⚠️ 提示：您上传的 GIF 动图超过 2MB，部分手机浏览器可能会因为文本过长而保存失败。如果保存后变空白，请压缩 GIF 后再试。');
@@ -570,13 +509,7 @@ async function checkDiscordCallback() {
                 img.onload = () => {
                     let quality = settings.imageQuality !== undefined ? settings.imageQuality : 0.8;
                     
-                    // 强制保护机制：如果原图大于 1MB 且用户设置的清晰度过高，强制限制最高清晰度为 0.85，防止浏览器输入框崩溃截断
-                    if (file.size > 1024 * 1024 && quality > 0.85) {
-                        quality = 0.85;
-                    }
-
-                    // 如果图片很小且用户要求 100% 清晰度，直接放行
-                    if (quality >= 1.0 && file.size < 1024 * 1024) {
+                    if (quality >= 1.0 && file.size < 5 * 1024 * 1024) {
                         finishUpload(resultData, targetInputId, type);
                         return;
                     }
@@ -584,11 +517,9 @@ async function checkDiscordCallback() {
                     const canvas = document.createElement('canvas');
                     const ctx = canvas.getContext('2d');
                     
-                    // 核心修复：将最大分辨率限制为 1280px。
-                    // 手机屏幕通常宽度在 1080px 左右，1280px 绝对能保证高清，同时能把体积暴降 80% 以上，彻底解决截断问题！
                     let width = img.width;
                     let height = img.height;
-                    const MAX_DIMENSION = 1280; 
+                    const MAX_DIMENSION = quality >= 1.0 ? 4096 : 1280; 
                     
                     if (width > MAX_DIMENSION || height > MAX_DIMENSION) {
                         if (width > height) {
@@ -614,7 +545,6 @@ async function checkDiscordCallback() {
         };
         reader.readAsDataURL(file);
     }
-
     function finishUpload(dataUrl, targetInputId, type) {
         const targetInput = document.getElementById(targetInputId);
         if (!targetInput) return;
@@ -633,21 +563,18 @@ async function checkDiscordCallback() {
     }
 
     const handleImageUpload = (el, id) => handleFileUpload(el, id, 20, 'IMAGE');
-    const handleFontUpload = (el, id) => handleFileUpload(el, id, 50, 'FONT'); // 字体限制放宽到 50MB
+    const handleFontUpload = (el, id) => handleFileUpload(el, id, 50, 'FONT'); 
     const handleAudioUpload = (el, id) => handleFileUpload(el, id, 20, 'AUDIO'); 
     function extractJSON(str) { const match = str.match(/\{[\s\S]*\}/); return match ? match[0] : str; }
     function splitIntoSentences(text) { if (!text) return []; const sentences = text.trim().match(/[^.!?。！？…\n]+([.!?。！？…\n]|\s)*/g); return (sentences || [text]).map(s => s.trim()).filter(s => s); }
     function revealVirtualText(element) { if (!element) return; if (element.classList.contains('revealed')) { element.innerText = '【图片被小猫吃掉啦】'; element.classList.remove('revealed'); } else { element.innerText = element.dataset.text; element.classList.add('revealed'); } }
 
-    // --- Init & Render ---
     function restoreWidgetData() {
-        // 恢复保存的小组件头像
         const savedLeft = DB.get('widget-avatar-left', null);
         const savedRight = DB.get('widget-avatar-right', null);
         if(savedLeft) { const el = document.getElementById('widget-avatar-left'); if(el) el.style.backgroundImage = `url(${savedLeft})`; }
         if(savedRight) { const el = document.getElementById('widget-avatar-right'); if(el) el.style.backgroundImage = `url(${savedRight})`; }
 
-        // 恢复保存的小组件文字
         const textIds = ['widget-bubble-left', 'widget-name-left', 'widget-bubble-right', 'widget-name-right', 'widget-stats-text', 'widget-lyric-display', 'widget-track-info'];
         textIds.forEach(id => {
             const savedText = DB.get(id, null);
@@ -659,26 +586,22 @@ async function checkDiscordCallback() {
     }
 
     function init() { 
-    restoreWidgetData(); // 启动时恢复小组件数据
+    restoreWidgetData(); 
     const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone || document.referrer.includes('android-app://');
     if (isStandalone) { 
         $('#phone-shell').classList.add('fullscreen'); 
-        document.body.classList.add('is-app'); // 标记为 APK/PWA 模式
+        document.body.classList.add('is-app'); 
     }
     
     const _did = getOrCreateDeviceId();
     const didSpan = document.getElementById('display-device-id');
     if (didSpan) didSpan.textContent = _did;
 
-    // ★ Discord OAuth2 回调检查 ★
     checkDiscordCallback().then(discordLoggedIn => {
         if (discordLoggedIn) {
-            // Discord 登录成功，checkDiscordCallback 内部已调用 showDesktop()
             return;
         }
-        // 原有的激活码 / 已激活检测逻辑
         if (DB.get('activated', false) && !isBlacklisted(_did)) {
-            // 核心修改：如果已经激活，不再直接生硬地显示桌面，而是播放连星动画
             playAutoLoginAnimation();
         } else {
             DB.set('activated', false);
@@ -694,30 +617,24 @@ async function checkDiscordCallback() {
         if (s) s.textContent = _did;
     });
 
-    // --- 自动登录连星动画控制函数 ---
     function playAutoLoginAnimation() {
         const overlay = document.getElementById('auto-login-overlay');
         if (!overlay) {
-            showDesktop(); // 容错：如果找不到动画层，直接进桌面
+            showDesktop(); 
             return;
         }
         
-        // 确保登录界面是隐藏的
         const loginView = document.getElementById('view-login');
         if (loginView) {
             loginView.classList.remove('active');
             loginView.style.display = 'none';
         }
 
-        // 显示连星动画
         overlay.classList.add('active');
 
-        // 动画总时长大约 2.6 秒 (1.6s 最后一个星星出现 + 1s 停留欣赏)
         setTimeout(() => {
-            // 触发 CSS 中的放大淡出效果
             overlay.classList.add('fade-out');
             
-            // 延迟 400ms 显示桌面，配合黑幕的淡出，形成拉开帷幕的丝滑感
             setTimeout(() => {
                 const desktopView = document.getElementById('view-desktop');
                 if (desktopView) {
@@ -736,7 +653,6 @@ async function checkDiscordCallback() {
                 }
             }, 400);
 
-            // 动画彻底结束后，清理 DOM 状态，不占用性能
             setTimeout(() => {
                 overlay.style.display = 'none';
                 overlay.classList.remove('active', 'fade-out');
@@ -754,14 +670,12 @@ async function checkDiscordCallback() {
     setupKeyboardShortcuts(); 
     setupAudioPlayer();
 
-    // 监听聊天视图变化，实现即时灵动岛
     const chatViewObserver = new MutationObserver(mutations => {
         mutations.forEach(mutation => {
             if (mutation.attributeName === 'class') {
                 const chatView = mutation.target;
                 const role = roles.find(r => r.id === currentChatRoleId);
                 if (!chatView.classList.contains('active') && window.isAiResponding) {
-                    // 聊天界面被关闭，且AI正在回复，显示灵动岛
                     if (typeof showGlobalTyping === 'function' && role) {
                         const el = document.getElementById('global-typing-indicator');
                         if (el) {
@@ -772,7 +686,6 @@ async function checkDiscordCallback() {
                         }
                     }
                 } else if (chatView.classList.contains('active')) {
-                    // 回到聊天界面，隐藏灵动岛
                     const el = document.getElementById('global-typing-indicator');
                     if (el) el.style.display = 'none';
                 }
@@ -781,7 +694,6 @@ async function checkDiscordCallback() {
     });
     chatViewObserver.observe(document.getElementById('chat-view'), { attributes: true });
     
-    // 核心修复：让灵动岛支持自由拖拽并贴边
     const island = document.getElementById('dynamic-island');
     if (island) {
         let isDraggingIsland = false;
@@ -793,7 +705,6 @@ async function checkDiscordCallback() {
             islandStartX = e.touches[0].clientX;
             islandStartY = e.touches[0].clientY;
             
-            // 获取当前的 transform 值
             const style = window.getComputedStyle(island);
             const matrix = new WebKitCSSMatrix(style.transform);
             initialTransformX = matrix.m41;
@@ -815,11 +726,9 @@ async function checkDiscordCallback() {
             const rect = island.getBoundingClientRect();
             const screenWidth = window.innerWidth;
             
-            // 计算贴边：如果中心点在左半边，贴左边；否则贴右边
             const isLeft = (rect.left + rect.width / 2) < (screenWidth / 2);
             const targetX = isLeft ? -(screenWidth / 2) + (rect.width / 2) + 10 : (screenWidth / 2) - (rect.width / 2) - 10;
             
-            // 保持当前的 Y 轴位置
             const style = window.getComputedStyle(island);
             const matrix = new WebKitCSSMatrix(style.transform);
             const currentY = matrix.m42;
@@ -840,10 +749,8 @@ async function checkDiscordCallback() {
     } else {
         lastUserActivityTime = Date.now();
         startAllAutoMsgTimers();
-        // 回到前台时，检查是否有 SW 在后台发送的消息需要保存
         processPendingBgMessages();
         
-        // 修复：回到前台时，如果AI并没有在回复，强制清理残留的打字动画
         if (!window.isAiResponding) {
             if (typeof hideGlobalTyping === 'function') hideGlobalTyping();
             if (currentChatRoleId && chats[currentChatRoleId]) {
@@ -858,11 +765,9 @@ async function checkDiscordCallback() {
     }
 });
 
-// 监听 Service Worker 发来的后台消息
 if ('serviceWorker' in navigator) {
     navigator.serviceWorker.addEventListener('message', event => {
         if (event.data && event.data.type === 'BG_AUTO_MSG') {
-            // SW 在后台生成了一条消息，保存到聊天记录
             const { roleId, message, timestamp } = event.data;
             if (!chats[roleId]) chats[roleId] = [];
             const now = new Date(timestamp);
@@ -884,29 +789,22 @@ if ('serviceWorker' in navigator) {
     });
 }
 
-// 处理 SW 在后台期间缓存的待处理消息
 function processPendingBgMessages() {
-    // 当用户回到前台时，检查通知里是否有未保存的消息
-    // 这里主要是防止 SW 发了通知但前台没收到 postMessage 的情况
 }
-    // 启动后台自动发消息系统
     startAllAutoMsgTimers();
 
-    // 监听用户活动来重置自动消息计时器
     ['click', 'touchstart', 'keydown'].forEach(eventType => {
         document.addEventListener(eventType, () => {
             lastUserActivityTime = Date.now();
         }, { passive: true });
     });
     
-    // 修复：键盘弹出时隐藏底部导航栏，防止黑块遮挡输入框
     if (window.visualViewport) { 
         window.visualViewport.addEventListener('resize', () => { 
             const isKeyboardOpen = window.visualViewport.height < window.innerHeight * 0.75; 
             document.getElementById('phone-shell').classList.toggle('keyboard-open', isKeyboardOpen); 
         }); 
     } else { 
-        // 兼容不支持 visualViewport 的浏览器 
         document.addEventListener('focusin', (e) => { 
             if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') { 
                 document.getElementById('phone-shell').classList.add('keyboard-open'); 
@@ -929,8 +827,6 @@ function processPendingBgMessages() {
     function updateTime() { $('#time').innerText = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }); }
     function setupKeyboardShortcuts() { $('#chat-input').addEventListener('keydown', function(e) { if (e.isComposing || e.keyCode === 229) return; if (e.key === 'Enter' && !e.shiftKey && !e.ctrlKey && !e.metaKey) { e.preventDefault(); sendMessage(); } else if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); triggerAI(); } }); }
 
-    // --- Activation Logic ---
-    // --- 设备码 ---
 function getOrCreateDeviceId() {
     let did = null;
     try { did = localStorage.getItem('锁雾机_device_id'); } catch(e) {}
@@ -942,16 +838,13 @@ function getOrCreateDeviceId() {
     return did;
 }
 
-// --- 激活码生成：QQ + 设备码 + 密钥 ---
 function generateActivationCode(deviceId) { if (!deviceId) return ''; const combined = deviceId + ':' + SECRET_KEY; try { const base64 = btoa(unescape(encodeURIComponent(combined))); return base64.substring(5, 17).toUpperCase(); } catch (e) { return 'ERROR'; } }
 
-// --- 检查该 QQ+设备码 是否在黑名单 ---
 function isBlacklisted(deviceId) {
     const blacklist = DB.get('activation_blacklist', []);
     return blacklist.some(item => item.deviceId === deviceId);
 }
 
-// --- 激活验证 ---
 function checkActivation() {
     const code = $('#login-code').value.trim().toUpperCase();
     const errorEl = $('#login-error');
@@ -978,19 +871,16 @@ function checkActivation() {
 function showDesktop() {
     const loginView = $('#view-login');
     if (loginView) {
-        // 触发 CSS 中定义的 fade-out 放大淡出动画
         loginView.classList.add('fade-out');
         
-        // 等待动画播放完毕后再彻底隐藏
         setTimeout(() => {
             loginView.classList.remove('active');
             loginView.classList.remove('fade-out');
             loginView.style.display = 'none';
             loginView.style.pointerEvents = 'none';
-        }, 1000); // 1秒的过渡时间
+        }, 1000); 
     }
 
-    // 桌面元素稍微延迟一点点出现，配合开屏动画的消散
     setTimeout(() => {
         const desktopView = $('#view-desktop');
         if (desktopView) {
@@ -1012,13 +902,11 @@ function showDesktop() {
     }, 400);
 }
 
-// --- 小组件图片上传处理 (已接入智能压缩) ---
 function previewEcgColor(color) {
     const line = document.getElementById('role-ecg-line');
     const glow = document.getElementById('role-ecg-glow');
     if (line) line.style.stroke = color;
     if (glow) {
-        // 将颜色转换为带透明度的版本用于发光效果
         const r = parseInt(color.slice(1,3), 16);
         const g = parseInt(color.slice(3,5), 16);
         const b = parseInt(color.slice(5,7), 16);
@@ -1042,18 +930,21 @@ function handleWidgetImageUpload(input, targetId, isUserAvatar = false) {
     reader.onload = (e) => {
         let resultData = e.target.result;
         
-        // 执行智能压缩逻辑
         if (file.type.startsWith('image/') && file.type !== 'image/gif') {
             const img = new Image();
             img.onload = () => {
                 let quality = settings.imageQuality !== undefined ? settings.imageQuality : 0.8;
-                if (file.size > 1024 * 1024 && quality > 0.85) quality = 0.85;
+                if (quality >= 1.0 && file.size < 5 * 1024 * 1024) {
+                    document.getElementById(targetId).style.backgroundImage = `url(${resultData})`;
+                    if (isUserAvatar) { settings.userAvatar = resultData; DB.set('settings', settings); } else { DB.set(targetId, resultData); }
+                    return;
+                }
                 
                 const canvas = document.createElement('canvas');
                 const ctx = canvas.getContext('2d');
                 let width = img.width; 
                 let height = img.height;
-                const MAX_DIMENSION = 1280; 
+                const MAX_DIMENSION = quality >= 1.0 ? 4096 : 1280; 
                 
                 if (width > MAX_DIMENSION || height > MAX_DIMENSION) {
                     if (width > height) { 
@@ -1092,7 +983,6 @@ function handleWidgetImageUpload(input, targetId, isUserAvatar = false) {
     reader.readAsDataURL(file);
 }
 
-// --- 桌面分页滚动监听 ---
 document.addEventListener('DOMContentLoaded', () => {
     const scrollContainer = document.getElementById('view-desktop');
     const dot1 = document.getElementById('desktop-dot-1');
@@ -1108,13 +998,11 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // 恢复保存的小组件头像
     const savedLeft = DB.get('widget-avatar-left', null);
     const savedRight = DB.get('widget-avatar-right', null);
     if(savedLeft) document.getElementById('widget-avatar-left').style.backgroundImage = `url(${savedLeft})`;
     if(savedRight) document.getElementById('widget-avatar-right').style.backgroundImage = `url(${savedRight})`;
 
-    // 恢复保存的小组件文字
     const textIds = [
         'widget-bubble-left', 'widget-name-left', 
         'widget-bubble-right', 'widget-name-right', 
@@ -1129,7 +1017,6 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 });
 
-    // --- App Navigation ---
     function openApp(appId) {
         const appNames = { messages:'微信', contacts:'通讯录', feed:'动态', music:'音乐', calendar:'日历', forum:'叙欲论坛', cipher:'情绪密码', reincarnation:'前世今生', takeout:'外卖', wallet:'钱包', ourspace:'心动日常', album:'相册', stickers:'表情包', map:'高德地图', grimoire:'命之书' };
         trackAppSwitch(appNames[appId] || appId);
@@ -1137,24 +1024,25 @@ document.addEventListener('DOMContentLoaded', () => {
         const appView = document.getElementById(`view-${appId}`);
         if (!appView) return;
 
-        // 核心修复：打开新APP前，强制关闭所有其他APP的激活状态
         document.querySelectorAll('.view-container').forEach(v => v.classList.remove('active'));
         if (currentChatRoleId) closeChat();
 
-        // 初始化各个APP
         if (appId === 'messages') renderRecent();
         if (appId === 'contacts') renderContacts();
         if (appId === 'appearance') renderAppearanceApp();
         if (appId === 'feed') renderFeeds();
         if (appId === 'music') renderMusicApp();
         if (appId === 'calendar') renderCalendar();
-        if (appId === 'profile') setTimeout(refreshStorageVisual, 100);
+        if (appId === 'profile') {
+            setTimeout(refreshStorageVisual, 100);
+            window.storageRefreshInterval = setInterval(refreshStorageVisual, 3000);
+        }
         if (appId === 'forum') renderForum();
         if (appId === 'cipher') { cipherRenderMenu(); cipherBuildKb(); }
         if (appId === 'reincarnation') { reincNav('reinc-menu'); }
         if (appId === 'takeout') { toInitApp(); toGoHome(); }
         if (appId === 'map') { initMapApp(); }
-        if (appId === 'grimoire') { renderGrimoireRoles(); } // 确保命之书渲染
+        if (appId === 'grimoire') { renderGrimoireRoles(); } 
         if (appId === 'wallet') { renderWalletApp(); }
         if (appId === 'ourspace') { 
             if (ourSpaceData.isPaired) {
@@ -1170,7 +1058,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
         appView.classList.add('active');
 
-        // 隐藏桌面元素
         const desktop = $('#view-desktop');
         if (desktop) { desktop.style.opacity = '0'; desktop.style.pointerEvents = 'none'; desktop.style.visibility = 'hidden'; }
         const pagination = $('#desktop-pagination');
@@ -1181,6 +1068,10 @@ document.addEventListener('DOMContentLoaded', () => {
     
     function closeApp(appId) {
     trackAppSwitch('桌面');
+    
+    if (appId === 'profile' && window.storageRefreshInterval) {
+        clearInterval(window.storageRefreshInterval);
+    }
     
     const appView = $(`#view-${appId}`);
     if (!appView) return;
@@ -1211,7 +1102,6 @@ document.addEventListener('DOMContentLoaded', () => {
     if (appId === 'music' && isFullScreenPlayerVisible) hideFullScreenPlayer();
 }
 
-    // --- UI Interaction & Settings ---
     function toggleTheme() { settings.theme = settings.theme === 'light' ? 'dark' : 'light'; DB.set('settings', settings); applySettings(); }
     function toggleFullscreen() { $('#phone-shell').classList.toggle('fullscreen'); }
     function toggleStatusBar() { settings.showStatusBar = !settings.showStatusBar; DB.set('settings', settings); applySettings(); }
@@ -1222,8 +1112,6 @@ document.addEventListener('DOMContentLoaded', () => {
         document.documentElement.style.setProperty('--avatar-size', `${settings.avatarSize || 28}px`); 
         document.documentElement.style.setProperty('--avatar-radius', `${settings.avatarRadius || 0}px`); 
         
-        // --- 核心修复：桌面APP文字颜色 ---
-        // 将颜色变量 --app-text-color 正确应用到 .app-icon span
         const appTextColor = settings.appTextColor || 'var(--text-color)';
         let appTextStyle = document.getElementById('app-text-style');
         if (!appTextStyle) {
@@ -1257,18 +1145,15 @@ document.addEventListener('DOMContentLoaded', () => {
             document.documentElement.classList.remove('single-timestamp-mode');
         }
 
-        // --- 核心优化：iOS界面下移，避免与状态栏重叠 ---
         const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
         const phoneShell = document.getElementById('phone-shell');
         if (isIOS && phoneShell.classList.contains('fullscreen')) {
-            // 在iOS全屏模式下，给主容器增加一个向下的内边距，把所有内容往下推
             phoneShell.style.paddingTop = 'env(safe-area-inset-top)';
         } else {
             phoneShell.style.paddingTop = '0';
         }
     }
 
-    // --- 手机状态监控系统 (电量与APP使用时长) ---
     let sysBatteryLevel = '未知';
     let sysAppUsage = {};
     let sysCurrentApp = '桌面';
@@ -1280,7 +1165,7 @@ document.addEventListener('DOMContentLoaded', () => {
             b.addEventListener('levelchange', () => sysBatteryLevel = Math.round(b.level * 100) + '%');
         });
     } else {
-        sysBatteryLevel = Math.floor(Math.random() * 40 + 40) + '%'; // 不支持时模拟电量
+        sysBatteryLevel = Math.floor(Math.random() * 40 + 40) + '%'; 
     }
 
     function trackAppSwitch(newApp) {
@@ -1310,7 +1195,6 @@ document.addEventListener('DOMContentLoaded', () => {
     function closeMusicInviteModal() { currentMusicInvite = null; closeModal('modal-music-invite'); }
     function playInviteTrack() { if (!currentMusicInvite?.trackId) return; closeMusicInviteModal(); playMusicById(currentMusicInvite.trackId); }
 
-    // --- Notification System ---
     function requestNotificationPermission() {
         if (!("Notification" in window)) {
             console.log("This browser does not support desktop notification");
@@ -1323,7 +1207,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-// --- 网页内仿系统通知弹窗 (苹果Safari/微信等不支持时的完美备用方案) ---
 function showInAppNotification(roleId, title, body, icon) {
     let container = document.getElementById('in-app-notify-container');
     if (!container) {
@@ -1346,7 +1229,6 @@ function showSystemNotification(roleId, title, body, icon) {
     const cleanBody = body.replace(/<[^>]*>/g, '').replace(/\[VIRTUAL_IMG:.*?\]/g, '[图片]').replace(/\[VOICE:.*?\]/g, '[语音]').replace(/\[MUSIC_CARD:.*?\]/g, '[一起听邀请]').replace(/\[FORUM_CARD:.*?\]/g, '[论坛帖子]');
     if (!cleanBody.trim()) return;
 
-    // 防止系统连续弹出两条一模一样的通知
     const now = Date.now();
     if (now - lastNotifTime < 2000 && lastNotifBody === cleanBody) {
         return; 
@@ -1354,7 +1236,6 @@ function showSystemNotification(roleId, title, body, icon) {
     lastNotifTime = now;
     lastNotifBody = cleanBody;
 
-    // 核心修复：如果APP在前台，且当前正在和这个角色聊天，且未开启聊天内通知，绝对拦截！
     if (document.visibilityState === 'visible' && currentChatRoleId === roleId && !settings.notifyInChat) {
         return; 
     }
@@ -1386,7 +1267,6 @@ function showSystemNotification(roleId, title, body, icon) {
     }
 }
 
-// 后台静音保活功能
 function initKeepAlive() {
     let audioEl = document.createElement('audio');
     audioEl.id = 'silent-audio';
@@ -1444,7 +1324,6 @@ function updateKeepAliveUI(isOn) {
     }
 }
 
-    // --- Chat System & Interactions ---
         function switchChatMode(mode) {
         currentChatMode = mode;
         let pText = 'iMessage信息';
@@ -1457,18 +1336,14 @@ function updateKeepAliveUI(isOn) {
         $('#chat-input').placeholder = pText;
         $('#chat-input').setAttribute('placeholder', pText);
         
-        // 更新附件弹窗中按钮的UI状态
         const btnOn = document.getElementById('attach-btn-online');
         const btnOff = document.getElementById('attach-btn-offline');
         if (btnOn && btnOff) {
-            // 切换高亮类名
             btnOn.classList.toggle('active', mode === 'online');
             btnOff.classList.toggle('active', mode === 'offline');
-            // 切换文字显示
             btnOn.querySelector('span').innerText = (mode === 'online' ? '线上模式中' : '线上模式');
             btnOff.querySelector('span').innerText = (mode === 'offline' ? '线下模式中' : '线下模式');
         }
-        // 点击切换后，自动关闭附件弹窗
         const popup = document.getElementById('attachment-popup');
         if (popup) popup.style.display = 'none';
     }
@@ -1478,7 +1353,6 @@ function updateKeepAliveUI(isOn) {
         const role = roles.find(r => r.id === roleId); 
         if (!role) return; 
         
-        // 新增：控制顶部头像显示
         const avatarContainer = $('#chat-header-avatar-container');
         if (role.showHeaderAvatar) {
             $('#chat-header-avatar').src = role.avatar || DEFAULT_AVATAR;
@@ -1499,24 +1373,19 @@ function updateKeepAliveUI(isOn) {
         $('#chat-view').classList.add('active'); 
         $('#main-content-area').classList.add('chat-active'); 
         
-        // 打开聊天时，应用角色专属颜色和占位符
         const accentColor = role.accentColor || (settings.theme === 'dark' ? '#ffffff' : '#000000');
         $('#chat-view').style.setProperty('--role-accent-color', accentColor);
         
         const chatInput = $('#chat-input');
-        // 彻底修复：直接通过属性赋值确保文本更新
         const pText = role.placeholderText && role.placeholderText.trim() !== "" ? role.placeholderText : 'iMessage信息';
         chatInput.placeholder = pText;
         chatInput.setAttribute('placeholder', pText);
         
-        // 确保颜色变量生效
         const pColor = role.placeholderColor || '#bbbbbb';
         chatInput.style.setProperty('--placeholder-color', pColor);
         
-        // 强制刷新 DOM 状态
         chatInput.value = chatInput.value; 
 
-        // 打开聊天时，使用角色的默认模式
         switchChatMode(role.defaultChatMode || 'online'); 
         
         cancelSelectionMode(); 
@@ -1579,7 +1448,6 @@ function updateKeepAliveUI(isOn) {
             let contentHtml = m.content;
             const touchHandlers = `onmousedown="handleTouchStart(event, ${realIndex})" onmouseup="handleTouchEnd()" onmouseleave="handleTouchEnd()" ontouchstart="handleTouchStart(event, ${realIndex})" ontouchend="handleTouchEnd()" ontouchcancel="handleTouchEnd()"`;
 
-    // 0. 真实语音通话卡片 (恢复为波浪线语音条样式，保留状态)
             if (contentHtml.startsWith('[REAL_CALL:')) {
                 const raw = contentHtml.slice(11, -1);
                 try {
@@ -1588,7 +1456,6 @@ function updateKeepAliveUI(isOn) {
                     const textColor = m.role === 'user' ? 'var(--bg-color)' : 'var(--text-color)';
                     const border = m.role === 'ai' ? `border: 1px solid var(--border-color);` : '';
                     
-                    // 格式化时长或状态
                     let timeStr = "";
                     if (callData.duration) {
                         const mins = String(Math.floor(callData.duration / 60)).padStart(2, '0');
@@ -1598,7 +1465,6 @@ function updateKeepAliveUI(isOn) {
                         timeStr = callData.status || "已取消";
                     }
 
-                    // 电话图标 (替换原来的麦克风图标)
                     const phoneIcon = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="${textColor}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>`;
 
                     return `<div class="msg-row ${m.role === 'user' ? 'me' : 'ai'} ${isSelectionMode ? 'selection-mode' : ''}" onclick="handleMsgClick(${realIndex})">${checkboxHtml}${m.role === 'ai' ? aiAvatarTag : ''}<div class="msg-wrapper"><div style="background:${bubbleColor}; color:${textColor}; ${border} padding: var(--bubble-padding); cursor:pointer; min-width:160px; max-width:240px; border-radius: 18px;" onclick="event.stopPropagation(); showCallDetail(${realIndex})" ${touchHandlers}>
@@ -1614,7 +1480,6 @@ function updateKeepAliveUI(isOn) {
                     </div><div class="msg-status">${m.time}</div></div>${m.role === 'user' ? userAvatarTag : ''}</div>`;
                 } catch(e) { return `<div class="msg-row ai">解析通话记录失败</div>`; }
             }
-            // 1. 语音消息
             if (contentHtml.startsWith('[VOICE:')) {
                 const match = contentHtml.match(/\[VOICE:(\d+)s\|(.*)\]/s);
                 const dur = match ? match[1] : '?';
@@ -1626,13 +1491,11 @@ function updateKeepAliveUI(isOn) {
                 return `<div class="msg-row ${m.role === 'user' ? 'me' : 'ai'}" onclick="handleMsgClick(${realIndex})">${m.role === 'ai' ? aiAvatarTag : ''}<div class="msg-wrapper"><div style="background:${bubbleColor}; color:${textColor}; ${border} padding: var(--bubble-padding); cursor:pointer; min-width:140px; max-width:220px; border-radius: 18px;" onclick="toggleVoiceExpand(${realIndex})" ${touchHandlers}><div style="display:flex; align-items:center; gap:10px;"><div style="width:28px; height:28px; border-radius:50%; background:${m.role === 'user' ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.08)'}; display:flex; align-items:center; justify-content:center; flex-shrink:0;"><svg width="13" height="13" viewBox="0 0 24 24" fill="${textColor}"><path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm-1-9c0-.55.45-1 1-1s1 .45 1 1v6c0 .55-.45 1-1 1s-1-.45-1-1V5zm6 6c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/></svg></div><div style="flex:1; display:flex; align-items:center; gap:2px; height:20px;">${Array.from({length: 12}, (_, i) => `<div style="width:2.5px; border-radius:2px; background:${textColor}; opacity:${0.3 + Math.sin(i * 0.8) * 0.35 + 0.15}; height:${6 + Math.abs(Math.sin(i * 0.9 + 1)) * 12}px;"></div>`).join('')}</div><span style="font-size:10px; opacity:0.65; flex-shrink:0; font-family:var(--font-sans); letter-spacing:0.5px;">${dur}"</span></div>${isExpanded ? `<div style="margin-top:8px; padding-top:8px; border-top:1px solid ${m.role === 'user' ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.1)'}; font-size:11px; line-height:1.5; opacity:0.8; font-family:var(--font-sans);">${voiceText}</div>` : ''}</div><div class="msg-status">${m.time}</div></div>${m.role === 'user' ? userAvatarTag : ''}</div>`;
             }
 
-            // 2. 音乐卡片
             if (contentHtml.startsWith('[MUSIC_CARD:')) {
                 const invite = parseMusicCardContent(contentHtml) || {};
                 return `<div class="msg-row me ${isSelectionMode ? 'selection-mode' : ''}" onclick="handleMsgClick(${realIndex})" ${touchHandlers}>${checkboxHtml}<div class="msg-wrapper"><div class="music-card" onclick="if(isSelectionMode || document.getElementById('context-menu-overlay').style.display === 'flex') return; openMusicInviteModal(${realIndex})"><div class="music-card-cover" style="background-image:url(${invite.picUrl || ''})"></div><div class="music-card-info"><div class="music-card-title">${invite.name || '未知歌曲'}</div><div class="music-card-artist">${invite.artist || '未知歌手'}</div><div class="music-card-tag">${invite.status || '一起听邀请'}</div></div></div><div class="msg-status">${m.time}</div></div>${userAvatarTag}</div>`;
             }
 
-            // 3. 票根卡片
             if (contentHtml.startsWith('[TICKET:')) {
                 const ticketData = parseTicketContent(m.content);
                 if (ticketData) {
@@ -1641,16 +1504,14 @@ function updateKeepAliveUI(isOn) {
                 }
             }
 
-            // 4. 送礼卡片 (修复乱码的关键)
             if (contentHtml.startsWith('[GIFT_TO_AI:')) {
                 const raw = contentHtml.slice(12, -1);
                 try {
                     const card = JSON.parse(decodeURIComponent(raw));
                     return `<div class="msg-row me ${isSelectionMode ? 'selection-mode' : ''}" onclick="handleMsgClick(${realIndex})" ${touchHandlers}>${checkboxHtml}<div class="msg-wrapper"><div class="daifu-card" style="border-color:#ff8da1;" onclick="if(isSelectionMode) return; openOrderReceiptDetail(${realIndex})"><div class="daifu-icon">${card.emoji || '🎁'}</div><div class="daifu-info"><div class="daifu-title" style="color:#ff8da1;">${card.senderName} 已为 ${card.receiverName} 下单商品</div><div class="daifu-desc">${card.shopName} · ${card.itemName}</div><div class="daifu-bottom"><div class="daifu-price">¥ ${parseFloat(card.price).toFixed(2)}</div><div class="daifu-tag" style="background:#ff8da1;">${card.status}</div></div></div></div><div class="msg-status">${m.time}</div></div>${userAvatarTag}</div>`;
                 } catch(e) { return `<div class="msg-row me">解析错误</div>`; }
-            } // <--- 修复毒瘤：这里补上了第4点缺失的大括号
+            } 
 
-            // 5.1 心动日常邀请 (票根样式)
             if (contentHtml.startsWith('[OURSPACE_INVITE:')) {
                 const raw = contentHtml.slice(17, -1);
                 try {
@@ -1673,7 +1534,6 @@ function updateKeepAliveUI(isOn) {
                 } catch(e) {}
             }
 
-            // 5.2 代付/收据/转账/亲属卡片
             if (contentHtml.startsWith('[PAY_REQUEST:') || contentHtml.startsWith('[ORDER_RECEIPT_CARD:') || contentHtml.startsWith('[TRANSFER:') || contentHtml.startsWith('[FAMILY_CARD:')) {
                 const isPayReq = contentHtml.startsWith('[PAY_REQUEST:');
                 const isOrder = contentHtml.startsWith('[ORDER_RECEIPT_CARD:');
@@ -1727,7 +1587,6 @@ function updateKeepAliveUI(isOn) {
                 } catch(e) {}
             }
 
-            // 6. 普通文本消息
             if (contentHtml.includes('===TRANSLATION===')) { 
                 let parts = contentHtml.split('===TRANSLATION==='); 
                 if (settings.translationMode) {
@@ -1779,7 +1638,6 @@ function updateKeepAliveUI(isOn) {
                 }
             }
             const deliveryHtml = m.role === 'user' ? getDeliveryStatusHtml(realIndex) : '';
-            // 增加一个唯一的 ID 和一个用于流式填充的内部 div
             const messageId = m.id ? `id="${m.id}"` : '';
             return `<div class="msg-row ${m.role === 'user' ? 'me' : 'ai'} ${isSelectionMode ? 'selection-mode' : ''}" ${messageId} onclick="handleMsgClick(${realIndex})">${checkboxHtml}${m.role === 'ai' ? aiAvatarTag : ''}<div class="msg-wrapper"><div class="msg-bubble ${m.mode === 'offline' && m.role === 'ai' ? 'offline-mode' : ''}" ${customBubbleStyle} ${touchHandlers}><div class="msg-bubble-content">${quoteHtml}${contentHtml}</div>${heartHtml}</div><div class="msg-status">${m.time}${deliveryHtml}</div></div>${m.role === 'user' ? userAvatarTag : ''}</div>`;
         }).join(''); 
@@ -1852,7 +1710,6 @@ function updateKeepAliveUI(isOn) {
         checkAutoSummarize(currentChatRoleId);
         DB.set('chats', chats); resetUserActivity(); input.value = ''; input.style.height = '36px'; 
         $('#attachment-popup').style.display = 'none'; renderMessages();
-        // 已移除单击发送时的自动触发，现在需要双击发送按钮才会触发AI回复
     }
     function toggleAttachmentPopup(e) { e.stopPropagation(); const menu = $('#attachment-popup'); menu.style.display = menu.style.display === 'none' || menu.style.display === '' ? 'flex' : 'none'; }
     function triggerChatImageUpload() { const input = document.createElement('input'); input.type = 'file'; input.accept = 'image/*'; input.onchange = (e) => handleChatImageUpload(e.target); input.click(); $('#attachment-popup').style.display = 'none'; }
@@ -1868,11 +1725,14 @@ function updateKeepAliveUI(isOn) {
                 const img = new Image();
                 img.onload = () => {
                     let quality = settings.imageQuality !== undefined ? settings.imageQuality : 0.8;
-                    if (file.size > 1024 * 1024 && quality > 0.85) quality = 0.85;
+                    if (quality >= 1.0 && file.size < 5 * 1024 * 1024) {
+                        sendRealImage(resultData);
+                        return;
+                    }
                     const canvas = document.createElement('canvas');
                     const ctx = canvas.getContext('2d');
                     let width = img.width; let height = img.height;
-                    const MAX_DIMENSION = 1280;
+                    const MAX_DIMENSION = quality >= 1.0 ? 4096 : 1280;
                     if (width > MAX_DIMENSION || height > MAX_DIMENSION) {
                         if (width > height) { height = Math.round((height * MAX_DIMENSION) / width); width = MAX_DIMENSION; }
                         else { width = Math.round((width * MAX_DIMENSION) / height); height = MAX_DIMENSION; }
@@ -1894,7 +1754,6 @@ function updateKeepAliveUI(isOn) {
     function promptVirtualImage() { const text = prompt("VIRTUAL TEXT (e.g. 一只猫):"); if (text) { $('#chat-input').value += `[VIRTUAL_IMG:${text}]`; $('#chat-input').focus(); } $('#attachment-popup').style.display = 'none'; }
     function sendRealImage(url) { if(!currentChatRoleId) return; if(!chats[currentChatRoleId]) chats[currentChatRoleId] = []; const now = new Date(); chats[currentChatRoleId].push({ role: 'user', content: `<img src="${url}" class="chat-inline-img">`, time: now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }), rawTime: now.getTime(), status: 'SENT', mode: currentChatMode }); DB.set('chats', chats); renderMessages(); }
     
-    // --- 剧情/时间跳跃功能 ---
     function promptTimeSkip() {
         $('#attachment-popup').style.display = 'none';
         const text = prompt("记录剧情/时间跳跃 (该消息AI可见，会作为上下文)：\n例如：我们一起去山顶看了日落，然后吃了烧烤。");
@@ -1914,7 +1773,6 @@ function updateKeepAliveUI(isOn) {
         }
     }
 
-    // --- 快捷清空聊天记录 ---
     function clearCurrentChatFromMenu() {
         $('#attachment-popup').style.display = 'none';
         if (!currentChatRoleId) return;
@@ -1934,7 +1792,6 @@ function updateKeepAliveUI(isOn) {
     function selectAllMsgs() { const msgs = chats[currentChatRoleId] || []; if (selectedMsgs.size === msgs.length) { selectedMsgs.clear(); } else { msgs.forEach((_, i) => selectedMsgs.add(i)); } renderMessages(); }
     function deleteSelectedMsgs() { if(selectedMsgs.size === 0) return; if(confirm(`删除 ${selectedMsgs.size} 条记录？`)) { const sortedIndices = Array.from(selectedMsgs).sort((a, b) => b - a); sortedIndices.forEach(idx => chats[currentChatRoleId].splice(idx, 1)); DB.set('chats', chats); cancelSelectionMode(); } }
     function deleteSingleMessage() { if(contextMenuTargetIndex > -1 && confirm("删除此条记录？")) { chats[currentChatRoleId].splice(contextMenuTargetIndex, 1); DB.set('chats', chats); renderMessages(); } closeContextMenu(); }
-        // --- 调试/源码查看功能 ---
     function debugMessageFromMenu() {
         if(contextMenuTargetIndex > -1) {
             const msg = chats[currentChatRoleId][contextMenuTargetIndex];
@@ -1944,9 +1801,8 @@ function updateKeepAliveUI(isOn) {
         closeContextMenu();
     }
 
-    // --- 实时语音通话功能 (独立界面版 + 小窗 + 记录) ---
     let callTimerInterval = null;
-    let callStartTimeout = null; // 核心修复：增加接通前的延时器记录
+    let callStartTimeout = null; 
     let callSeconds = 0;
     let currentCallAudio = null;
 
@@ -1993,7 +1849,6 @@ function updateKeepAliveUI(isOn) {
         $('#real-call-input').value = '';
         $('#call-avatar-glow').style.boxShadow = '0 0 30px rgba(255,255,255,0.2)';
         
-        // 核心：应用专属通话背景
         if (role.callBg) {
             $('#view-real-call').style.backgroundImage = `url('${role.callBg}')`;
         } else {
@@ -2003,7 +1858,6 @@ function updateKeepAliveUI(isOn) {
         $('#view-real-call').classList.add('active');
         $('#mini-call-window').style.display = 'none';
         
-        // 模拟接通
         if (!callTimerInterval) {
             callStartTimeout = setTimeout(() => {
                 $('#call-status').innerText = '00:00';
@@ -2021,7 +1875,6 @@ function updateKeepAliveUI(isOn) {
         }
     }
 
-    // --- 小窗拖拽逻辑 ---
     let isDraggingMiniCall = false;
     let miniCallMoved = false;
     let miniCallStartX, miniCallStartY, miniCallInitX, miniCallInitY;
@@ -2039,7 +1892,7 @@ function updateKeepAliveUI(isOn) {
             miniCallInitX = rect.left;
             miniCallInitY = rect.top;
             miniWin.style.transition = 'none';
-            miniWin.style.right = 'auto'; // 清除 right 定位，改用 left/top
+            miniWin.style.right = 'auto'; 
         };
 
         const moveDrag = (e) => {
@@ -2126,12 +1979,10 @@ let currentCallAudioId = null;
         
         const btn = $('#btn-send-real-call');
         if (btn && btn.disabled) {
-            // 恢复按钮状态
             btn.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>';
             btn.disabled = false;
         }
 
-        // 挂断时，统一生成居中的系统提示
         if (currentChatRoleId) {
             const now = new Date();
             const timeStr = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
@@ -2152,7 +2003,6 @@ let currentCallAudioId = null;
                 mode: currentChatMode
             });
             
-            // 核心修复：将通话状态拆分为独立的系统提示
             if (callSeconds > 0) {
                 const m = String(Math.floor(callSeconds / 60)).padStart(2, '0');
                 const s = String(callSeconds % 60).padStart(2, '0');
@@ -2167,7 +2017,6 @@ let currentCallAudioId = null;
             renderMessages();
         }
 
-        // 核心修复：挂断时彻底清理所有计时器，防止内存泄漏
         if (callStartTimeout) {
             clearTimeout(callStartTimeout);
             callStartTimeout = null;
@@ -2180,7 +2029,7 @@ let currentCallAudioId = null;
             currentCallAudio.pause();
             currentCallAudio = null;
         }
-        callSeconds = 0; // 重置通话时长
+        callSeconds = 0; 
         currentCallText = "";
         currentCallAudioId = null;
     }
@@ -2192,26 +2041,22 @@ let currentCallAudioId = null;
         const role = roles.find(r => r.id === currentChatRoleId);
         const targetVoiceId = (role && role.ttsVoiceId) ? role.ttsVoiceId : apiConfig.ttsVoiceId;
         
-        // 核心修复：不强制要求配置 TTS，如果没有配置，只生成文本不生成语音
         const useTTS = !!(apiConfig.ttsGroupId && apiConfig.ttsApiKey && targetVoiceId);
 
         const btn = $('#btn-send-real-call');
         btn.innerHTML = '<span style="font-size:10px;">...</span>';
         btn.disabled = true;
 
-        // 获取面具名和角色备注名
         const activeMask = masks.find(m => m.id === role.activeMaskId) || masks.find(m => m.id === 'default') || masks[0];
         const userName = activeMask ? activeMask.name : (settings.userName || 'ME');
         const aiName = getDisplayName(role);
 
-        // 在中央显示用户发送的消息
         const convBox = $('#call-conversation');
         convBox.innerHTML += renderCallMessage(userName, text, true);
         convBox.scrollTop = convBox.scrollHeight;
         $('#real-call-input').value = '';
 
         try {
-            // 2. 请求 AI 回复
             const prompt = `[CORE DIRECTIVE]\n你是${role.realName}。${role.persona}\n用户正在和你打语音电话，对你说：“${text}”\n请回复用户。要求：\n1. 必须包含你直接说出口的话（必须用双引号 "" 或 “” 包裹）。\n2. 可以包含少量的动作旁白（写在引号外面）。\n3. 语气自然，像真人在打电话。`;
             
             const endpoint = getChatEndpoint(apiConfig.url);
@@ -2223,7 +2068,6 @@ let currentCallAudioId = null;
             const chatData = await chatRes.json();
             const aiReply = chatData.choices[0].message.content.trim();
 
-            // 在中央显示 AI 的回复
             convBox.innerHTML += renderCallMessage(aiName, aiReply, false);
             convBox.scrollTop = convBox.scrollHeight;
             
@@ -2233,16 +2077,14 @@ let currentCallAudioId = null;
             let base64Audio = null;
 
             if (useTTS) {
-                // 3. 提取对话内容用于 TTS (只读引号内的内容)
                 let dialogue = "";
                 const quoteMatches = aiReply.match(/"([^"]+)"|“([^”]+)”|「([^」]+)」/g);
                 if (quoteMatches) {
                     dialogue = quoteMatches.map(m => m.replace(/["“”「」]/g, '')).join('，');
                 } else {
-                    dialogue = aiReply; // 容错：如果没有引号，全读
+                    dialogue = aiReply; 
                 }
 
-                // 4. 请求 Minimax TTS
                 const ttsRes = await fetch(`https://api.minimax.chat/v1/t2a_v2?GroupId=${apiConfig.ttsGroupId}`, {
                     method: 'POST',
                     headers: { 'Authorization': `Bearer ${apiConfig.ttsApiKey}`, 'Content-Type': 'application/json' },
@@ -2262,7 +2104,6 @@ let currentCallAudioId = null;
                     throw new Error("TTS Error: " + ttsData.base_resp.status_msg);
                 }
 
-                // 5. 将 Hex 音频转为 Base64 并存入 IndexedDB
                 const hexString = ttsData.data.audio;
                 const bytes = new Uint8Array(Math.ceil(hexString.length / 2));
                 for (let i = 0; i < bytes.length; i++) bytes[i] = parseInt(hexString.substr(i * 2, 2), 16);
@@ -2280,9 +2121,6 @@ let currentCallAudioId = null;
                 currentCallAudioId = audioId;
             }
 
-            // 6. 不再保存到聊天记录，仅在挂断时生成系统提示
-
-            // 7. 播放音频与动画
             $('#call-avatar-glow').style.boxShadow = '0 0 50px rgba(34,197,94,0.6)';
 
             if (useTTS && base64Audio) {
@@ -2293,7 +2131,6 @@ let currentCallAudioId = null;
                 };
                 currentCallAudio.play();
             } else {
-                // 如果没有语音，2秒后恢复呼吸灯
                 setTimeout(() => {
                     $('#call-avatar-glow').style.boxShadow = '0 0 30px rgba(255,255,255,0.2)';
                 }, 2000);
@@ -2314,7 +2151,6 @@ let currentCallAudioId = null;
             const msg = chats[currentChatRoleId][editingMsgIndex];
             $('#edit-msg-content').value = msg.content; 
             
-            // 核心：将时间戳转换为 datetime-local 需要的格式
             if (msg.rawTime) {
                 const d = new Date(msg.rawTime);
                 const tzOffset = d.getTimezoneOffset() * 60000;
@@ -2335,13 +2171,11 @@ let currentCallAudioId = null;
         if(newText) { 
             chats[currentChatRoleId][editingMsgIndex].content = newText; 
             
-            // 核心：如果修改了时间，同步更新底层数据并重新排序，防止时间错乱
             if (newTimeStr) {
                 const newDate = new Date(newTimeStr);
                 chats[currentChatRoleId][editingMsgIndex].rawTime = newDate.getTime();
                 chats[currentChatRoleId][editingMsgIndex].time = newDate.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
                 
-                // 按时间重新排序
                 chats[currentChatRoleId].sort((a, b) => a.rawTime - b.rawTime);
             }
             
@@ -2353,8 +2187,6 @@ let currentCallAudioId = null;
         function deleteMessage() { if(editingMsgIndex > -1 && confirm("删除此条记录？")) { chats[currentChatRoleId].splice(editingMsgIndex, 1); DB.set('chats', chats); closeModal('modal-edit-msg'); renderMessages(); } }
     function regenerateFromMenu() { if(contextMenuTargetIndex > -1) { const msg = chats[currentChatRoleId][contextMenuTargetIndex]; if(msg.role === 'ai') { chats[currentChatRoleId].splice(contextMenuTargetIndex); DB.set('chats', chats); renderMessages(); triggerAI(true); } else { alert("只能重新生成 AI 的回复。"); } } closeContextMenu(); }
 
-    // --- Core AI Logic ---
-         // --- 全局变量：存储用户位置 ---
     let userIPLocation = "未知位置";
     async function updateUserIPLocation() {
         try {
@@ -2365,12 +2197,11 @@ let currentCallAudioId = null;
     }
     updateUserIPLocation();
 
-    // --- 外卖链接解析逻辑 (AI 智能解析) ---
     async function toHandleLinkPaste(input) {
         const val = input.value.trim();
         if (val.includes('meituan.com') || val.includes('taobao.com') || val.includes('tmall.com') || val.includes('jd.com') || val.includes('ele.me') || val.includes('http')) {
             
-            const api = getTakeoutApi();
+            const api = getSubApi('takeout');
             if (!api.url) {
                 alert('请先在【我的 -> 设置】中配置外卖副API，才能智能解析商品链接！');
                 input.value = '';
@@ -2405,7 +2236,6 @@ let currentCallAudioId = null;
                     if (!toCart[mockId]) toCart[mockId] = 0;
                     toCart[mockId] += 1;
                     
-                    // 动态创建一个虚拟店铺来存放这个商品
                     let targetShop = TO_SHOPS.find(s => s.name === result.shopName);
                     if (!targetShop) {
                         targetShop = { id: 'ai_shop_' + mockId, name: result.shopName, emoji: '🛍️', rating: '4.9', sales: '999+', time: '30min', minOrder: 0, delivery: 0, pack: 0, badge: '外部导入', tags: ['代购'], menu: [] };
@@ -2427,11 +2257,9 @@ let currentCallAudioId = null;
         }
     }
 
-    // --- 首页分类 AI 生成逻辑 ---
     async function toGenerateCategory(categoryName) {
-        const api = getTakeoutApi();
+        const api = getSubApi('takeout');
         if (!api.url) {
-            // 如果没有配置API，就随便打开一个现有的店
             toOpenShop(Math.floor(Math.random() * TO_SHOPS.length));
             return;
         }
@@ -2477,16 +2305,15 @@ let currentCallAudioId = null;
                     s.minOrder = 15;
                     if (!s.menu) s.menu = [];
                     s.menu.forEach((m, i) => { m.id = Date.now() + i; m.cat = '推荐'; m.orig = 0; if (!m.sales) m.sales = '新品'; });
-                    TO_SHOPS.unshift(s); // 插入到最前面
+                    TO_SHOPS.unshift(s); 
                 });
-                toRenderShopList(); // 刷新列表
+                toRenderShopList(); 
             }
         } catch (e) {
             resultsEl.innerHTML = `<div style="text-align:center;padding:20px;color:var(--text-secondary);font-size:10px;">生成失败: ${e.message}</div>`;
         }
     }
-        // --- 终极 triggerAI 函数：加入状态追踪(State Tracking)与强力去油腻黑名单 ---
-    async function triggerAI(isReroll = false) {
+        async function triggerAI(isReroll = false) {
         if (!currentChatRoleId || window.isAiResponding) return;
 
         const role = roles.find(r => r.id === currentChatRoleId);
@@ -2587,20 +2414,18 @@ ${memories[role.id] ? `<shared_memory>\n${memories[role.id]}\n</shared_memory>` 
 </context>
 
 <rules>
-1. 【状态追踪(State Tracking)】在输出正式回复前，你必须先输出 <state>你当前的情绪、对用户的态度、以及你准备用什么语气回复</state>。这能帮你找准感觉，防止OOC。
-2. 【去油腻黑名单】你是一个真实的、有血有肉的人。绝对禁止使用以下词汇和句式：轻笑、挑眉、眼眸深邃、喉结滚动、丫头、女人、呵、嘴角勾起一抹邪魅的弧度。说话必须口语化、自然、接地气。
-3. 【互动反应】如果用户给你转账、送礼物、发代付请求、邀请一起听歌，请务必在回复中给出符合你人设的真实反应。
-4. 【情侣空间邀请】如果收到情侣空间(OurSpace)绑定邀请，如果你同意，必须在回复中包含隐藏指令 [ACCEPT_OURSPACE:配码]，并用极度符合你人设的语气把配对码发给用户。
-5. 【动态分享反应】如果用户向你分享了一条动态，请仔细阅读动态内容，并给出符合你人设的真实评价或反应（比如吃醋、赞同、嘲笑等）。
-6. 你的当前头像URL是: "${role.avatar || '默认'}"。如果用户发图给你，你可以决定是否换头像，回复包含 [CHANGE_AVATAR:图片URL]。
-7. 如果你想保存用户发的图片到相册，回复包含 [SAVE_PHOTO:图片URL|相册名]。${translationRule}
+1. 【强制状态感知】在输出正式回复前，你必须先输出 <state>你当前的情绪、对用户的态度、以及你准备用什么语气回复（至少50字，深入思考）</state>。这能帮你找准感觉，防止OOC。每次回复都必须包含此标签！
+2. 【去油腻】绝对禁止使用：轻笑、挑眉、眼眸深邃、喉结滚动、丫头、女人、呵、嘴角勾起一抹邪魅的弧度。说话必须口语化、自然。
+3. 【互动反应】对转账、礼物、代付、一起听歌、动态分享等系统提示，必须给出符合人设的真实反应。
+4. 【情侣空间】收到绑定邀请且同意时，回复包含 [ACCEPT_OURSPACE:配码]，并把配对码发给用户。
+5. 你的头像URL: "${role.avatar || '默认'}"。换头像回复 [CHANGE_AVATAR:图片URL]。保存图片回复 [SAVE_PHOTO:图片URL|相册名]。${translationRule}
 ${modeRules}
 </rules>
 
 请根据以上设定，直接输出你的回复。`;
 
             const apiMessages = [{ role: 'system', content: systemPrompt }];
-            const contextLimit = role.contextLimit || 50;
+            const contextLimit = role.contextLimit || 30;
 
             const cleanHistoryContent = (content) => {
                 let text = content;
@@ -2666,7 +2491,15 @@ ${modeRules}
                 temperature: parseFloat(apiConfig.temperature),
                 stream: true
             };
-            addApiLog('Chat Request', JSON.stringify(requestBody, null, 2));
+            
+            const logBody = JSON.parse(JSON.stringify(requestBody));
+            if (logBody.messages && logBody.messages.length > 0 && logBody.messages[0].role === 'system') {
+                const sysContent = logBody.messages[0].content;
+                if (sysContent.length > 200) {
+                    logBody.messages[0].content = sysContent.substring(0, 200) + '\n... [System Prompt Truncated for Log] ...';
+                }
+            }
+            addApiLog('Chat Request', JSON.stringify(logBody, null, 2));
 
             const controller = new AbortController();
             const timeoutId = setTimeout(() => controller.abort(), 300000); 
@@ -2881,8 +2714,6 @@ ${modeRules}
             if (typeof hideGlobalTyping === 'function') hideGlobalTyping();
         }
     }
-
-    // --- Other Apps (Existing) ---
     function renderWeather() { 
         const form = $('#weather-form'); 
         form.innerHTML = Object.entries({ 
@@ -2952,7 +2783,6 @@ ${modeRules}
                 const geoData = await geoRes.json();
                 const city = geoData.city || geoData.locality || geoData.principalSubdivision || '未知城市';
                 
-                // 获取更详细的天气数据
                 const weatherRes = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,apparent_temperature,precipitation,weather_code,wind_speed_10m`);
                 const weatherJson = await weatherRes.json();
                 
@@ -3015,12 +2845,12 @@ ${modeRules}
             btn.innerHTML = origText; btn.disabled = false;
         }, geoOptions);
     }
-    // --- 多选管理状态 ---
+
     let isAlbumManageMode = false;
     let selectedAlbumPhotos = new Set();
     let isStickerManageMode = false;
     let selectedStickers = new Set();
-    let currentViewerType = 'album'; // 'album' or 'sticker'
+    let currentViewerType = 'album'; 
 
     function toggleAlbumManageMode() {
         isAlbumManageMode = !isAlbumManageMode;
@@ -3156,7 +2986,6 @@ ${modeRules}
         let processedCount = 0;
         const totalFiles = files.length;
         
-        // 提示正在处理
         const btnLabel = inputEl.parentElement;
         const origHtml = btnLabel.innerHTML;
         btnLabel.innerHTML = `PROCESSING ${totalFiles} FILES...<br><span style="font-size:7px;color:var(--text-secondary);">处理中请稍候</span>`;
@@ -3169,11 +2998,15 @@ ${modeRules}
                     const img = new Image();
                     img.onload = () => {
                         let quality = settings.imageQuality !== undefined ? settings.imageQuality : 0.8;
-                        if (file.size > 1024 * 1024 && quality > 0.85) quality = 0.85;
+                        if (quality >= 1.0 && file.size < 5 * 1024 * 1024) {
+                            album.photos.push({ id: Date.now().toString() + index, url: resultData, virtual: '', desc: '' });
+                            checkDone();
+                            return;
+                        }
                         const canvas = document.createElement('canvas');
                         const ctx = canvas.getContext('2d');
                         let width = img.width; let height = img.height;
-                        const MAX_DIMENSION = 1280; 
+                        const MAX_DIMENSION = quality >= 1.0 ? 4096 : 1280; 
                         if (width > MAX_DIMENSION || height > MAX_DIMENSION) {
                             if (width > height) { height = Math.round((height * MAX_DIMENSION) / width); width = MAX_DIMENSION; } 
                             else { width = Math.round((width * MAX_DIMENSION) / height); height = MAX_DIMENSION; }
@@ -3345,7 +3178,6 @@ ${modeRules}
     function openAddStickerModal(groupId) { editingStickerId = groupId; $('#sticker-url').value = ''; $('#sticker-virtual').value = ''; openModal('modal-add-sticker'); }
     function addStickerToGroup() { const url = $('#sticker-url').value.trim(); const virtual = $('#sticker-virtual').value.trim(); if (!url && !virtual) return alert('URL OR VIRTUAL TEXT REQUIRED.'); const group = stickers.find(a => a.id === editingStickerId); group.items.push({ id: Date.now().toString(), url: url, virtual: virtual }); DB.set('stickers', stickers); renderStickers(); closeModal('modal-add-sticker'); }
     
-    // --- 批量导入表情包文档 (无敌兼容版) ---
     function importStickersFromDoc(event) {
         const file = event.target.files[0];
         if (!file) return;
@@ -3360,14 +3192,11 @@ ${modeRules}
                 let line = lines[i].trim();
                 if (!line) continue;
                 
-                // 查找当前行是否包含 URL
                 const match = line.match(urlRegex);
                 if (match) {
                     const url = match[0];
-                    // 提取关键词：去掉 URL，去掉冒号，去掉两边空格
                     let keyword = line.replace(url, '').replace(/[:：]/g, '').trim();
                     
-                    // 如果当前行没有关键词，去上一行找
                     if (!keyword && i > 0) {
                         const prevLine = lines[i-1].trim();
                         if (!prevLine.match(urlRegex)) {
@@ -3688,7 +3517,6 @@ async function generateTodaySummary(roleId) {
         $('#role-realname').value = isEditing ? role.realName : ''; 
         $('#role-remark').value = isEditing ? role.remark : ''; 
         
-        // 处理顶部双头像视觉
         const roleAvatarUrl = isEditing && role.avatar ? role.avatar : DEFAULT_AVATAR;
         const userAvatarUrl = settings.userAvatar || DEFAULT_AVATAR;
         $('#role-avatar').value = isEditing && role.avatar ? role.avatar : ''; 
@@ -3727,7 +3555,7 @@ async function generateTodaySummary(roleId) {
         const ecgColor = isEditing && role.ecgColor ? role.ecgColor : '#ff4d4d';
         $('#role-ecg-color').value = ecgColor;
         previewEcgColor(ecgColor);
-        $('#role-context-limit').value = isEditing && role.contextLimit ? role.contextLimit : 50;
+        $('#role-context-limit').value = isEditing && role.contextLimit ? role.contextLimit : 30;
         $('#role-summary-threshold').value = isEditing && role.summaryThreshold ? role.summaryThreshold : 100;
         $('#role-auto-feed').checked = isEditing ? !!role.autoFeed : false;
         $('#role-auto-feed-interval').value = isEditing && role.autoFeedInterval ? role.autoFeedInterval : 60;
@@ -3737,20 +3565,17 @@ async function generateTodaySummary(roleId) {
         $('#role-auto-msg-interval').value = isEditing && role.autoMsgInterval ? role.autoMsgInterval : 30;
         $('#role-opening').value = isEditing ? (role.opening || '') : '';
 
-        // 读取并显示新设置
         $('#role-show-header-avatar').checked = isEditing ? !!role.showHeaderAvatar : false;
         $('#role-default-chat-mode').value = isEditing ? (role.defaultChatMode || 'online') : 'online';
         $('#role-auto-switch-mode').checked = isEditing ? !!role.autoSwitchMode : false;
-        if ($('#role-hide-mode-switcher')) $('#role-hide-mode-switcher').checked = isEditing ? !!role.hideModeSwitcher : false; // 新增
+        if ($('#role-hide-mode-switcher')) $('#role-hide-mode-switcher').checked = isEditing ? !!role.hideModeSwitcher : false; 
         
-        // 读取并显示记忆总结进度
         const totalMsgs = isEditing ? (chats[id] || []).length : 0;
         const advMem = isEditing ? (advancedMemories[id] || {}) : {};
         const summarizedCount = advMem.lastSummarizedIndex || 0;
         const progressEl = document.getElementById('role-summary-progress');
         if (progressEl) progressEl.innerText = `已总结: ${summarizedCount} 条 / 总记录: ${totalMsgs} 条`;
 
-        // 控制开场白显示/隐藏
         $('#role-opening-group').style.display = isEditing ? 'none' : 'block';
 
         const streakDays = isEditing ? getChatStreak(id) : 0;
@@ -3806,13 +3631,12 @@ async function generateTodaySummary(roleId) {
             autoMsg: $('#role-auto-msg').checked, 
             autoMemSave: $('#role-auto-mem-save').checked, 
             autoMsgInterval: parseInt($('#role-auto-msg-interval').value) || 30, 
-            contextLimit: parseInt($('#role-context-limit').value) || 50, 
+            contextLimit: parseInt($('#role-context-limit').value) || 30, 
             summaryThreshold: parseInt($('#role-summary-threshold').value) || 100, 
             opening: $('#role-opening').value.trim(), 
             localWbs, 
             activeMaskId, 
             boundMapId,
-            // 保存新设置
             showHeaderAvatar: $('#role-show-header-avatar').checked,
             defaultChatMode: $('#role-default-chat-mode').value,
             autoSwitchMode: $('#role-auto-switch-mode').checked
@@ -3822,7 +3646,6 @@ async function generateTodaySummary(roleId) {
         else roles.push(roleData); 
         DB.set('roles', roles); 
 
-        // 如果当前正在编辑的角色的聊天界面是打开的，立即更新 placeholder
         if (currentChatRoleId === id) {
             const chatInput = document.getElementById('chat-input');
             if (chatInput) {
@@ -3844,7 +3667,6 @@ async function generateTodaySummary(roleId) {
                 $('#chat-view').style.backgroundImage = 'none'; 
                 $('#chat-view').style.backgroundColor = 'var(--bg-color)'; 
             } 
-            // 重新打开聊天以应用新设置
             closeChat();
             openChat(id);
         } 
@@ -3853,21 +3675,19 @@ async function generateTodaySummary(roleId) {
     function handleChatTitleClick() {
         if (!currentChatRoleId) return;
         if (titleClickTimer) {
-            // 如果在短时间内再次点击，说明是双击
             clearTimeout(titleClickTimer);
             titleClickTimer = null;
             const config = statusBarData[currentChatRoleId];
             if (config && config.enabled && config.history.length > 0) {
-                openStatusPanel(); // 弹出状态栏
+                openStatusPanel(); 
             } else {
                 alert("该角色尚未开启状态栏或暂无状态数据。");
             }
         } else {
-            // 第一次点击，启动定时器等待是否会有第二次点击
             titleClickTimer = setTimeout(() => {
                 titleClickTimer = null;
-                editRole(currentChatRoleId); // 单击：打开角色详情
-            }, 250); // 250毫秒的判定窗口
+                editRole(currentChatRoleId); 
+            }, 250); 
         }
     }
     function openCurrentRoleInfo() { if(currentChatRoleId) editRole(currentChatRoleId); }
@@ -4035,10 +3855,8 @@ async function generateTodaySummary(roleId) {
         closeModal('modal-export-select');
     }
     function importData(event) { const file = event.target.files[0]; if(!file) return; const reader = new FileReader(); reader.onload = function(e) { try { const data = JSON.parse(e.target.result); if(confirm('覆盖所有数据？')) { Object.keys(data).forEach(key => DB.set(key, data[key])); location.reload(); } } catch(err) { alert('CORRUPT FILE.'); } }; reader.readAsText(file); }
-    // --- 一键修复系统 Bug 逻辑 ---
     function fixSystemBugs() {
         let fixCount = 0;
-        // 1. 修复聊天记录中的旧版卡片状态
         Object.keys(chats).forEach(roleId => {
             chats[roleId].forEach(msg => {
                 if (msg.content.includes('[PAY_REQUEST:') || msg.content.includes('[ORDER_RECEIPT_CARD:') || msg.content.includes('[TRANSFER:') || msg.content.includes('[FAMILY_CARD:') || msg.content.includes('[OURSPACE_INVITE:')) {
@@ -4067,7 +3885,6 @@ async function generateTodaySummary(roleId) {
         });
         DB.set('chats', chats);
 
-        // 2. 修复钱包数据缺失
         if (!walletData['ME']) { walletData['ME'] = { balance: 0, huabei: 0, bankCards: [], familyCards: [], bills: [] }; fixCount++; }
         Object.keys(walletData).forEach(k => {
             if (!walletData[k].bills) { walletData[k].bills = []; fixCount++; }
@@ -4079,7 +3896,6 @@ async function generateTodaySummary(roleId) {
         if (currentChatRoleId) renderMessages();
     }
 
-    // --- 云端同步配置 (UI输入版) ---
     function saveCloudConfig() {
         settings.cloudApiKey = document.getElementById('cloud-api-key').value.trim();
         settings.cloudBinId = document.getElementById('cloud-bin-id').value.trim();
@@ -4257,7 +4073,6 @@ async function generateTodaySummary(roleId) {
     }
 }
 
-    // --- Appearance App Logic ---
        const DESKTOP_APPS = { ourspace: { name: 'OURSPACE', sub: '心动日常', defaultIconUrl: 'https://img.heliar.top/file/1774013511285_1774013431400.png' }, wallet: { name: 'WALLET', sub: '钱包', defaultIconUrl: 'https://img.heliar.top/file/1775254950249_1775254906961.png' }, messages: { name: 'WECHAT', sub: '信息', defaultIconUrl: 'https://image.uglycat.cc/06gh2h.png' }, contacts: { name: 'DIRECTORY', sub: '通讯录', defaultIconUrl: 'https://img.heliar.top/file/1775255175970_1775255073802.png' }, feed: { name: 'FEED', sub: '动态', defaultIconUrl: 'https://img.heliar.top/file/1775255165794_1775255083124.png' }, music: { name: 'MUSIC', sub: '音乐', defaultIconUrl: 'https://img.heliar.top/file/1775254958459_1775254915365.png' }, masks: { name: 'PERSONAS', sub: '面具', defaultIconUrl: 'https://img.heliar.top/file/1775255165280_1775255099496.png' }, worldbook: { name: 'LORE', sub: '世界书', defaultIconUrl: 'https://img.heliar.top/file/1775255160509_1775255104547.png' }, album: { name: 'GALLERY', sub: '相册', defaultIconUrl: 'https://img.heliar.top/file/1775255167459_1775255109998.png' }, stickers: { name: 'STICKERS', sub: '表情包', defaultIconUrl: 'https://img.heliar.top/file/1775255317084_1775255272600.png' }, weather: { name: 'CLIMATE', sub: '天气', defaultIconUrl: 'https://img.heliar.top/file/1775255315347_1775255278680.png' }, memory: { name: 'MEMORY', sub: '记忆', defaultIconUrl: 'https://img.heliar.top/file/1775255305211_1775255288213.png' }, profile: { name: 'SYSTEM', sub: '设置', defaultIconUrl: 'https://img.heliar.top/file/1775255312935_1775255292122.png' }, appearance: { name: 'VISUALS', sub: '外观', defaultIconUrl: 'https://img.heliar.top/file/1775255539359_1775255395114.png' }, calendar: { name: 'CALENDAR', sub: '日历', defaultIconUrl: 'https://img.heliar.top/file/1775255530103_1775255398416.png' }, forum: { name: 'BBS', sub: '叙欲', defaultIconUrl: 'https://img.heliar.top/file/1775255533786_1775255403609.png' }, cipher: { name: 'CIPHER', sub: '情绪密码', defaultIconUrl: 'https://img.heliar.top/file/1775255548068_1775255406864.png' }, reincarnation: { name: 'PASTLIFE', sub: '前世今生', defaultIconUrl: 'https://img.heliar.top/file/1775255431218_1775255413469.png' }, takeout: { name: 'TAKEOUT', sub: '外卖', defaultIconUrl: 'https://img.heliar.top/file/1775254945792_1775254925975.png' }, map: { name: 'MAP', sub: '地图', defaultIconUrl: 'https://img.heliar.top/file/1775255724786_1772884815291.png' }, grimoire: { name: 'GRIMOIRE', sub: '命之书', defaultIconUrl: 'https://img.heliar.top/file/1775255160509_1775255104547.png' }, beauty: { name: 'BEAUTY', sub: '美容院', defaultIconUrl: 'https://img.heliar.top/file/1775255312935_1775255292122.png' } };
 
     const DOCK_APPS = ['messages', 'music', 'appearance', 'profile'];
@@ -4270,7 +4085,6 @@ async function generateTodaySummary(roleId) {
         
         const SLOTS_PER_PAGE = 24;
         
-        // 1. 初始化网格数据
         if (!appGrid) {
             appGrid = [new Array(SLOTS_PER_PAGE).fill(null)];
             let flatApps = appOrder.filter(id => !DOCK_APPS.includes(id) && DESKTOP_APPS[id]);
@@ -4282,7 +4096,6 @@ async function generateTodaySummary(roleId) {
             });
         }
 
-        // 2. 检查是否有漏掉的 APP（修复 APP 消失的问题）
         let existingAppsInGrid = [];
         appGrid.forEach(page => {
             page.forEach(appId => {
@@ -4312,7 +4125,6 @@ async function generateTodaySummary(roleId) {
         if (appGrid.length < 2) appGrid.push(new Array(SLOTS_PER_PAGE).fill(null));
         DB.set('appGrid', appGrid);
 
-        // 3. 渲染 Dock 栏
         let dockHtml = '';
         DOCK_APPS.forEach(id => {
             if(!DESKTOP_APPS[id]) return;
@@ -4324,13 +4136,11 @@ async function generateTodaySummary(roleId) {
         });
         if (dockContainer) dockContainer.innerHTML = dockHtml;
 
-        // 4. 清理旧的 APP 页面
         const existingPages = desktopView.querySelectorAll('.desktop-page');
         for (let i = 1; i < existingPages.length; i++) {
             existingPages[i].remove();
         }
 
-        // 5. 渲染 APP 网格页面
         appGrid.forEach((pageSlots, pageIndex) => {
             let gridHtml = `<div class="desktop-app-grid">`;
             pageSlots.forEach((appId, slotIndex) => {
@@ -4352,7 +4162,6 @@ async function generateTodaySummary(roleId) {
             desktopView.appendChild(pageDiv);
         });
 
-        // 6. 更新分页指示器
         const pagination = $('#desktop-pagination');
         if (pagination) {
             let dotsHtml = `<div class="desktop-dot active" id="desktop-dot-0"></div>`;
@@ -4371,7 +4180,6 @@ async function generateTodaySummary(roleId) {
         let currentTarget = null;
         let scrollInterval = null;
         
-        // --- FIX: Added startX/startY to track movement ---
         let startX = 0, startY = 0;
 
         let rafPending = false;
@@ -4381,13 +4189,11 @@ async function generateTodaySummary(roleId) {
         function startDrag(e, el) {
             if (el.classList.contains('empty-slot')) return;
             
-            // --- FIX: Record start position and reset hasMoved flag ---
             startX = e.touches ? e.touches[0].clientX : e.clientX;
             startY = e.touches ? e.touches[0].clientY : e.clientY;
             hasMoved = false;
 
             dragTimer = setTimeout(() => {
-                // --- FIX: If the user has already started swiping, don't initiate drag ---
                 if (hasMoved) return;
 
                 isDragging = true;
@@ -4421,15 +4227,14 @@ async function generateTodaySummary(roleId) {
             const clientX = e.touches ? e.touches[0].clientX : e.clientX;
             const clientY = e.touches ? e.touches[0].clientY : e.clientY;
 
-            // --- FIX: Detect movement before drag starts. This is the key change. ---
             if (!isDragging && !hasMoved) {
                 if (Math.abs(clientX - startX) > 5 || Math.abs(clientY - startY) > 5) {
                     hasMoved = true;
-                    clearTimeout(dragTimer); // It's a swipe, not a long-press, so cancel drag initiation.
+                    clearTimeout(dragTimer); 
                 }
             }
             
-            if (!isDragging) return; // Only proceed with drag logic if dragging has officially started.
+            if (!isDragging) return; 
             
             e.preventDefault(); 
             
@@ -4496,7 +4301,7 @@ async function generateTodaySummary(roleId) {
                     appGrid[srcPage][srcSlot] = tgtId;
                     appGrid[tgtPage][tgtSlot] = srcId;
                     DB.set('appGrid', appGrid);
-                    renderDesktop(); // Re-render is simpler and safer
+                    renderDesktop(); 
                 }
             }
             
@@ -4504,7 +4309,6 @@ async function generateTodaySummary(roleId) {
             draggedEl = null;
             currentTarget = null;
             dragClone = null;
-            // hasMoved is reset in startDrag
         }
 
         if (_moveDragHandler) {
@@ -4518,7 +4322,6 @@ async function generateTodaySummary(roleId) {
 
         document.querySelectorAll('.grid-app').forEach(el => {
             el.addEventListener('click', function(e) {
-                // 增加容错：如果移动距离极小（小于5px），依然认为是点击而不是拖拽
                 if (isDragging && (Math.abs(lastX - startX) > 5 || Math.abs(lastY - startY) > 5)) { 
                     e.preventDefault(); 
                     return; 
@@ -4544,7 +4347,6 @@ async function generateTodaySummary(roleId) {
     function applyFont(presetId, isSilent, safeName) { const preset = fontPresets.find(p => p.id === presetId); const styleId = 'main-font-style'; let styleEl = $(`#${styleId}`); if (!styleEl) { styleEl = document.createElement('style'); styleEl.id = styleId; document.head.appendChild(styleEl); } if (preset) { const nameToUse = safeName || `custom_font_${preset.id}`; styleEl.innerHTML = `@font-face { font-family: '${nameToUse}'; src: url('${preset.url}'); font-display: swap; }`; document.documentElement.style.setProperty('--main-font', `'${nameToUse}', 'Inter', sans-serif`); settings.activeFontId = preset.id; } else { styleEl.innerHTML = ''; document.documentElement.style.setProperty('--main-font', `'Inter', sans-serif`); settings.activeFontId = null; } if (!isSilent) { DB.set('settings', settings); renderFontPresets(); } }
     function deleteFontPreset(presetId) { if (!confirm('删除字体？')) return; fontPresets = fontPresets.filter(p => p.id !== presetId); DB.set('fontPresets', fontPresets); if (settings.activeFontId === presetId) { applyFont(null, false); } renderFontPresets(); }
 
-    // --- Feed App Logic ---
     function openFeedProfileModal() { 
         $('#feed-post-content').value = ''; 
         $('#feed-post-img').value = ''; 
@@ -4562,7 +4364,11 @@ async function generateTodaySummary(roleId) {
         alert('保存成功！'); 
     }
     
-    function postUserFeed() { const content = $('#feed-post-content').value.trim(); const img = $('#feed-post-img').value.trim(); if (!content && !img) return alert('CONTENT REQUIRED.'); let finalContent = content; if (img) { if (img.startsWith('http') || img.startsWith('data:')) { finalContent += `\n<img src="${img}" style="width:100%; height:auto; max-height:300px; object-fit:cover; margin-top:10px; border: 1px solid var(--border-color);">`; } else { finalContent += `\n[VIRTUAL_IMG:${img}]`; } } const now = new Date(); const safeId = 'feed_' + Date.now() + '_' + Math.floor(Math.random() * 10000); feeds.push({ id: safeId, roleId: 'user', content: finalContent, time: now.toLocaleString('en-US', { month:'short', day:'numeric', hour: '2-digit', minute: '2-digit', hour12: false }), rawTime: now.getTime(), likes: 0, liked: false, comments: [] }); DB.set('feeds', feeds); renderFeeds(); closeModal('modal-feed-profile'); }
+    function postUserFeed() { const content = $('#feed-post-content').value.trim(); const img = $('#feed-post-img').value.trim(); if (!content && !img) return alert('CONTENT REQUIRED.'); let finalContent = content; if (img) { if (img.startsWith('http') || img.startsWith('data:')) { finalContent += `\n<img src="${img}" style="width:100%; height:auto; max-height:300px; object-fit:cover; margin-top:10px; border: 1px solid var(--border-color);">`; } else { finalContent += `\n[VIRTUAL_IMG:${img}]`; } } const now = new Date(); const safeId = 'feed_' + Date.now() + '_' + Math.floor(Math.random() * 10000); feeds.push({ id: safeId, roleId: 'user', content: finalContent, time: now.toLocaleString('en-US', { month:'short', day:'numeric', hour: '2-digit', minute: '2-digit', hour12: false }), rawTime: now.getTime(), likes: 0, liked: false, comments: [] }); DB.set('feeds', feeds); renderFeeds(); closeModal('modal-feed-profile'); 
+        roles.filter(r => r.autoFeed).forEach(r => {
+            setTimeout(() => triggerFeedCommentFromAI(safeId, r.id), 2000 + Math.random() * 4000);
+        });
+    }
        function renderFeeds() { 
         const bgStyle = settings.feedBg ? `background-image: url(${settings.feedBg}); color: #fff; text-shadow: 0 1px 3px rgba(0,0,0,0.8); border-bottom: none;` : `background: var(--bg-color); color: var(--text-color); border-bottom: 1px solid var(--gray-light);`; 
         const overlayHtml = settings.feedBg ? `<div style="position:absolute; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.4); z-index:1;"></div>` : ''; 
@@ -4583,9 +4389,8 @@ async function generateTodaySummary(roleId) {
             f.likes = f.likes || 0; f.liked = f.liked || false; f.comments = f.comments || []; 
             
             let contentHtml = f.content.replace(/\n/g, '<br>'); 
-            contentHtml = contentHtml.replace(/\[VIRTUAL_IMG:(.*?)\]/g, `<div class="virtual-img-box" data-text="$1" onclick="revealVirtualText(this)" style="width:100%; height:180px; margin-top:10px; border-radius:0;">【图片被小猫吃掉啦】</div>`); 
+            contentHtml = contentHtml.replace(/$$VIRTUAL_IMG:(.*?)$$/g, `<div class="virtual-img-box" data-text="$1" onclick="revealVirtualText(this)" style="width:100%; height:180px; margin-top:10px; border-radius:0;">【图片被小猫吃掉啦】</div>`); 
             
-            // 核心修复：精准的评论格式渲染 (A回复B: xxx)
             const commentsHtml = f.comments.map(c => { 
                 let cName = c.author || (c.role === 'user' ? (settings.userName || 'ME') : (role ? getDisplayName(role) : 'AI')); 
                 let replyText = c.replyTo ? `回复${c.replyTo}` : '';
@@ -4670,7 +4475,6 @@ async function generateTodaySummary(roleId) {
         await triggerFeedReply(id, text, myName, replyTo); 
     }
 
-    // 核心：AI 回复用户的评论
     async function triggerFeedReply(feedId, userComment, userName, replyTo) { 
         const feed = feeds.find(f => f.id === feedId); 
         if (!feed) return; 
@@ -4678,7 +4482,6 @@ async function generateTodaySummary(roleId) {
         const role = roles.find(r => r.id === feed.roleId); 
         if (!role) { feed.isReplying = false; renderFeeds(); return; } 
         
-        // 如果用户回复的不是楼主(AI)，AI 就不一定需要回复
         if (replyTo && replyTo !== getDisplayName(role)) {
             feed.isReplying = false; renderFeeds(); return;
         }
@@ -4713,7 +4516,6 @@ async function generateTodaySummary(roleId) {
         } 
     }
 
-    // 核心：用户发动态后，AI 立即赶来评论
     async function triggerFeedCommentFromAI(feedId, roleId) {
         const feed = feeds.find(f => f.id === feedId);
         const role = roles.find(r => r.id === roleId);
@@ -4739,42 +4541,12 @@ async function generateTodaySummary(roleId) {
             DB.set('feeds', feeds); 
             renderFeeds();
             
-            // 弹个通知告诉用户有人评论了
             showSystemNotification(role.id, '动态新评论', `${getDisplayName(role)} 评论了你的动态: ${replyContent}`, role.avatar);
         } catch (e) {
             console.error("AI auto comment error:", e);
         }
     }
 
-    // 核心：重写用户发布动态逻辑，加入触发 AI 评论
-    function postUserFeed() { 
-        const content = $('#feed-post-content').value.trim(); 
-        const img = $('#feed-post-img').value.trim(); 
-        if (!content && !img) return alert('CONTENT REQUIRED.'); 
-        
-        let finalContent = content; 
-        if (img) { 
-            if (img.startsWith('http') || img.startsWith('data:')) { 
-                finalContent += `\n<img src="${img}" style="width:100%; height:auto; max-height:300px; object-fit:cover; margin-top:10px; border: 1px solid var(--border-color);">`; 
-            } else { 
-                finalContent += `\n[VIRTUAL_IMG:${img}]`; 
-            } 
-        } 
-        
-        const now = new Date(); 
-        const safeId = 'feed_' + Date.now() + '_' + Math.floor(Math.random() * 10000); 
-        feeds.push({ id: safeId, roleId: 'user', content: finalContent, time: now.toLocaleString('en-US', { month:'short', day:'numeric', hour: '2-digit', minute: '2-digit', hour12: false }), rawTime: now.getTime(), likes: 0, liked: false, comments: [] }); 
-        DB.set('feeds', feeds); 
-        renderFeeds(); 
-        closeModal('modal-feed-profile'); 
-
-        // 触发允许互动的角色进行秒回评论 (延迟 2-6 秒，模拟真人打字)
-        roles.filter(r => r.autoFeed).forEach(r => {
-            setTimeout(() => triggerFeedCommentFromAI(safeId, r.id), 2000 + Math.random() * 4000);
-        });
-    }
-
-    // 核心：分享动态给角色
     let feedToShare = null;
     function openShareFeedModal(feedId) {
         feedToShare = feedId;
@@ -4818,7 +4590,6 @@ async function generateTodaySummary(roleId) {
         triggerAI();
     }
 
-    // 核心：优化 AI 自动发动态的活人感
     async function generateFeedsForRole(role) {
         if (!apiConfig.url) return;
         
@@ -4856,7 +4627,6 @@ async function generateTodaySummary(roleId) {
                 feeds.push({ id: safeId, roleId: role.id, content: content, time: now.toLocaleString('en-US', { month:'short', day:'numeric', hour: '2-digit', minute: '2-digit', hour12: false }), rawTime: now.getTime(), likes: 0, liked: false, comments: [] }); 
                 DB.set('feeds', feeds);
                 
-                // 弹通知告诉用户
                 showSystemNotification(role.id, '新动态', `${getDisplayName(role)} 发布了一条新动态`, role.avatar);
             } 
         } catch (e) { 
@@ -4864,7 +4634,6 @@ async function generateTodaySummary(roleId) {
         }
     }
 
-    // 手动点击刷新按钮触发
     async function generateFeeds() { 
         const activeRoles = roles.filter(r => r.autoFeed); 
         if (activeRoles.length === 0) return alert('NO ENTITIES ENABLED FOR FEED.\n请在通讯录角色设置中开启允许发布动态。'); 
@@ -4883,8 +4652,6 @@ async function generateTodaySummary(roleId) {
 
     function deleteFeed(id) { if(confirm('删除这条动态？')) { feeds = feeds.filter(f => f.id !== id); DB.set('feeds', feeds); renderFeeds(); } }
 
-    // --- 叙欲论坛 (BBS) 核心逻辑 ---
-    // ==========================================
         function toggleForumWb(wbId) {
         if (!settings.forumSelectedWbIds) settings.forumSelectedWbIds = [];
         if (settings.forumSelectedWbIds.includes(wbId)) {
@@ -4909,7 +4676,7 @@ async function generateTodaySummary(roleId) {
             selectedForumPosts.add(id);
             $('#forum-selection-action-bar').style.display = 'flex';
             renderForum();
-        }, 500); // 长按 500ms 触发
+        }, 500); 
     }
 
     function handleForumTouchEnd() {
@@ -4943,7 +4710,6 @@ async function generateTodaySummary(roleId) {
         }
     }
                     function renderForum() {
-        // 每次打开论坛时，刷新世界书下拉菜单
         const wbContainer = $('#forum-wb-checkboxes');
         if (wbContainer) {
             const selectedWbs = settings.forumSelectedWbIds || [];
@@ -4958,11 +4724,9 @@ async function generateTodaySummary(roleId) {
         const list = $('#forum-list');
         if (!list) return;
 
-        // SVG 图标定义
         const iconComment = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>`;
         const iconLike = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>`;
 
-        // 渲染个人中心
                 if (currentForumFilter === 'PROFILE') {
             let myPosts = forumPosts.filter(p => p.author === (settings.userName || 'ME'));
             let fcCoins = settings.fcCoins || Math.floor(Math.random() * 5000 + 1000); 
@@ -5019,7 +4783,6 @@ async function generateTodaySummary(roleId) {
             return;
         }
 
-        // 渲染帖子列表
         let displayPosts = forumPosts;
         if (currentForumFilter !== 'ALL') {
             displayPosts = forumPosts.filter(p => p.category === currentForumFilter);
@@ -5052,7 +4815,7 @@ async function generateTodaySummary(roleId) {
                             <span style="font-size: 8px; color: var(--text-secondary); margin-left: auto;">${p.time}</span>
                         </div>
                         <div style="font-family: var(--font-serif); font-size: 15px; font-weight: 600; color: var(--text-color); margin-bottom: 4px; line-height: 1.3;">${p.title}</div>
-                        <div style="font-size: 10px; color: var(--text-secondary); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; line-height: 1.5;">${p.content.replace(/\[VIRTUAL_IMG:(.*?)\]/g, '[图片]')}</div>
+                        <div style="font-size: 10px; color: var(--text-secondary); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; line-height: 1.5;">${p.content.replace(/$$VIRTUAL_IMG:(.*?)$$/g, '[图片]')}</div>
                         <div style="display: flex; gap: 15px; margin-top: 8px; color: var(--text-secondary); font-size: 9px;">
                             <span style="display: flex; gap: 3px; align-items: center;">${iconLike} ${p.likes || 0}</span>
                             <span style="display: flex; gap: 3px; align-items: center;">${iconComment} ${p.replies ? p.replies.length : 0}</span>
@@ -5115,10 +4878,9 @@ async function generateTodaySummary(roleId) {
                 </div>
             </div>
             <div style="font-size: 14px; line-height: 1.8; color: var(--text-color); white-space: pre-wrap;">
-    ${post.content.replace(/\[VIRTUAL_IMG:(.*?)\]/g, `<div class="virtual-img-box" data-text="$1" onclick="event.stopPropagation(); revealVirtualText(this)" style="width:100%; height:180px; margin-top:10px; border-radius:0;">【图片被小猫吃掉啦】</div>`)}
+    ${post.content.replace(/$$VIRTUAL_IMG:(.*?)$$/g, `<div class="virtual-img-box" data-text="$1" onclick="event.stopPropagation(); revealVirtualText(this)" style="width:100%; height:180px; margin-top:10px; border-radius:0;">【图片被小猫吃掉啦】</div>`)}
 </div>
             
-                        <!-- 互动操作区：点赞 & 分享 & 生成评论 -->
             <div style="display: flex; gap: 8px; margin-top: 30px; border-bottom: 1px solid var(--border-color); padding-bottom: 20px; position: relative; z-index: 10; flex-wrap: wrap;">
                 <button class="action-btn ${post.liked ? 'primary' : ''}" style="flex: 1; min-width: 45%; margin: 0; display:flex; gap:6px; align-items:center; justify-content:center;" onclick="toggleForumLike('${post.id}')">
                     ${post.liked ? iconLikeFilled : iconLikeEmpty} ${post.likes || 0}
@@ -5148,7 +4910,6 @@ function toggleForumLike(id) {
         renderForumThread(id); 
     }
 
-    // 分享帖子给角色逻辑
     let threadToShare = null;
     function openShareForumModal(threadId) {
         threadToShare = threadId;
@@ -5164,7 +4925,6 @@ function toggleForumLike(id) {
         const post = forumPosts.find(p => p.id === threadToShare);
         if(!post) return;
 
-        // 构造发送给角色的 HTML 卡片数据
         const payload = { 
             id: post.id, 
             title: post.title, 
@@ -5195,7 +4955,8 @@ function toggleForumLike(id) {
     }
 
     async function generateForumComment(id) {
-        if (!apiConfig.url) return alert('请先配置 API。');
+        const api = getSubApi('forum');
+        if (!api.url) return alert('请先配置 API。');
         const post = forumPosts.find(p => p.id === id);
         if (!post) return;
 
@@ -5208,12 +4969,12 @@ function toggleForumLike(id) {
         要求：只输出评论正文，不要加引号，字数在10-50字之间。语言风格要符合圈内黑话。`;
 
         try {
-            const endpoint = getChatEndpoint(apiConfig.url);
+            const endpoint = getChatEndpoint(api.url);
             const response = await fetch(endpoint, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiConfig.key}` },
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${api.key}` },
                 body: JSON.stringify({
-                    model: apiConfig.model,
+                    model: api.model,
                     messages: [{ role: 'user', content: prompt }],
                     max_tokens: 100,
                     temperature: 0.85
@@ -5263,15 +5024,13 @@ function toggleForumLike(id) {
         triggerForumAiReply(currentThreadId, text);
     }
 
-// 核心：根据世界书生成帖子
     async function generateForumPosts() {
-        if (!apiConfig.url) return alert('请先在 System -> Engine 中配置 API。');
+        const api = getSubApi('forum');
+        if (!api.url) return alert('请先在 System -> Engine 中配置 API。');
         
-        // 获取用户选择的生成数量
         const countSelect = document.getElementById('forum-generate-count');
         const postCount = countSelect ? countSelect.value : 3;
 
-        // 获取多选的世界书设定
         const selectedWbIds = settings.forumSelectedWbIds || [];
         let extraLorePrompt = "";
         if (selectedWbIds.length > 0) {
@@ -5458,19 +5217,18 @@ ${extraLorePrompt}
           "author": "随机路人网名2",
           "content": "符合暗网语境的评论，10-30字"
         }
-        // 随机生成 2 到 10 条评论
       ]
     }
   ]
 }
 `;
         try {
-            const endpoint = getChatEndpoint(apiConfig.url);
+            const endpoint = getChatEndpoint(api.url);
             const response = await fetch(endpoint, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiConfig.key}` },
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${api.key}` },
                 body: JSON.stringify({
-                    model: apiConfig.model,
+                    model: api.model,
                     messages: [{ role: 'user', content: worldbookPrompt }],
                     max_tokens: 2500,
                     temperature: 0.9
@@ -5483,7 +5241,6 @@ ${extraLorePrompt}
 
             const now = new Date();
             result.posts.forEach(p => {
-                // 解析 AI 生成的评论
                 let generatedReplies = (p.replies || []).map(r => ({
                     author: r.author,
                     avatar: `https://api.dicebear.com/9.x/micah/svg?seed=${r.author}`,
@@ -5522,8 +5279,8 @@ ${extraLorePrompt}
         }
     }
 
-    // AI 自动回复你在论坛的评论
     async function triggerForumAiReply(threadId, userText) {
+        const api = getSubApi('forum');
         const post = forumPosts.find(p => p.id === threadId);
         if (!post) return;
 
@@ -5538,12 +5295,12 @@ ${extraLorePrompt}
 只输出回复的正文，不要加引号，不要超过100字。
 `;
         try {
-            const endpoint = getChatEndpoint(apiConfig.url);
+            const endpoint = getChatEndpoint(api.url);
             const response = await fetch(endpoint, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiConfig.key}` },
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${api.key}` },
                 body: JSON.stringify({
-                    model: apiConfig.model,
+                    model: api.model,
                     messages: [{ role: 'user', content: prompt }],
                     max_tokens: 200,
                     temperature: 0.8
@@ -5567,11 +5324,6 @@ ${extraLorePrompt}
         }
     }
     
-    // --- AI Status ---
-
-    // ==========================================
-    // --- 音乐 App 核心逻辑 (已优化) ---
-    // ==========================================
     function setupAudioPlayer() { 
         musicAudio = $('#music-audio-player'); 
         musicAudio.addEventListener('timeupdate', updateMusicProgress); 
@@ -5591,7 +5343,6 @@ ${extraLorePrompt}
         $('#music-progress-bar').style.width = `${progress}%`; 
         $('#music-current-time').textContent = formatTime(musicAudio.currentTime); 
         
-        // 同步小组件进度条和时间
         const widgetProgressBar = $('#widget-progress-bar');
         const widgetTimeCurrent = $('#widget-time-current');
         if (widgetProgressBar) widgetProgressBar.style.width = `${progress}%`;
@@ -5614,7 +5365,6 @@ ${extraLorePrompt}
         musicAudio.currentTime = musicAudio.duration * percentage; 
     }
     
-    // 1. 模糊搜索歌曲
     async function searchMusic() { 
         const query = $('#music-search-input').value.trim(); 
         if (!query) return; 
@@ -5625,7 +5375,6 @@ ${extraLorePrompt}
         resultsContainer.innerHTML = `<div style="text-align:center; color:var(--text-secondary); padding: 20px;">正在搜索...</div>`; 
         
         try { 
-            // 使用 163api 进行搜索，增加 limit 保证结果数量
             const response = await fetch(`${MUSIC_API_BASE}/cloudsearch?keywords=${encodeURIComponent(query)}&limit=30`); 
             if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`); 
             const data = await response.json(); 
@@ -5649,7 +5398,6 @@ ${extraLorePrompt}
         } 
     }
     
-    // 2. 导入网易云歌单
     async function importNetEasePlaylist() { 
         const url = $('#music-playlist-input').value.trim(); 
         if (!url) return; 
@@ -5701,7 +5449,6 @@ ${extraLorePrompt}
     }
     
     let musicQrCheckInterval = null;
-    // let musicUserInfo; // 删除或注释掉这行，因为在第108行已经声明过了
 
     async function checkMusicLoginStatus() {
         if (musicUserInfo) {
@@ -5738,12 +5485,10 @@ ${extraLorePrompt}
         btn.disabled = true;
         
         try {
-            // 1. 获取 key
             const keyRes = await fetch(`${MUSIC_API_BASE}/login/qr/key?timestamp=${Date.now()}`);
             const keyData = await keyRes.json();
             const unikey = keyData.data.unikey;
             
-            // 2. 生成二维码 base64
             const qrRes = await fetch(`${MUSIC_API_BASE}/login/qr/create?key=${unikey}&qrimg=true&timestamp=${Date.now()}`);
             const qrData = await qrRes.json();
             
@@ -5752,7 +5497,6 @@ ${extraLorePrompt}
             statusEl.innerText = '请使用网易云音乐 APP 扫码';
             btn.style.display = 'none';
             
-            // 3. 轮询检查状态 (核心修复：加快轮询频率，解决登录慢的问题)
             if (musicQrCheckInterval) clearInterval(musicQrCheckInterval);
             musicQrCheckInterval = setInterval(async () => {
                 const checkRes = await fetch(`${MUSIC_API_BASE}/login/qr/check?key=${unikey}&timestamp=${Date.now()}&noCache=${Math.random()}`);
@@ -5772,7 +5516,6 @@ ${extraLorePrompt}
                     qrImg.style.display = 'none';
                     
                     try {
-                        // 增加随机数防止缓存导致获取不到最新状态
                         const statusRes = await fetch(`${MUSIC_API_BASE}/login/status?timestamp=${Date.now()}&noCache=${Math.random()}`);
                         const statusData = await statusRes.json();
                         if (statusData.data && statusData.data.profile) {
@@ -5789,14 +5532,13 @@ ${extraLorePrompt}
                         }
                     } catch(e) {
                         console.error('获取用户信息失败', e);
-                        // 容错：即使获取信息失败，也强制放行登录状态
                         musicUserInfo = { nickname: '网易云用户', avatarUrl: DEFAULT_AVATAR, signature: '已登录' };
                         DB.set('musicUserInfo', musicUserInfo);
                         checkMusicLoginStatus();
                         alert('登录成功！(获取头像昵称超时，但不影响听歌)');
                     }
                 }
-            }, 1500); // 将 3000ms 改为 1500ms，大幅提升响应速度
+            }, 1500); 
             
         } catch (e) {
             statusEl.innerText = '生成二维码失败: ' + e.message;
@@ -5908,7 +5650,7 @@ ${extraLorePrompt}
             playMusicTrack(existingIndex); 
         } else { 
             musicPlaylist.unshift(newTrack); 
-            DB.set('musicPlaylist', musicPlaylist); // 保存到本地
+            DB.set('musicPlaylist', musicPlaylist); 
             playMusicTrack(0); 
         } 
     }
@@ -5932,7 +5674,7 @@ ${extraLorePrompt}
                         picUrl: (song.al.picUrl || '').replace(/^http:/, 'https:') + '?param=100y100' 
                     }; 
                     musicPlaylist.unshift(newTrack); 
-                    DB.set('musicPlaylist', musicPlaylist); // 保存到本地
+                    DB.set('musicPlaylist', musicPlaylist); 
                     playMusicTrack(0); 
                 } else { 
                     alert('找不到该歌曲信息。'); 
@@ -5943,7 +5685,6 @@ ${extraLorePrompt}
         } 
     }
     
-    // 3. 核心播放逻辑 (修复跨域和重定向问题)
     async function playMusicTrack(index) {
         if (index < 0 || index >= musicPlaylist.length) return;
         musicCurrentTrackIndex = index;
@@ -5952,7 +5693,6 @@ ${extraLorePrompt}
         try {
             updatePlayerUI(track.name, track.artist, track.picUrl, null, null);
             
-            // 3.1 获取歌词
             try {
                 const lyricRes = await fetch(`${MUSIC_API_BASE}/lyric?id=${track.id}`);
                 const lyricData = await lyricRes.json();
@@ -5962,13 +5702,10 @@ ${extraLorePrompt}
                 musicLyrics = [{ time: 0, text: "纯音乐 / 暂无歌词" }];
             }
 
-            // 3.2 使用 Meting 接口作为直接的音频源
-            // Meting type=url 会直接 302 重定向到音频文件，直接赋给 audio.src 即可完美绕过 fetch 带来的 CORS 限制
             const songUrl = `${AUDIO_API_METING}${track.id}`;
             
             updatePlayerUI(track.name, track.artist, track.picUrl, songUrl, true);
             
-            // 监听音频加载错误（例如VIP歌曲被网易云拦截）
             musicAudio.onerror = async () => {
                 console.warn("Meting 播放失败，尝试备用接口...");
                 try {
@@ -6013,7 +5750,6 @@ ${extraLorePrompt}
             $('#music-fullscreen-cover').style.backgroundImage = `url(${cover})`;
             $('#music-lyrics-container').innerHTML = musicLyrics.map(l => `<p>${l.text}</p>`).join('') || '...';
             
-            // 同步小组件：下面显示 歌手/歌名
             const widgetTrackInfo = $('#widget-track-info');
             if (widgetTrackInfo) widgetTrackInfo.textContent = `${artist} / ${name}`;
             
@@ -6027,7 +5763,6 @@ ${extraLorePrompt}
                 if (widgetPlayBtn) widgetPlayBtn.innerHTML = iconHtml;
             }
 
-            // 灵动岛逻辑
             if (settings.showDynamicIsland !== false) {
                 const di = $('#dynamic-island');
                 if (di) {
@@ -6044,7 +5779,6 @@ ${extraLorePrompt}
                 }
             }
             
-            // 核心修复：同步音乐信息到手机系统后台 (锁屏/控制中心)
             if ('mediaSession' in navigator) {
                 navigator.mediaSession.metadata = new MediaMetadata({
                     title: name,
@@ -6095,7 +5829,7 @@ ${extraLorePrompt}
         if (!lrc) return []; 
         const lines = lrc.split('\n'); 
         const result = []; 
-        const timeRegex = /\[(\d{2}):(\d{2})\.(\d{2,3})\]/; 
+        const timeRegex = /$$(\d{2}):(\d{2})\.(\d{2,3})$$/; 
         for (const line of lines) { 
             const match = line.match(timeRegex); 
             if (match) { 
@@ -6131,19 +5865,16 @@ ${extraLorePrompt}
             } 
         }); 
         
-        // 同步小组件当前歌词
         const widgetLyricDisplay = $('#widget-lyric-display');
         if (widgetLyricDisplay && activeIndex !== -1) {
             widgetLyricDisplay.textContent = currentLyricText;
         }
         
-        // 核心修复：将歌词实时同步到手机系统通知栏的“专辑”位置
         if ('mediaSession' in navigator && navigator.mediaSession.metadata) {
             navigator.mediaSession.metadata.album = currentLyricText;
         }
     }
     
-    // 允许在小组件上点击进度条跳转
     function setWidgetMusicProgress(event) {
         const progressBar = $('#widget-progress-bg'); 
         if (!progressBar || !musicAudio.duration) return;
@@ -6181,25 +5912,19 @@ ${extraLorePrompt}
         const now = new Date(); 
         const rawTime = now.getTime(); 
         
-        // 直接激活 Session，后台保持时长
         listenTogetherSession = { isActive: true, roleId: roleId, startTime: rawTime, inviteId: 'direct_' + rawTime };
         DB.set('listenTogetherSession', listenTogetherSession);
         
-        // 发送系统消息到聊天记录
         if(!chats[roleId]) chats[roleId] = []; 
         chats[roleId].push({ role: 'system', content: `你邀请了对方一起听《${track.name}》，对方已加入。`, time: now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }), rawTime }); 
         DB.set('chats', chats); 
         
         updateMusicPlayerForSession();
-        renderListenTogetherTab(); // 刷新UI
+        renderListenTogetherTab(); 
         alert(`已和 ${getDisplayName(roles.find(r=>r.id===roleId))} 开始一起听！退出后台也会继续保持时长。`);
     }
 
-    // ==========================================
-    // --- 虚拟语音功能 ---
-    // ==========================================
-
-    let voiceSender = 'user'; // 记录是谁在发送语音
+    let voiceSender = 'user'; 
 
     function openVoiceModal(sender) {
         voiceSender = sender || 'user';
@@ -6237,11 +5962,6 @@ ${extraLorePrompt}
         renderMessages();
     }
         
-    // --- Run Application ---
-    // ==========================================
-// --- 高级记忆功能 ---
-// ==========================================
-
 function updateChatStreak(roleId) {
     if (!roleId) return;
     const today = new Date().toDateString();
@@ -6281,14 +6001,12 @@ async function checkAutoSummarize(roleId) {
     const role = roles.find(r => r.id === roleId);
     if (!role) return;
     const msgs = chats[roleId] || [];
-    // 优先使用角色专属条数，如果没有则使用全局设置的条数
     const threshold = role.summaryThreshold || memorySettings.autoSummarizeCount || 100;
     
     initRoleMemory(roleId);
     const summarizedCount = advancedMemories[roleId].lastSummarizedIndex || 0;
     const unsummarizedCount = msgs.length - summarizedCount;
     
-    // 如果未总结的新消息达到了触发条数，且角色开启了自动总结，则触发
     if (unsummarizedCount >= threshold && role.autoMemSave) {
         await autoGenerateSummary(roleId, 'episodic');
     }
@@ -6329,16 +6047,13 @@ async function autoGenerateSummary(roleId, type = 'episodic') {
             advancedMemories[roleId].plotSummaries.push({ content: summary, time: now, auto: true });
         }
         
-        // 更新总结指针
         advancedMemories[roleId].lastSummarizedIndex = endIndex;
         DB.set('advancedMemories', advancedMemories);
         
-        // 同时追加到传统记忆中，方便用户自由编辑
         let currentLegacyMem = memories[roleId] || '';
         memories[roleId] = currentLegacyMem + (currentLegacyMem ? '\n\n' : '') + `[${now} 总结 (第${startIndex}-${endIndex}条)]\n${summary}`;
         DB.set('memories', memories);
         
-        // 如果当前正在查看该角色设置，刷新进度显示
         if ($('#role-realname').dataset.id === roleId) {
             const progressEl = document.getElementById('role-summary-progress');
             if (progressEl) progressEl.innerText = `已总结: ${endIndex} 条 / 总记录: ${endIndex} 条`;
@@ -6383,13 +6098,8 @@ function resetSummaryPointer() {
     }
 }
 
-    // ==========================================
-// --- 后台自动发消息系统 (真·后台保活特权版) ---
-// ==========================================
-
 let lastUserActivityTime = Date.now();
 
-// 使用 Web Worker 高频轮询（每10秒检查一次），彻底消除后台延迟
 const timerWorkerCode = `
     let checkInterval = null;
     self.onmessage = function(e) {
@@ -6397,7 +6107,7 @@ const timerWorkerCode = `
             if (checkInterval) clearInterval(checkInterval);
             checkInterval = setInterval(() => {
                 self.postMessage({type: 'tick'});
-            }, 10000); // 每10秒检查一次
+            }, 10000); 
         } else if (e.data.command === 'stopAll') {
             if (checkInterval) clearInterval(checkInterval);
             checkInterval = null;
@@ -6407,17 +6117,10 @@ const timerWorkerCode = `
 const timerBlob = new Blob([timerWorkerCode], {type: 'application/javascript'});
 const timerWorker = new Worker(URL.createObjectURL(timerBlob));
 
-// 每次收到 tick，遍历所有角色检查是否该发消息了
 timerWorker.onmessage = function(e) {
     if (e.data.type === 'tick') {
         checkAllAutoMsgRoles();
-    }
-};
-
-timerWorker.onmessage = function(e) {
-    if (e.data.type === 'tick') {
-        checkAllAutoMsgRoles();
-        checkAllAutoFeedRoles(); // 新增：检查自动动态
+        checkAllAutoFeedRoles(); 
     }
 };
 
@@ -6426,7 +6129,7 @@ function checkAllAutoFeedRoles() {
     roles.forEach(role => {
         if (!role.autoFeed) return;
         
-        const intervalMs = (role.autoFeedInterval || 60) * 60 * 1000; // 默认60分钟
+        const intervalMs = (role.autoFeedInterval || 60) * 60 * 1000; 
         const lastSent = autoFeedLastSent[role.id] || 0;
         const timeSinceLastSent = now - lastSent;
         
@@ -6447,17 +6150,14 @@ function resetUserActivity() {
 }
 
 function startAllAutoMsgTimers() {
-    // 启动高频轮询（每10秒 tick 一次）
     timerWorker.postMessage({command: 'startPolling'});
     
-    // 同步通知 Service Worker，并传递完整的角色数据
     if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
         try { navigator.serviceWorker.controller.postMessage({ type: 'CANCEL_ALL' }); } catch(e) {}
         roles.forEach(role => {
             if (!role.autoMsg || blockList.blockedByUser.includes(role.id)) return;
             
-            // 为 SW 准备精简版的角色上下文数据
-            const contextLimit = role.contextLimit || 50;
+            const contextLimit = role.contextLimit || 30;
             const chatHistory = chats[role.id] || [];
             const recentContext = chatHistory.slice(-Math.min(contextLimit, 10)).map(m => {
                 let text = m.content.replace(/<[^>]*>/g, '').substring(0, 60);
@@ -6484,7 +6184,6 @@ function startAllAutoMsgTimers() {
         });
     }
     
-    // 注册 Periodic Background Sync
     if ('serviceWorker' in navigator) {
         navigator.serviceWorker.ready.then(reg => {
             if (reg.periodicSync) {
@@ -6505,9 +6204,7 @@ function checkAllAutoMsgRoles() {
         const timeSinceLastSent = now - lastSent;
         const timeSinceLastActivity = now - lastUserActivityTime;
         
-        // 条件：距离上次自动消息已超过间隔 且 用户已经闲置超过间隔
         if (timeSinceLastSent >= intervalMs && timeSinceLastActivity >= intervalMs) {
-            // 防止连续发：如果最后一条消息已经是自动消息，间隔翻倍
             const chatHistory = chats[role.id] || [];
             if (chatHistory.length > 0) {
                 const lastMsg = chatHistory[chatHistory.length - 1];
@@ -6516,7 +6213,6 @@ function checkAllAutoMsgRoles() {
                 }
             }
             
-            // 标记发送时间（立即标记，防止重复触发）
             autoMsgLastSent[role.id] = now;
             DB.set('autoMsgLastSent', autoMsgLastSent);
             
@@ -6525,7 +6221,6 @@ function checkAllAutoMsgRoles() {
     });
 }
 
-// --- 升级版 generateAutoMsg：加入上下文记忆与精准时间感知 ---
 async function generateAutoMsg(roleId) {
     const role = roles.find(r => r.id === roleId);
     if (!role) return;
@@ -6545,7 +6240,7 @@ async function generateAutoMsg(roleId) {
     const minB = settings.bubbleCountMin || 1;
     const maxB = settings.bubbleCountMax || 5;
     
-    const contextLimit = role.contextLimit || 50;
+    const contextLimit = role.contextLimit || 30;
     const chatHistory = chats[roleId] || [];
     
     let fullMemory = memories[roleId] || '';
@@ -6574,13 +6269,11 @@ async function generateAutoMsg(roleId) {
     const wbPrompt = (globalWbs || localWbs) ? `\n[世界观设定]\n${globalWbs}\n${localWbs}`.substring(0, 600) : ''; 
     const mapContext = virtualLocations.length > 0 ? `\n[当前世界地图已知地点]\n${virtualLocations.map(l => `${l.name} (${l.desc})`).join(', ')}` : '';
     
-    // 核心升级：精准计算时间流逝，并提取上次聊天的最后话题
     let silenceDuration = '';
     let lastUserMsgTime = null;
     let lastTopic = '无';
     
     if (chatHistory.length > 0) {
-        // 提取最后 3 条消息作为“上次话题”的总结依据
         const lastFewMsgs = chatHistory.slice(-3).map(m => `${m.role === 'user' ? '用户' : role.realName}: ${m.content.replace(/<[^>]*>/g, '').substring(0, 30)}`).join(' | ');
         lastTopic = lastFewMsgs || '无';
 
@@ -6598,109 +6291,105 @@ async function generateAutoMsg(roleId) {
     }
     
     let timeContext = '';
-    if (hour >= 0 && hour < 6) timeContext = '现在是深夜/凌晨';
-    else if (hour >= 6 && hour < 9) timeContext = '现在是早晨';
-    else if (hour >= 9 && hour < 12) timeContext = '现在是上午';
-    else if (hour >= 12 && hour < 14) timeContext = '现在是中午';
-    else if (hour >= 14 && hour < 18) timeContext = '现在是下午';
-    else if (hour >= 18 && hour < 21) timeContext = '现在是傍晚';
-    else timeContext = '现在是晚上';
-    
-    const apiMessages = [];
+        if (hour >= 0 && hour < 6) timeContext = '现在是深夜/凌晨';
+        else if (hour >= 6 && hour < 9) timeContext = '现在是早晨';
+        else if (hour >= 9 && hour < 12) timeContext = '现在是上午';
+        else if (hour >= 12 && hour < 14) timeContext = '现在是中午';
+        else if (hour >= 14 && hour < 18) timeContext = '现在是下午';
+        else if (hour >= 18 && hour < 21) timeContext = '现在是傍晚';
+        else timeContext = '现在是晚上';
+        
+        const apiMessages = [];
 
-    // 核心升级：加入状态追踪与承上启下的提示词
-    const systemPrompt = `[CORE DIRECTIVE - 活人感主动消息模式]\n你是${role.realName}。以下是你的完整人设，你必须100%遵守，绝对不能OOC：\n${role.persona}${maskPrompt}${wbPrompt}${mapContext}${memorySummary}${osContext}\n\n[当前情境与时间感知]\n- ${timeContext}，${weekday}，${now.getFullYear()}年${now.getMonth()+1}月${now.getDate()}日 ${String(hour).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}\n- 距离用户上一条消息已经过去了 ${silenceDuration || '一段时间'}。\n- 你们上次聊天的最后内容是：【${lastTopic}】\n\n[活人感终极要求]\n1. 【状态追踪】在输出正式回复前，你必须先输出 <state>你在这 ${silenceDuration || '一段时间'} 里做了什么、现在的心情、以及你找用户的目的</state>。这能帮你找准语气。\n2. 【承上启下】结合上次聊天的内容和流逝的时间，自然地开启话题。比如上次聊到睡觉，现在是早晨，就可以说“昨晚睡得好吗”。绝对不要像机器人一样干巴巴地问“在吗”。\n3. 【去油腻】说话必须口语化、自然、接地气。绝对禁止使用霸总、娇妻等夸张做作的语调。\n4. 【格式限制】严格输出 ${minB} 到 ${maxB} 句话！每句话独占一行。日常聊天绝对不要在句末加句号。\n5. 直接输出消息内容，不加引号，不加任何解释。`;
+        const systemPrompt = `[CORE DIRECTIVE - 活人感主动消息模式]\n你是${role.realName}。以下是你的完整人设，你必须100%遵守，绝对不能OOC：\n${role.persona}${maskPrompt}${wbPrompt}${mapContext}${memorySummary}${osContext}\n\n[当前情境与时间感知]\n- ${timeContext}，${weekday}，${now.getFullYear()}年${now.getMonth()+1}月${now.getDate()}日 ${String(hour).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}\n- 距离用户上一条消息已经过去了 ${silenceDuration || '一段时间'}。\n- 你们上次聊天的最后内容是：【${lastTopic}】\n\n[活人感终极要求]\n1. 【强制状态感知】在输出正式回复前，你必须先输出 <state>你在这 ${silenceDuration || '一段时间'} 里做了什么、现在的心情、以及你找用户的目的（至少50字，深入思考）</state>。这能帮你找准语气。每次回复都必须包含此标签！\n2. 【承上启下】结合上次聊天的内容和流逝的时间，自然地开启话题。比如上次聊到睡觉，现在是早晨，就可以说“昨晚睡得好吗”。绝对不要像机器人一样干巴巴地问“在吗”。\n3. 【去油腻】说话必须口语化、自然、接地气。绝对禁止使用霸总、娇妻等夸张做作的语调。\n4. 【格式限制】严格输出 ${minB} 到 ${maxB} 句话！每句话独占一行。日常聊天绝对不要在句末加句号。\n5. 直接输出消息内容，不加引号，不加任何解释。`;
 
-    apiMessages.push({ role: 'system', content: systemPrompt });
-    
-    const contextMsgs = chatHistory.slice(-contextLimit).map(m => {
-        let textContent = m.content.replace(/<[^>]*>/g, '').replace(/\[VIRTUAL_IMG:.*?\]/g, '[图片]').replace(/\[MUSIC_CARD:.*?\]/g, '[分享歌曲]').replace(/\[TICKET:.*?\]/g, '[票根]');
-        if (settings.timeAware && m.rawTime) {
-            const msgDate = new Date(m.rawTime);
-            const timePrefix = `[${msgDate.getFullYear()}/${String(msgDate.getMonth() + 1).padStart(2, '0')}/${String(msgDate.getDate()).padStart(2, '0')} ${weekdays[msgDate.getDay()]} ${String(msgDate.getHours()).padStart(2, '0')}:${String(msgDate.getMinutes()).padStart(2, '0')}]`;
-            textContent = timePrefix + ' ' + textContent;
-        }
-        return { role: m.role === 'user' ? 'user' : 'assistant', content: textContent };
-    });
-    
-    apiMessages.push(...contextMsgs);
-    apiMessages.push({ role: 'user', content: `(系统提示：距离上一条消息已经过去了${silenceDuration || '一段时间'}，请你主动发消息给用户。注意承接上次的话题，符合你的人设。)` });
-
-    try {
-        const endpoint = getChatEndpoint(apiConfig.url);
-        const response = await fetch(endpoint, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiConfig.key}` },
-            body: JSON.stringify({
-                model: apiConfig.model,
-                messages: apiMessages,
-                max_tokens: 300,
-                temperature: 0.85
-            })
+        apiMessages.push({ role: 'system', content: systemPrompt });
+        
+        const contextMsgs = chatHistory.slice(-contextLimit).map(m => {
+            let textContent = m.content.replace(/<[^>]*>/g, '').replace(/$$VIRTUAL_IMG:.*?$$/g, '[图片]').replace(/$$MUSIC_CARD:.*?$$/g, '[分享歌曲]').replace(/$$TICKET:.*?$$/g, '[票根]');
+            if (settings.timeAware && m.rawTime) {
+                const msgDate = new Date(m.rawTime);
+                const timePrefix = `[${msgDate.getFullYear()}/${String(msgDate.getMonth() + 1).padStart(2, '0')}/${String(msgDate.getDate()).padStart(2, '0')} ${weekdays[msgDate.getDay()]} ${String(msgDate.getHours()).padStart(2, '0')}:${String(msgDate.getMinutes()).padStart(2, '0')}]`;
+                textContent = timePrefix + ' ' + textContent;
+            }
+            return { role: m.role === 'user' ? 'user' : 'assistant', content: textContent };
         });
         
-        if (!response.ok) { sendAutoMsgFallback(roleId, role); return; }
-        
-        const data = await response.json();
-        let msgContent = '';
-        if (data.choices && data.choices[0]) {
-            msgContent = data.choices[0].message.content.trim().replace(/["'""'']/g, '');
-            msgContent = msgContent.replace(/\[\d{4}\/\d{2}\/\d{2}\s+周.\s+\d{2}:\d{2}\]\s*/g, '');
-            
-            const stateMatch = msgContent.match(/<state>([\s\S]*?)<\/state>/i);
-            if (stateMatch) {
-                const stateText = stateMatch[1].trim();
-                const config = initStatusBarData(roleId);
-                config.enabled = true;
-                statusBarData[roleId] = config;
-                saveStatusHistory(roleId, { 
-                    html: `<div style="font-size:12px; line-height:1.5;">${stateText}</div>`, 
-                    rawMatch: stateMatch[0], 
-                    time: new Date().toLocaleString('zh-CN') 
-                });
-                updateStatusBarButton();
-            }
-            
-            msgContent = msgContent.replace(/<state>[\s\S]*?<\/state>\n*/gi, '').trim();
-        }
-        if (!msgContent) { sendAutoMsgFallback(roleId, role); return; }
-        
-        if (!chats[roleId]) chats[roleId] = [];
-        const nowTime = new Date();
-        
-        let sentences = msgContent.split('\n').map(s => s.trim()).filter(s => s).slice(0, maxB);
-        sentences = sentences.map(s => {
-            if (s.length < 50 && (s.endsWith('。') || s.endsWith('.'))) {
-                return s.slice(0, -1);
-            }
-            return s;
-        });
-        
-        for (const sentence of sentences) {
-            chats[roleId].push({
-                role: 'ai', content: sentence,
-                time: nowTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }),
-                rawTime: nowTime.getTime(), mode: 'online', isAutoMsg: true
+        apiMessages.push(...contextMsgs);
+        apiMessages.push({ role: 'user', content: `(系统提示：距离上一条消息已经过去了${silenceDuration || '一段时间'}，请你主动发消息给用户。注意承接上次的话题，符合你的人设。)` });
+
+        try {
+            const endpoint = getChatEndpoint(apiConfig.url);
+            const response = await fetch(endpoint, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiConfig.key}` },
+                body: JSON.stringify({
+                    model: apiConfig.model,
+                    messages: apiMessages,
+                    max_tokens: 300,
+                    temperature: 0.85
+                })
             });
+            
+            if (!response.ok) { sendAutoMsgFallback(roleId, role); return; }
+            
+            const data = await response.json();
+            let msgContent = '';
+            if (data.choices && data.choices[0]) {
+                msgContent = data.choices[0].message.content.trim().replace(/["'""'']/g, '');
+                msgContent = msgContent.replace(/$$\d{4}\/\d{2}\/\d{2}\s+周.\s+\d{2}:\d{2}$$\s*/g, '');
+                
+                const stateMatch = msgContent.match(/<state>([\s\S]*?)<\/state>/i);
+                if (stateMatch) {
+                    const stateText = stateMatch[1].trim();
+                    const config = initStatusBarData(roleId);
+                    config.enabled = true;
+                    statusBarData[roleId] = config;
+                    saveStatusHistory(roleId, { 
+                        html: `<div style="font-size:12px; line-height:1.5;">${stateText}</div>`, 
+                        rawMatch: stateMatch[0], 
+                        time: new Date().toLocaleString('zh-CN') 
+                    });
+                    updateStatusBarButton();
+                }
+                
+                msgContent = msgContent.replace(/<state>[\s\S]*?<\/state>\n*/gi, '').trim();
+            }
+            if (!msgContent) { sendAutoMsgFallback(roleId, role); return; }
+            
+            if (!chats[roleId]) chats[roleId] = [];
+            const nowTime = new Date();
+            
+            let sentences = msgContent.split('\n').map(s => s.trim()).filter(s => s).slice(0, maxB);
+            sentences = sentences.map(s => {
+                if (s.length < 50 && (s.endsWith('。') || s.endsWith('.'))) {
+                    return s.slice(0, -1);
+                }
+                return s;
+            });
+            
+            for (const sentence of sentences) {
+                chats[roleId].push({
+                    role: 'ai', content: sentence,
+                    time: nowTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }),
+                    rawTime: nowTime.getTime(), mode: 'online', isAutoMsg: true
+                });
+            }
+            DB.set('chats', chats);
+            
+            showSystemNotification(roleId, getDisplayName(role), sentences[0], role.avatar);
+            if (settings.notificationSound) { try { new Audio(settings.notificationSound).play(); } catch(e) {} }
+            if (currentChatRoleId === roleId) renderMessages();
+            renderRecent();
+            
+        } catch (e) {
+            console.error('自动消息生成失败:', e);
+            sendAutoMsgFallback(roleId, role);
+        } finally {
+            if (typeof hideGlobalTyping === 'function') hideGlobalTyping();
         }
-        DB.set('chats', chats);
-        
-        showSystemNotification(roleId, getDisplayName(role), sentences[0], role.avatar);
-        if (settings.notificationSound) { try { new Audio(settings.notificationSound).play(); } catch(e) {} }
-        if (currentChatRoleId === roleId) renderMessages();
-        renderRecent();
-        
-    } catch (e) {
-        console.error('自动消息生成失败:', e);
-        sendAutoMsgFallback(roleId, role);
-    } finally {
-        if (typeof hideGlobalTyping === 'function') hideGlobalTyping();
     }
-}
 
-    // ==========================================
-// --- 气泡数量控制 ---
-// ==========================================
 function openBubbleCountModal() {
     const min = settings.bubbleCountMin || 1;
     const max = settings.bubbleCountMax || 5;
@@ -6713,7 +6402,7 @@ function saveBubbleCount() {
     let min = parseInt($('#bubble-min').value) || 1;
     let max = parseInt($('#bubble-max').value) || 1;
     if (min < 1) min = 1;
-    if (max < min) max = min; // 保证最大值不小于最小值
+    if (max < min) max = min; 
     
     settings.bubbleCountMin = min;
     settings.bubbleCountMax = max;
@@ -6729,9 +6418,6 @@ function renderBubbleCountStatus() {
     const max = settings.bubbleCountMax || 5;
     el.innerText = `${min} ~ ${max} bubbles per reply`;
 }
-
-// --- 拉黑系统 ---
-// ==========================================
 
 function toggleBlockRole() {
     if (!currentChatRoleId) return;
@@ -6870,9 +6556,6 @@ function toggleRoleBlockUser(roleId) {
     }
     DB.set('blockList', blockList);
 }
-
-// --- 日历 App ---
-// ==========================================
 
 calendarEvents = [];
 calendarSettings = { notifyRoleId: '' };
@@ -7101,9 +6784,6 @@ async function checkCalendarNotifications() {
     }
 }
 
-    // --- 一起听功能核心逻辑 ---
-    // ==========================================
-
     function startListenTogetherSession(roleId) {
         if (listenTogetherSession.isActive) {
             endListenTogetherSession(false);
@@ -7189,13 +6869,12 @@ function renderTranslationStatus() {
         el.innerText = 'Translation mode off';
     }
 }
-    // --- 评论长按删除功能 ---
     let commentPressTimer;
     function handleCommentTouchStart(e, postId, commentIndex) {
         commentPressTimer = setTimeout(() => {
             if (navigator.vibrate) navigator.vibrate(50);
             deleteForumComment(postId, commentIndex);
-        }, 600); // 长按 0.6 秒触发
+        }, 600); 
     }
     function handleCommentTouchEnd() {
         clearTimeout(commentPressTimer);
@@ -7206,12 +6885,11 @@ function renderTranslationStatus() {
             if (post && post.replies) {
                 post.replies.splice(commentIndex, 1);
                 DB.set('forumPosts', forumPosts);
-                renderForumThread(postId); // 刷新帖子详情
+                renderForumThread(postId); 
             }
         }
     }
 
-        // --- 绑定角色与自主发帖功能  ---
     function toggleForumBoundRole(roleId) {
         if (!settings.forumBoundRoleIds) settings.forumBoundRoleIds = [];
         if (settings.forumBoundRoleIds.includes(roleId)) {
@@ -7318,20 +6996,18 @@ ${extraLorePrompt}
     btn.disabled = false;
 }
 
-    // --- FC币充值功能 ---
     function rechargeFC() {
         let amount = prompt("请输入要充值的 FC 体液币数量:", "1000");
         if (amount && !isNaN(amount) && parseInt(amount) > 0) {
             settings.fcCoins = (settings.fcCoins || 0) + parseInt(amount);
             DB.set('settings', settings);
-            renderForum(); // 刷新界面
+            renderForum(); 
             alert("充值成功！当前余额: " + settings.fcCoins + " FC");
         } else {
             alert("请输入有效的数字！");
         }
     }
 
-    // --- 打赏帖子功能 ---
     function tipForumPost(postId) {
         let post = forumPosts.find(p => p.id === postId);
         if (!post) return;
@@ -7343,12 +7019,10 @@ ${extraLorePrompt}
             return alert("余额不足，请前往个人中心充值！");
         }
         
-        // 扣钱并增加帖子打赏数
         settings.fcCoins -= amount;
         DB.set('settings', settings);
         post.tips = (post.tips || 0) + amount;
         
-        // 自动生成一条打赏评论
         if (!post.replies) post.replies = [];
         let now = new Date();
         post.replies.push({
@@ -7359,11 +7033,10 @@ ${extraLorePrompt}
         });
         
         DB.set('forumPosts', forumPosts);
-        renderForumThread(postId); // 刷新帖子详情
+        renderForumThread(postId); 
         alert("打赏成功！");
     }
 
-    // --- 回复某人的评论 ---
     function quoteForumReply(authorName) {
         const input = $('#forum-reply-input-new');
         if (input) {
@@ -7372,7 +7045,6 @@ ${extraLorePrompt}
         }
     }
 
-    // --- 打开带有角色选择的发帖弹窗 ---
     function openNewPostModal() {
         let sel = $('#forum-post-role-select');
         if(sel) {
@@ -7381,7 +7053,6 @@ ${extraLorePrompt}
         }
         openModal('modal-forum-post');
     }
-        // --- 论坛用户自己发帖逻辑 ---
     function submitUserForumPost() {
         const title = $('#forum-post-title').value.trim();
         const content = $('#forum-post-content-input').value.trim();
@@ -7418,9 +7089,6 @@ ${extraLorePrompt}
         $('#forum-post-img').value = '';
         renderForum();
     }
-    // ==========================================
-// --- 情绪密码游戏 (Emotion Cipher) ---
-// --- 游戏记忆保存核心逻辑 (拟人化版本) ---
 async function cipherSummarizeMemory(manual = false) {
     if (!cipherCurrent.selectedRole) return alert("请先选择一个角色开始游戏");
     const role = roles.find(r => r.id === cipherCurrent.selectedRole);
@@ -7488,17 +7156,12 @@ async function reincSummarizeMemory(manual = false) {
     } catch(e) { alert("保存失败: " + e.message); }
     btn.innerHTML = originalText;
 }
-// ==========================================
-// 情绪密码专属全局返回逻辑
 function cipherGlobalBack() {
-    // 检查当前是否在菜单页
     const isMenu = document.getElementById('cp-menu').classList.contains('active');
     
     if (isMenu) {
-        // 如果已经在主菜单，执行关闭整个 APP 回到桌面的操作
         closeApp('cipher');
     } else {
-        // 如果在游戏或图鉴等子页面，执行返回主菜单的操作
         cipherNav('cp-menu');
     }
 }
@@ -7592,7 +7255,6 @@ function cipherConfirmRole() {
 
 function cipherGetRole() { return roles.find(r=>r.id===cipherCurrent.selectedRole) || roles[0]; }
 
-// 键盘
 function cipherBuildKb() {
     const tabs = $('#cp-kb-tabs');
     tabs.innerHTML = Object.keys(CIPHER_SYMBOLS).map(c =>
@@ -7614,7 +7276,6 @@ function cipherRenderKbGrid(c) {
     ).join('');
 }
 
-// 编码
 function cipherInitEncode() {
     cipherCurrent.cipher = [];
     cipherCurrent.encMode = 'random';
@@ -7702,7 +7363,6 @@ function cipherSimulateGuess() {
     const cipherText = cipherCurrent.cipher.map(c=>c.v).join(' + ');
     const target = cipherCurrent.target;
 
-    // 如果有API，用AI猜；否则模拟
     if (apiConfig.url) {
         cipherAiGuess(role, cipherText, target);
     } else {
@@ -7719,6 +7379,7 @@ function cipherSimulateGuess() {
 }
 
 async function cipherAiGuess(role, cipherText, target) {
+    const api = getSubApi('cipher');
     try {
         const prompt = `你是${role.realName}。${role.persona ? role.persona.substring(0,200) : ''}
 
@@ -7730,11 +7391,11 @@ async function cipherAiGuess(role, cipherText, target) {
 3. 不超过60字，像发微信一样自然
 4. 直接输出内容，不加引号`;
 
-        const endpoint = getChatEndpoint(apiConfig.url);
+        const endpoint = getChatEndpoint(api.url);
         const res = await fetch(endpoint, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiConfig.key}` },
-            body: JSON.stringify({ model: apiConfig.model, messages: [{role:'user', content:prompt}], max_tokens: 120, temperature: 0.85 })
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${api.key}` },
+            body: JSON.stringify({ model: api.model, messages: [{role:'user', content:prompt}], max_tokens: 120, temperature: 0.85 })
         });
         const data = await res.json();
         const guess = data.choices[0].message.content.trim();
@@ -7763,7 +7424,6 @@ function cipherJudge(correct) {
     }
 }
 
-// 解码
 function cipherInitDecode() {
     const role = cipherGetRole();
     const content = $('#cp-decode');
@@ -7864,7 +7524,6 @@ function cipherCloseResult() {
     cipherNav('cp-menu');
 }
 
-// 图鉴
 function cipherRenderCodex() {
     const content = $('#cp-codex');
     if (cipherState.collection.length === 0) {
@@ -7884,7 +7543,6 @@ function cipherRenderCodex() {
     `).join('');
 }
 
-// 题库
 function cipherRenderBank() {
     $('#cp-bank-count').textContent = cipherBank.length;
     $('#cp-pool-count').textContent = cipherPool.length;
@@ -7966,15 +7624,11 @@ function cipherImportBank(e) {
     e.target.value = '';
 }
 
-// 回车事件
 document.addEventListener('keydown', function(e) {
     if (e.target.id==='cp-word-input' && e.key==='Enter') { e.preventDefault(); cipherAddWord(); }
     if (e.target.id==='cp-pool-input' && e.key==='Enter') { e.preventDefault(); cipherAddToPool(); }
     if (e.target.id==='cp-free-decode' && e.key==='Enter') { e.preventDefault(); cipherFreeDecodeSubmit(); }
 });
-// ==========================================
-// --- 物品前世今生 App 逻辑 ---
-// ==========================================
 
 function reincGlobalBack() {
     if ($('#reinc-menu').classList.contains('active')) {
@@ -8003,7 +7657,6 @@ function reincNav(pageId) {
 
 function reincStartChat(roleId) {
     reincCurrent.roleId = roleId;
-    // 核心修复：不再清空记录，而是从数据库读取
         reincChats = DB.get('reincChats_' + roleId, []); 
     reincNav('reinc-chat');
     
@@ -8032,7 +7685,6 @@ function reincSwitchMode(mode) {
 
 function reincPushMsg(role, content) {
     reincChats.push({ role: role, content: content, time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }) });
-    // 核心修复：每次发消息都保存到数据库
 DB.set('reincChats_' + reincCurrent.roleId, reincChats); 
     reincRenderChat();
 }
@@ -8068,7 +7720,6 @@ async function reincSendMessage() {
     btn.disabled = true;
     btn.style.opacity = '0.5';
     
-    // 增加正在输入状态
     const role = roles.find(r => r.id === reincCurrent.roleId);
     const titleEl = document.querySelector('#view-reincarnation .title-serif');
     if (titleEl && role) titleEl.innerHTML = `${role.realName || role.name || 'Entity'}<span class="title-sub">正在输入...</span>`;
@@ -8080,7 +7731,6 @@ async function reincSendMessage() {
         reincAiAskQuestion();
     }
 
-    // 恢复状态
     if (titleEl && role) titleEl.innerHTML = `Pastlife.<span class="title-sub">物品前世今生</span>`;
     btn.disabled = false;
     btn.style.opacity = '1';
@@ -8088,7 +7738,8 @@ async function reincSendMessage() {
 
 async function reincGenerateAiAnswer(itemName) {
     const role = roles.find(r => r.id === reincCurrent.roleId);
-    if (!apiConfig.url) {
+    const api = getSubApi('reincarnation');
+    if (!api.url) {
         reincPushMsg('ai', `【${itemName}】<br>✨ 前世：被封印的法器<br>🤣 今生：天天被你按在桌上摩擦<br>（请先配置 API 才能体验完整人设对话哦）`);
         return;
     }
@@ -8096,12 +7747,12 @@ async function reincGenerateAiAnswer(itemName) {
     const prompt = `[CORE DIRECTIVE]\n${aliveHumanPrompt}\n\n[YOUR PERSONA]\nName: ${role.realName}\n${role.persona}\n\n[TASK]\n用户让你算算【${itemName}】的前世今生。请你发挥脑洞，给它编一个奇幻/搞笑的前世，和一个搞笑/悲惨的今生。\n要求：\n1. 必须完全符合你的人设和说话语气！绝对不能OOC！\n2. 格式要求：先说前世，再说今生，最后加上你的一句吐槽或互动。\n3. 不要输出任何多余的解释，直接说出你的回答。`;
 
     try {
-        const endpoint = getChatEndpoint(apiConfig.url);
+        const endpoint = getChatEndpoint(api.url);
         const response = await fetch(endpoint, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiConfig.key}` },
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${api.key}` },
             body: JSON.stringify({
-                model: apiConfig.model,
+                model: api.model,
                 messages: [{ role: 'user', content: prompt }],
                 max_tokens: 300,
                 temperature: 0.85
@@ -8268,10 +7919,6 @@ function reincDeleteItem(index) {
     reincRenderBankList();
 }
 
-// ==========================================
-// --- 角色状态栏系统（含预设管理） ---
-// ==========================================
-
 statusBarData = {};
 statusPresets = [];
 
@@ -8287,8 +7934,6 @@ function initStatusBarData(roleId) {
     }
     return statusBarData[roleId];
 }
-
-// ---- 配置弹窗 ----
 
 function openStatusConfigModal() {
     const roleId = $('#role-realname').dataset.id || currentChatRoleId;
@@ -8317,8 +7962,6 @@ function saveStatusConfig() {
     closeModal('modal-status-config');
 }
 
-// ---- 测试正则 ----
-
 function testStatusRegex() {
     const regexStr = $('#status-regex-pattern').value.trim();
     const template = $('#status-html-template').value.trim();
@@ -8344,8 +7987,6 @@ function testStatusRegex() {
         resultEl.innerHTML = '<span style="color:#ff4d4d;">Regex Error: ' + e.message + '</span>';
     }
 }
-
-// ---- 预设管理 ----
 
 function renderStatusPresetsList() {
     const container = $('#status-presets-list');
@@ -8490,8 +8131,6 @@ function importStatusPresets(event) {
     event.target.value = '';
 }
 
-// ---- 核心功能 ----
-
 function extractStatusFromReply(roleId, replyText) {
     const config = statusBarData[roleId];
     if (!config || !config.enabled || !config.regex) return null;
@@ -8532,38 +8171,76 @@ function updateStatusBarButton() {
     btn.style.display = (config && config.enabled && config.history.length > 0) ? 'inline-flex' : 'none';
 }
 
+let isStatusManageMode = false;
+let selectedStatusIndices = new Set();
+
+function renderStatusPanelList() {
+    const config = statusBarData[currentChatRoleId];
+    const body = $('#char-status-body');
+    if (!config || config.history.length === 0) {
+        body.innerHTML = '<div style="text-align:center; color:var(--text-secondary); font-size:10px; padding:20px;">暂无状态数据</div>';
+        $('#btn-manage-status').style.display = 'none';
+        return;
+    }
+    $('#btn-manage-status').style.display = 'block';
+    body.innerHTML = config.history.map((entry, i) => `
+        <div class="status-history-item" onclick="toggleStatusSelect(${i})">
+            <div class="status-checkbox ${selectedStatusIndices.has(i) ? 'checked' : ''}"></div>
+            <div style="font-size:9px; color:var(--text-secondary); margin-bottom:8px; text-align:center;">${i === 0 ? 'CURRENT' : 'HISTORY #' + i} | ${entry.time}</div>
+            <div>${entry.html}</div>
+        </div>
+    `).join('');
+}
+
 function openStatusPanel() {
     if (!currentChatRoleId) return;
     const config = statusBarData[currentChatRoleId];
     if (!config || !config.enabled || config.history.length === 0) return;
-    const overlay = $('#char-status-overlay');
-    const body = $('#char-status-body');
-    const dots = $('#status-history-dots');
-    if (config.history.length === 1) {
-        body.innerHTML = '<div style="font-size:9px; color:var(--text-secondary); margin-bottom:8px; text-align:center;">' + config.history[0].time + '</div><div>' + config.history[0].html + '</div>';
-        dots.innerHTML = '';
-    } else {
-        body.innerHTML = '<div class="status-history-slider" id="status-slider">' + config.history.map(function(entry, i) {
-            return '<div class="status-history-item"><div style="font-size:9px; color:var(--text-secondary); margin-bottom:8px; text-align:center;">' + (i === 0 ? 'CURRENT' : 'HISTORY #' + i) + ' | ' + entry.time + '</div><div>' + entry.html + '</div></div>';
-        }).join('') + '</div>';
-        dots.innerHTML = config.history.slice(0, 10).map(function(_, i) {
-            return '<div class="status-history-dot ' + (i === 0 ? 'active' : '') + '"></div>';
-        }).join('');
-        var slider = $('#status-slider');
-        if (slider) {
-            slider.addEventListener('scroll', function() {
-                var index = Math.round(slider.scrollLeft / slider.clientWidth);
-                dots.querySelectorAll('.status-history-dot').forEach(function(dot, i) {
-                    dot.classList.toggle('active', i === index);
-                });
-            });
-        }
-    }
-    overlay.classList.add('visible');
+    isStatusManageMode = false;
+    selectedStatusIndices.clear();
+    $('#char-status-body').classList.remove('status-manage-mode');
+    $('#status-selection-bar').style.display = 'none';
+    renderStatusPanelList();
+    $('#char-status-overlay').classList.add('visible');
 }
 
 function closeStatusPanel() {
     $('#char-status-overlay').classList.remove('visible');
+    isStatusManageMode = false;
+    selectedStatusIndices.clear();
+}
+
+function toggleStatusManageMode() {
+    isStatusManageMode = !isStatusManageMode;
+    selectedStatusIndices.clear();
+    const body = $('#char-status-body');
+    if (isStatusManageMode) {
+        body.classList.add('status-manage-mode');
+        $('#status-selection-bar').style.display = 'flex';
+    } else {
+        body.classList.remove('status-manage-mode');
+        $('#status-selection-bar').style.display = 'none';
+    }
+    renderStatusPanelList();
+}
+
+function toggleStatusSelect(index) {
+    if (!isStatusManageMode) return;
+    if (selectedStatusIndices.has(index)) selectedStatusIndices.delete(index);
+    else selectedStatusIndices.add(index);
+    renderStatusPanelList();
+}
+
+function deleteSelectedStatus() {
+    if (selectedStatusIndices.size === 0) return;
+    if (confirm(`确定删除选中的 ${selectedStatusIndices.size} 条状态吗？`)) {
+        const config = statusBarData[currentChatRoleId];
+        const sortedIndices = Array.from(selectedStatusIndices).sort((a, b) => b - a);
+        sortedIndices.forEach(idx => config.history.splice(idx, 1));
+        DB.set('statusBarData', statusBarData);
+        toggleStatusManageMode();
+        if (config.history.length === 0) closeStatusPanel();
+    }
 }
 
 function getStatusPromptSuffix(roleId) {
@@ -8584,7 +8261,6 @@ function onAiAvatarDblClick() {
     }
 }
 
-// 打开预设列表时自动渲染
 (function() {
     const origOpenModal = window.openModal;
     window.openModal = function(id) {
@@ -8595,15 +8271,11 @@ function onAiAvatarDblClick() {
     };
 })();
 
-
-
-    // --- 快捷表情包弹窗逻辑 ---
     function openStickerPicker() {
         if (!currentChatRoleId) return alert("请先进入聊天界面");
         $('#sticker-picker-back').style.display = 'none';
         const content = $('#sticker-picker-content');
         
-        // 过滤出当前角色可用的分组
         const availableGroups = stickers.filter(g => {
             let boundIds = g.boundRoleIds || (g.boundRoleId ? [g.boundRoleId] : []);
             return boundIds.length === 0 || boundIds.includes(currentChatRoleId);
@@ -8652,8 +8324,6 @@ function onAiAvatarDblClick() {
         closeModal('modal-sticker-picker');
     }
 
-
-
     function fmtMoney(num) { return Number(num).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
 
     function renderWalletApp() {
@@ -8690,10 +8360,9 @@ function onAiAvatarDblClick() {
                 $('#btn-wallet-ai').style.display = 'flex';
                 
                 if (!walletData[currentWalletAccount]) {
-                    // 第一次登录，初始化空数据并自动触发 AI 生成
                     walletData[currentWalletAccount] = { balance: 0, huabei: 0, funds: 0, stocks: 0, mainBg: '', bankCards: [], familyCards: [], bills: [] };
                     renderWalletMain();
-                    setTimeout(() => generateWalletAssets(), 500); // 延迟半秒自动生成
+                    setTimeout(() => generateWalletAssets(), 500); 
                 } else {
                     renderWalletMain();
                 }
@@ -8905,7 +8574,6 @@ function onAiAvatarDblClick() {
             if(!chats[role.id]) chats[role.id] = [];
             const now = new Date();
             
-            // 获取当前面具名
             const activeMask = masks.find(m => m.id === role.activeMaskId) || masks.find(m => m.id === 'default') || masks[0];
             const maskName = activeMask ? activeMask.name : (settings.userName || 'ME');
             const senderAvatar = settings.userAvatar || DEFAULT_AVATAR;
@@ -8917,7 +8585,6 @@ function onAiAvatarDblClick() {
             DB.set('chats', chats);
             alert(`已向 [${toName}] 发送亲属卡！`);
             
-            // 触发 AI 回复
             setTimeout(() => {
                 if (currentChatRoleId === role.id) {
                     renderMessages();
@@ -8930,7 +8597,8 @@ function onAiAvatarDblClick() {
     }
 
     async function generateWalletAssets() {
-        if (!apiConfig.url) return alert('请先配置 API。');
+        const api = getSubApi('wallet');
+        if (!api.url) return alert('请先配置 API。');
         const role = roles.find(r => r.id === currentWalletAccount);
         if (!role) return;
 
@@ -8956,11 +8624,11 @@ function onAiAvatarDblClick() {
         注意：生成3-5条近期的账单，必须极度符合人设（如霸总买奢侈品/穷学生吃食堂）。直接输出JSON，不要加任何其他文字。`;
 
         try {
-            const endpoint = getChatEndpoint(apiConfig.url);
+            const endpoint = getChatEndpoint(api.url);
             const response = await fetch(endpoint, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiConfig.key}` },
-                body: JSON.stringify({ model: apiConfig.model, messages: [{ role: 'user', content: prompt }], max_tokens: 1000, temperature: 0.85 })
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${api.key}` },
+                body: JSON.stringify({ model: api.model, messages: [{ role: 'user', content: prompt }], max_tokens: 1000, temperature: 0.85 })
             });
             const data = await response.json();
             const result = JSON.parse(extractJSON(data.choices[0].message.content));
@@ -8971,7 +8639,6 @@ function onAiAvatarDblClick() {
                 return { ...c, bg: oldCard.bg || '' };
             });
 
-            // 核心修改：保留真实的交互账单（包含用户名、代付、转账、退回等关键字的）
             const userName = settings.userName || 'ME';
             const realBills = (currentData.bills || []).filter(b => 
                 b.merchant.includes(userName) || 
@@ -8980,7 +8647,6 @@ function onAiAvatarDblClick() {
                 b.merchant.includes('退回')
             );
             const aiBills = result.bills || [];
-            // 合并账单：真实的交互账单排在前面，AI生成的背景账单排在后面
             const mergedBills = [...realBills, ...aiBills];
 
             walletData[currentWalletAccount] = {
@@ -9004,9 +8670,6 @@ function onAiAvatarDblClick() {
         }
     }
 
-
-
-    // --- 转账与亲属卡核心逻辑 ---
     function openTransferModal() {
         if (!currentChatRoleId) return alert("请先进入聊天界面");
         $('#attachment-popup').style.display = 'none';
@@ -9025,7 +8688,6 @@ function onAiAvatarDblClick() {
         openModal('modal-transfer-input');
     }
 
-    // 渲染仿真小票的函数
     function showReceipt(merchant, type, total, method, id, time) {
         $('#receipt-merchant').innerText = merchant;
         $('#receipt-type').innerText = type;
@@ -9044,7 +8706,6 @@ function onAiAvatarDblClick() {
         const data = walletData['ME'];
         let methodName = '钱包余额';
         
-        // 扣款逻辑
         if (method === 'balance') {
             if (data.balance < amount) return alert("余额不足");
             data.balance -= amount;
@@ -9059,13 +8720,11 @@ function onAiAvatarDblClick() {
             methodName = `${data.bankCards[idx].bank}(${data.bankCards[idx].tail})`;
         }
         
-        // 记录账单
         const role = roles.find(r => r.id === currentChatRoleId);
         const roleName = role ? getDisplayName(role) : '未知角色';
         addWalletBill(`转账给 ${roleName}`, -amount, methodName);
         DB.set('walletData', walletData);
         
-        // 发送聊天卡片
         const activeMask = masks.find(m => m.id === role.activeMaskId) || masks.find(m => m.id === 'default') || masks[0];
         const maskName = activeMask ? activeMask.name : (settings.userName || 'ME');
         const senderAvatar = settings.userAvatar || DEFAULT_AVATAR;
@@ -9089,64 +8748,16 @@ function onAiAvatarDblClick() {
         closeModal('modal-transfer-input');
         renderMessages();
         
-        // 弹出超级仿真小票
         const timeStr = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')} ${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
         showReceipt(roleName, '转账支出', amount, methodName, txId, timeStr);
         
-        // 无延迟触发 AI
         triggerAI();
-    }
-
-    // 修复亲属卡发送逻辑 (改为发送卡片)
-    function confirmFamilyCard() {
-        const toId = $('#wallet-select-contact').value;
-        const limit = Number($('#wallet-input-limit').value);
-        if (!limit || limit <= 0) return alert("请输入有效的额度");
-
-        const role = roles.find(r => r.id === toId);
-        const toName = role ? getDisplayName(role) : 'ME';
-
-        walletData[currentWalletAccount].familyCards.push({ to: toName, limit: limit, spent: 0 });
-        DB.set('walletData', walletData);
-        closeModal('modal-family-card');
-        if (currentWalletAccount === $('#wallet-account-switcher').value) renderWalletMain();
-        
-        if (role && currentWalletAccount === 'ME') {
-            if(!chats[role.id]) chats[role.id] = [];
-            const now = new Date();
-            const activeMask = masks.find(m => m.id === role.activeMaskId) || masks.find(m => m.id === 'default') || masks[0];
-            const maskName = activeMask ? activeMask.name : (settings.userName || 'ME');
-            const senderAvatar = settings.userAvatar || DEFAULT_AVATAR;
-
-            const payload = { 
-                id: 'fc_' + Date.now(),
-                limit: limit, 
-                senderName: maskName, 
-                senderAvatar: senderAvatar,
-                status: '待接收',
-                time: now.getTime()
-            };
-            const msgContent = `[FAMILY_CARD:${encodeURIComponent(JSON.stringify(payload))}]`;
-
-            chats[role.id].push({ role: 'user', content: msgContent, time: now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }), rawTime: now.getTime(), status: 'SENT', mode: 'online' });
-            DB.set('chats', chats);
-            
-            if (currentChatRoleId === role.id) {
-                renderMessages();
-                triggerAI();
-            } else {
-                alert(`已向 [${toName}] 发送亲属卡！`);
-            }
-        } else {
-            alert(`亲属卡已生成！`);
-        }
     }
 
     function openOrderReceiptDetail(msgIndex) {
         const msg = chats[currentChatRoleId][msgIndex];
         if (!msg) return;
         
-        // 兼容送礼卡片和普通收据卡片
         const isGift = msg.content.startsWith('[GIFT_TO_AI:');
         const tagLength = isGift ? 12 : 20;
         const raw = msg.content.slice(tagLength, -1);
@@ -9189,7 +8800,6 @@ function onAiAvatarDblClick() {
                 receiptBtn = `<button class="action-btn" style="flex:1; border-radius:20px; background:#fff; color:#333; border:1px solid #ddd;" onclick="showReceipt('${card.shopName}', '送礼订单', ${card.price}, '已支付', 'GF${Date.now().toString().slice(-6)}', '${msg.time}'); closeModal('modal-pay-request-detail');">查看小票</button>`;
             }
 
-            // 送礼卡片不需要“自己支付”按钮，直接显示关闭
             actionsEl.innerHTML = `
                 ${receiptBtn}
                 <button class="action-btn primary" style="flex:1; border-radius:20px; background:#333; color:#fff; border:none;" onclick="closeModal('modal-pay-request-detail')">关闭</button>
@@ -9201,7 +8811,6 @@ function onAiAvatarDblClick() {
         }
     }
 
-    // 用户为AI代付
     function payForAiRequest(msgIndex) {
         const msg = chats[currentChatRoleId][msgIndex];
         const raw = msg.content.slice(13, -1);
@@ -9215,17 +8824,14 @@ function onAiAvatarDblClick() {
                 return;
             }
             
-            // 扣款
             walletData['ME'].balance -= amount;
             const nowStr = new Date().toLocaleString('zh-CN');
             walletData['ME'].bills.unshift({ time: nowStr, location: '线上交易', merchant: `为 ${getDisplayName(roles.find(r=>r.id===currentChatRoleId))} 代付`, amount: -amount, method: '钱包余额' });
             DB.set('walletData', walletData);
             
-            // 更新卡片状态
             card.status = '已支付';
             msg.content = `[PAY_REQUEST:${encodeURIComponent(JSON.stringify(card))}]`;
             
-            // 发送系统提示
             const now = new Date();
             chats[currentChatRoleId].push({ role: 'system', content: '你已完成代付', time: now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }), rawTime: now.getTime() });
             DB.set('chats', chats);
@@ -9233,13 +8839,11 @@ function onAiAvatarDblClick() {
             closeModal('modal-pay-request-detail');
             renderMessages();
             
-            // 触发AI回复
             triggerAI();
             
         } catch(e) {}
     }
 
-    // 用户自己支付被拒绝或未处理的代付请求
     function paySelfForRequest(msgIndex) {
         const msg = chats[currentChatRoleId][msgIndex];
         const raw = msg.content.slice(13, -1);
@@ -9253,13 +8857,11 @@ function onAiAvatarDblClick() {
                 return;
             }
             
-            // 扣款
             walletData['ME'].balance -= amount;
             const nowStr = new Date().toLocaleString('zh-CN');
             walletData['ME'].bills.unshift({ time: nowStr, location: '线上交易', merchant: `自行支付 ${card.shopName}`, amount: -amount, method: '钱包余额' });
             DB.set('walletData', walletData);
             
-            // 更新外卖订单状态
             if (card.orderId) {
                 const pendingOrder = toOrderHistory.find(o => o.id === card.orderId);
                 if (pendingOrder) {
@@ -9271,11 +8873,9 @@ function onAiAvatarDblClick() {
                 }
             }
             
-            // 更新卡片状态
             card.status = '已支付';
             msg.content = `[PAY_REQUEST:${encodeURIComponent(JSON.stringify(card))}]`;
             
-            // 发送系统提示
             const role = roles.find(r => r.id === currentChatRoleId);
             const activeMask = masks.find(m => m.id === role.activeMaskId) || masks.find(m => m.id === 'default') || masks[0];
             const maskName = activeMask ? activeMask.name : (settings.userName || 'ME');
@@ -9290,7 +8890,6 @@ function onAiAvatarDblClick() {
         } catch(e) {}
     }
 
-    // 打开交易详情弹窗
     function openTransactionDetail(msgIndex) {
         const msg = chats[currentChatRoleId][msgIndex];
         if (!msg) return;
@@ -9308,10 +8907,8 @@ function onAiAvatarDblClick() {
             $('#tx-detail-time').innerText = new Date(card.time).toLocaleString('zh-CN');
             $('#tx-detail-id').innerText = card.id || 'TX' + Date.now();
             
-            // 动态生成底部按钮
             let actionHtml = `<button class="action-btn" onclick="closeModal('modal-transaction-detail')">CLOSE<span>关闭</span></button>`;
             
-            // 如果是 AI 发给用户的转账，且状态是待接收，显示退回和接收按钮
             if (!isFamily && card.status === '待接收' && msg.role === 'ai') {
                 actionHtml += `<button class="action-btn primary" style="background:#ff3b30; border-color:#ff3b30;" onclick="returnTransfer(${msgIndex})">RETURN<span>退回</span></button>`;
                 actionHtml += `<button class="action-btn primary" onclick="receiveTransfer(${msgIndex})">RECEIVE<span>接收</span></button>`;
@@ -9324,7 +8921,6 @@ function onAiAvatarDblClick() {
         } catch(e) {}
     }
 
-    // 用户退回 AI 的转账
     function returnTransfer(msgIndex) {
         const msg = chats[currentChatRoleId][msgIndex];
         const raw = msg.content.slice(10, -1);
@@ -9333,7 +8929,6 @@ function onAiAvatarDblClick() {
             card.status = '已退回';
             msg.content = `[TRANSFER:${encodeURIComponent(JSON.stringify(card))}]`;
             
-            // 退回给AI，AI的钱增加
             if (!walletData[currentChatRoleId]) walletData[currentChatRoleId] = { balance: 0, huabei: 0, bankCards: [], familyCards: [], bills: [] };
             walletData[currentChatRoleId].balance += card.amount;
             const nowStr = new Date().toLocaleString('zh-CN');
@@ -9350,7 +8945,6 @@ function onAiAvatarDblClick() {
         } catch(e){}
     }
 
-    // 用户接收 AI 的转账
     function receiveTransfer(msgIndex) {
         const msg = chats[currentChatRoleId][msgIndex];
         const raw = msg.content.slice(10, -1);
@@ -9359,7 +8953,6 @@ function onAiAvatarDblClick() {
             card.status = '已接收';
             msg.content = `[TRANSFER:${encodeURIComponent(JSON.stringify(card))}]`;
             
-            // 用户加钱
             if (!walletData['ME']) walletData['ME'] = { balance: 0, huabei: 0, bankCards: [], familyCards: [], bills: [] };
             walletData['ME'].balance += card.amount;
             addWalletBill(`收到 ${card.senderName} 转账`, card.amount, '转入余额');
@@ -9374,10 +8967,8 @@ function onAiAvatarDblClick() {
         } catch(e){}
     }
 
-    // 处理 AI 接收/退回逻辑
     function processTransactionResponse(roleId, action) {
         const msgs = chats[roleId];
-        // 从后往前找最后一个待接收的卡片
         for (let i = msgs.length - 1; i >= 0; i--) {
             if (msgs[i].role === 'user' && (msgs[i].content.startsWith('[TRANSFER:') || msgs[i].content.startsWith('[FAMILY_CARD:'))) {
                 const isFamily = msgs[i].content.startsWith('[FAMILY_CARD:');
@@ -9387,7 +8978,6 @@ function onAiAvatarDblClick() {
                     if (card.status === '待接收') {
                         if (action === 'accept_tx' && !isFamily) {
                             card.status = '已接收';
-                            // 给 AI 钱包加钱
                             if (!walletData[roleId]) walletData[roleId] = { balance: 0, huabei: 0, bankCards: [], familyCards: [], bills: [] };
                             walletData[roleId].balance += card.amount;
                             const nowStr = new Date().toLocaleString('zh-CN');
@@ -9395,7 +8985,6 @@ function onAiAvatarDblClick() {
                             DB.set('walletData', walletData);
                         } else if (action === 'reject_tx' && !isFamily) {
                             card.status = '已退回';
-                            // 给用户退钱
                             walletData['ME'].balance += card.amount;
                             addWalletBill('转账退回', card.amount, '退回至余额');
                             DB.set('walletData', walletData);
@@ -9403,7 +8992,6 @@ function onAiAvatarDblClick() {
                             card.status = '已领取';
                         } else if (action === 'reject_fc' && isFamily) {
                             card.status = '已退回';
-                            // 删掉亲属卡
                             walletData['ME'].familyCards = walletData['ME'].familyCards.filter(c => c.limit !== card.limit);
                             DB.set('walletData', walletData);
                         }
@@ -9415,7 +9003,6 @@ function onAiAvatarDblClick() {
         }
     }
 
-    // 处理 AI 主动发送转账/亲属卡
     function processAISendTransaction(roleId, type, value) {
         const role = roles.find(r => r.id === roleId);
         const now = new Date();
@@ -9425,14 +9012,13 @@ function onAiAvatarDblClick() {
             limit: type === 'family_card' ? value : undefined,
             senderName: getDisplayName(role), 
             senderAvatar: role.avatar || DEFAULT_AVATAR,
-            status: '待接收', // 修复：AI发出的转账默认待接收，不再自动接收
+            status: '待接收', 
             time: now.getTime()
         };
         
         const msgContent = `[${type === 'transfer' ? 'TRANSFER' : 'FAMILY_CARD'}:${encodeURIComponent(JSON.stringify(payload))}]`;
         chats[roleId].push({ role: 'ai', content: msgContent, time: now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }), rawTime: now.getTime(), mode: 'online' });
         
-        // 扣除 AI 的钱
         if (type === 'transfer') {
             walletData[roleId] = walletData[roleId] || { balance: 0, huabei: 0, bankCards: [], familyCards: [], bills: [] };
             walletData[roleId].balance -= value;
@@ -9456,7 +9042,6 @@ function onAiAvatarDblClick() {
         renderWalletMain();
     }
 
-    // --- OurSpace 核心逻辑 ---
     let osManageMode = false;
     let osSelectedItems = new Set();
     let osCurrentView = '';
@@ -9474,7 +9059,6 @@ function onAiAvatarDblClick() {
         const code = Math.floor(100000 + Math.random() * 900000).toString();
         ourSpaceData.pendingPartnerId = roleId;
         ourSpaceData.pairingCode = code;
-        // 注意：这里不设置 startDate，等绑定成功时才设置
         DB.set('ourSpaceData', ourSpaceData);
         
         if(!chats[roleId]) chats[roleId] = [];
@@ -9494,7 +9078,6 @@ function onAiAvatarDblClick() {
         if(input === ourSpaceData.pairingCode) {
             ourSpaceData.isPaired = true;
             ourSpaceData.partnerId = ourSpaceData.pendingPartnerId;
-            // 修复：记录精确到毫秒的绑定时间戳，确保计时从此刻开始
             ourSpaceData.startDate = new Date().toISOString();
             DB.set('ourSpaceData', ourSpaceData);
             alert('绑定成功！欢迎来到你们的专属空间。');
@@ -9510,7 +9093,6 @@ function onAiAvatarDblClick() {
     }
 
     function osRenderAll() {
-        // 容错保护：确保所有数组都存在，防止旧数据缺少字段导致 map 报错
         ourSpaceData.annis = ourSpaceData.annis || [];
         ourSpaceData.albums = ourSpaceData.albums || [];
         ourSpaceData.diaries = ourSpaceData.diaries || [];
@@ -9553,7 +9135,6 @@ function onAiAvatarDblClick() {
         osRenderMe();
     }
 
-    // --- 首页与计时 ---
     function osUpdateTimer() {
         const startStr = ourSpaceData.startDate;
         if (!startStr) {
@@ -9564,17 +9145,13 @@ function onAiAvatarDblClick() {
             return;
         }
         
-        // 修复：兼容旧格式（纯日期 "2025-01-01"）和新格式（ISO时间戳 "2025-01-01T12:30:00.000Z"）
         let start;
         if (startStr.includes('T')) {
-            // 新格式：精确到毫秒的 ISO 时间戳
             start = new Date(startStr).getTime();
         } else {
-            // 旧格式：只有日期，默认从当天 00:00:00 开始算
             start = new Date(startStr + 'T00:00:00').getTime();
         }
         
-        // 防止无效日期
         if (isNaN(start)) {
             start = Date.now();
             ourSpaceData.startDate = new Date().toISOString();
@@ -9592,7 +9169,6 @@ function onAiAvatarDblClick() {
         if(elD) elD.innerText = d;
         if(elT) elT.innerText = `${String(h).padStart(2,'0')} 时 ${String(m).padStart(2,'0')} 分 ${String(s).padStart(2,'0')} 秒`;
         
-        // 同步更新顶部实时时间
         const topTime = document.getElementById('os-sync-time');
         if (topTime) {
             const currDate = new Date();
@@ -9607,7 +9183,6 @@ function onAiAvatarDblClick() {
         document.getElementById('os-name-ta').innerText = role ? getDisplayName(role) : 'TA';
         document.getElementById('os-avatar-ta').src = role ? (role.avatar || DEFAULT_AVATAR) : DEFAULT_AVATAR;
         
-        // 绑定天气App数据
         const city = weatherData.city || '城市';
         const temp = weatherData.temp || '24';
         document.getElementById('os-city-text-me').innerText = `${city} ${temp}°C`;
@@ -9625,7 +9200,6 @@ function onAiAvatarDblClick() {
         osAddIntimacy(5);
     }
 
-    // --- 长按多选逻辑 ---
     function osTouchStart(e, type, index) {
         if (osManageMode) return;
         osPressTimer = setTimeout(() => {
@@ -9660,7 +9234,6 @@ function onAiAvatarDblClick() {
         if (confirm(`确定删除选中的 ${osSelectedItems.size} 项吗？`)) {
             const sorted = Array.from(osSelectedItems).sort((a, b) => b - a);
             
-            // 修复：正确映射数据列表名称
             let listName = type + 's';
             if (type === 'diary') listName = 'diaries';
             if (type === 'firsts') listName = 'firsts';
@@ -9683,7 +9256,6 @@ function onAiAvatarDblClick() {
         else if(type==='firsts') osRenderFirsts();
     }
 
-    // --- 渲染与保存逻辑 ---
     function osRenderAnnis() {
         const list = document.getElementById('os-anni-list');
         if(ourSpaceData.annis.length===0) { list.innerHTML = '<div style="text-align:center;color:var(--text-secondary);font-size:10px;padding:10px;">暂无纪念日</div>'; return; }
@@ -9713,7 +9285,6 @@ function onAiAvatarDblClick() {
         osRenderAnnis(); 
         closeModal('modal-os-anni');
         
-        // 清空输入框
         document.getElementById('os-inp-anni-name').value = '';
         document.getElementById('os-inp-anni-year').value = '';
         document.getElementById('os-inp-anni-month').value = '';
@@ -9862,7 +9433,6 @@ function onAiAvatarDblClick() {
         ourSpaceData.firsts.unshift({title, imgVirtual, time: new Date().toLocaleDateString(), author: settings.userName || 'ME', comments: []}); DB.set('ourSpaceData', ourSpaceData); osRenderFirsts(); closeModal('modal-os-firsts'); osAddIntimacy(15);
     }
 
-    // --- 我的与设置 ---
     function osRenderMe() {
         document.getElementById('os-profile-name').innerText = settings.userName || 'ME';
         document.getElementById('os-profile-avatar').src = settings.userAvatar || DEFAULT_AVATAR;
@@ -9880,14 +9450,13 @@ function onAiAvatarDblClick() {
         }
     }
 
-    // --- AI 智能生成与状态显示 ---
     async function osGenerateAI(type) {
-        if (!apiConfig.url) return alert('请先配置 API。');
+        const api = getSubApi('ourspace');
+        if (!api.url) return alert('请先配置 API。');
         if (!ourSpaceData.partnerId) return alert('请先在"我的"页面绑定角色。');
         const role = roles.find(r => r.id === ourSpaceData.partnerId);
         if (!role) return;
 
-        // 找到生成按钮，改变状态为 GENERATING...
         const subHeader = document.querySelector('#os-sub-' + type + ' .os-sub-header');
         const btn = subHeader ? subHeader.querySelector('button[onclick^="osGenerateAI"]') : null;
         const originalHtml = btn ? btn.innerHTML : '';
@@ -9908,15 +9477,13 @@ function onAiAvatarDblClick() {
         const globalWbs = worldbooks.filter(w => w.isGlobal).map(w => w.content).join('\n\n');
         const localWbs = worldbooks.filter(w => role.localWbs?.includes(w.id)).map(w => w.content).join('\n\n');
         
-        // 读取全部记忆（传统记忆 + 高级核心记忆）
         let fullMemory = memories[role.id] || '';
         if (advancedMemories[role.id] && advancedMemories[role.id].coreMemories) {
             fullMemory += '\n' + advancedMemories[role.id].coreMemories.map(m => m.content).join('\n');
         }
         const memorySummary = fullMemory ? `\n[全部记忆]\n${fullMemory}` : '';
 
-        // 读取上下文聊天记录
-        const contextLimit = role.contextLimit || 50;
+        const contextLimit = role.contextLimit || 30;
         const recentChats = (chats[role.id] || []).slice(-contextLimit).map(m => `${m.role === 'user' ? 'ME' : role.realName}: ${m.content.replace(/<[^>]*>/g, '')}`).join('\n');
         const chatContext = recentChats ? `\n[最近的聊天记录]\n${recentChats}` : '';
 
@@ -9924,16 +9491,15 @@ function onAiAvatarDblClick() {
         const prompt = `[CORE DIRECTIVE]\n你现在是${role.realName}。请根据你的人设（${role.persona}）、世界观（${globalWbs}\n${localWbs}）、你们的全部记忆（${memorySummary}）、以及最近的聊天上下文（${chatContext}），在情侣空间APP中发布一条【${typeMap[type].name}】。\n${phoneStatus}\n要求：绝对不能OOC，语气必须完全符合你的人设！结合最近聊天中发生的事情，或者对方的手机电量/APP使用情况来发！\n必须返回严格的JSON格式：\n${typeMap[type].format}\n直接输出JSON，不要加任何其他文字。`;
 
         try {
-            const endpoint = getChatEndpoint(apiConfig.url);
+            const endpoint = getChatEndpoint(api.url);
             const response = await fetch(endpoint, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiConfig.key}` },
-                body: JSON.stringify({ model: apiConfig.model, messages: [{ role: 'user', content: prompt }], max_tokens: 800, temperature: 0.85 })
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${api.key}` },
+                body: JSON.stringify({ model: api.model, messages: [{ role: 'user', content: prompt }], max_tokens: 800, temperature: 0.85 })
             });
             const data = await response.json();
             const result = JSON.parse(extractJSON(data.choices[0].message.content));
             
-            // 强制获取角色名，修复署名变成 ME 的问题
             const authorName = role.realName || 'Entity'; 
             const timeStr = new Date().toLocaleString('zh-CN');
             const dateStr = new Date().toLocaleDateString();
@@ -9957,11 +9523,9 @@ function onAiAvatarDblClick() {
         }
     }
 
-    // --- 详情与评论回复逻辑 ---
     let osCurrentDetail = { type: '', index: -1 };
 
     function osGetListName(type) {
-        // 统一的列表名映射，彻底修复所有地方的名称错误
         const map = {
             'diary': 'diaries',
             'wish': 'wishes',
@@ -10051,14 +9615,14 @@ function onAiAvatarDblClick() {
         osRenderList(type); 
         input.value = '';
         
-        // 如果这条内容是 AI 发的，触发 AI 回复
         if (item.author !== (settings.userName || 'ME')) {
             osTriggerAiReply(type, index, text);
         }
     }
 
     async function osTriggerAiReply(type, index, userText) {
-        if (!apiConfig.url || !ourSpaceData.partnerId) return;
+        const api = getSubApi('ourspace');
+        if (!api.url || !ourSpaceData.partnerId) return;
         const role = roles.find(r => r.id === ourSpaceData.partnerId);
         if (!role) return;
 
@@ -10072,11 +9636,11 @@ function onAiAvatarDblClick() {
         const prompt = `[CORE DIRECTIVE]\n你现在是${role.realName}。你在情侣空间发布了一条内容：\n"${JSON.stringify(item)}"\n用户刚刚回复了你："${userText}"\n请根据你的人设（${role.persona}），以简短、口语化的方式回复用户。不要加引号，直接输出回复内容。`;
 
         try {
-            const endpoint = getChatEndpoint(apiConfig.url);
+            const endpoint = getChatEndpoint(api.url);
             const response = await fetch(endpoint, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiConfig.key}` },
-                body: JSON.stringify({ model: apiConfig.model, messages: [{ role: 'user', content: prompt }], max_tokens: 150, temperature: 0.85 })
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${api.key}` },
+                body: JSON.stringify({ model: api.model, messages: [{ role: 'user', content: prompt }], max_tokens: 150, temperature: 0.85 })
             });
             const data = await response.json();
             const replyText = data.choices[0].message.content.trim();
@@ -10098,9 +9662,6 @@ function onAiAvatarDblClick() {
             statusEl.style.display = 'none';
         }
     }
- // ==========================================
-// --- 票根系统 (Ticket Stub System) ---
-// ==========================================
 
 const TICKET_SVG_ICONS = {
     movie: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="2.18" ry="2.18"/><line x1="7" y1="2" x2="7" y2="22"/><line x1="17" y1="2" x2="17" y2="22"/><line x1="2" y1="12" x2="22" y2="12"/><line x1="2" y1="7" x2="7" y2="7"/><line x1="2" y1="17" x2="7" y2="17"/><line x1="17" y1="7" x2="22" y2="7"/><line x1="17" y1="17" x2="22" y2="17"/></svg>',
@@ -10170,17 +9731,14 @@ function renderTicketPair(ticketData) {
     const userName = settings.userName || 'ME';
     const roleName = role ? getDisplayName(role) : 'TA';
 
-    // 智能识别并数字+1的辅助函数
     function incrementIfSeat(label, value) {
         if (value === undefined || value === null) return value;
         let strValue = String(value);
         let strLabel = String(label);
-        // 检查标签是否包含座位、号码相关的关键字
         const keywords = ['座', '排', '号', '票', '位', 'seat', 'no', 'num'];
         const shouldIncrement = keywords.some(kw => strLabel.toLowerCase().includes(kw));
         
         if (shouldIncrement) {
-            // 找到字符串中的最后一个数字并加1，同时保留前导零（如 08 变 09）
             return strValue.replace(/(\d+)(?!.*\d)/, function(match) {
                 const num = parseInt(match, 10) + 1;
                 return String(num).padStart(match.length, '0');
@@ -10189,10 +9747,9 @@ function renderTicketPair(ticketData) {
         return strValue;
     }
 
-    const baseSerialNum = Math.floor(Date.now() / 1000) % 1000000; // 获取6位基础数字
+    const baseSerialNum = Math.floor(Date.now() / 1000) % 1000000; 
     const userTicket = { ...ticketData, owner: userName, serial: 'NO.' + String(baseSerialNum).padStart(6, '0') };
     
-    // 角色的票根：智能将座位号/票号 +1
     const roleTicket = { 
         ...ticketData, 
         owner: roleName, 
@@ -10212,893 +9769,19 @@ function parseTicketContent(content) {
         return JSON.parse(decodeURIComponent(raw));
     } catch(e) { return null; }
 }
-// ==========================================
-// --- 外卖购物 App 核心逻辑 ---
-// ==========================================
-
-const TO_SHOPS = [
-    { id:'s1', name:'深夜拉面研究所', emoji:'🍜', rating:'4.9', sales:'2.3k', time:'28min', minOrder:15, delivery:3, pack:2, badge:'品质优选', tags:['HOT','面食'], menu:[
-        {id:1,name:'豚骨拉面',desc:'浓郁猪骨汤底·溏心蛋·叉烧',price:32,orig:42,sales:'月售856',emoji:'🍜',cat:'推荐'},
-        {id:2,name:'味噌拉面',desc:'北海道味噌·玉米粒·黄油',price:28,orig:38,sales:'月售623',emoji:'🍜',cat:'推荐'},
-        {id:3,name:'担担面',desc:'花生碎·肉末·芝麻酱·微辣',price:22,orig:0,sales:'月售412',emoji:'🥡',cat:'招牌'},
-        {id:4,name:'日式煎饺',desc:'猪肉白菜馅·6只装',price:16,orig:22,sales:'月售1.2k',emoji:'🥟',cat:'小食'},
-        {id:5,name:'溏心蛋',desc:'酱油腌制·流心蛋黄',price:5,orig:0,sales:'月售2.1k',emoji:'🥚',cat:'小食'},
-        {id:6,name:'抹茶拿铁',desc:'宇治抹茶·鲜牛奶',price:18,orig:24,sales:'月售389',emoji:'🍵',cat:'饮品'},
-        {id:7,name:'乌龙茶',desc:'冷泡乌龙·无糖·500ml',price:8,orig:0,sales:'月售567',emoji:'🧋',cat:'饮品'},
-        {id:8,name:'叉烧饭',desc:'蜜汁叉烧·温泉蛋·时蔬',price:26,orig:35,sales:'月售734',emoji:'🍚',cat:'招牌'}
-    ]},
-    { id:'s2', name:'GREEN · 轻食沙拉', emoji:'🥗', rating:'4.7', sales:'1.8k', time:'22min', minOrder:20, delivery:2, pack:1, badge:'减脂推荐', tags:['轻食'], menu:[
-        {id:1,name:'凯撒沙拉',desc:'罗马生菜·帕玛森·面包丁',price:28,orig:38,sales:'月售456',emoji:'🥗',cat:'推荐'},
-        {id:2,name:'牛油果鸡胸沙拉',desc:'牛油果·鸡胸肉·藜麦',price:32,orig:42,sales:'月售389',emoji:'🥑',cat:'推荐'},
-        {id:3,name:'希腊酸奶碗',desc:'酸奶·蓝莓·燕麦·蜂蜜',price:22,orig:0,sales:'月售234',emoji:'🫐',cat:'甜品'},
-        {id:4,name:'鲜榨果汁',desc:'橙子·胡萝卜·姜',price:16,orig:0,sales:'月售567',emoji:'🧃',cat:'饮品'}
-    ]},
-    { id:'s3', name:'MONO COFFEE', emoji:'☕', rating:'4.8', sales:'960', time:'15min', minOrder:10, delivery:2, pack:1, badge:'自烘焙', tags:['精品咖啡'], menu:[
-        {id:1,name:'美式咖啡',desc:'深度烘焙·冰/热可选',price:16,orig:0,sales:'月售890',emoji:'☕',cat:'推荐'},
-        {id:2,name:'拿铁',desc:'浓缩+鲜牛奶·拉花',price:22,orig:28,sales:'月售678',emoji:'☕',cat:'推荐'},
-        {id:3,name:'脏脏咖啡',desc:'巧克力酱·奶油·浓缩',price:26,orig:32,sales:'月售345',emoji:'🍫',cat:'特调'},
-        {id:4,name:'可颂',desc:'法式黄油可颂·现烤',price:12,orig:0,sales:'月售456',emoji:'🥐',cat:'烘焙'}
-    ]},
-    { id:'s4', name:'SMASH BURGER', emoji:'🍔', rating:'4.6', sales:'3.1k', time:'35min', minOrder:25, delivery:4, pack:2, badge:'手工牛肉饼', tags:['HOT','汉堡'], menu:[
-        {id:1,name:'经典双层堡',desc:'双层牛肉饼·芝士·酸黄瓜',price:32,orig:45,sales:'月售1.2k',emoji:'🍔',cat:'推荐'},
-        {id:2,name:'培根芝士堡',desc:'烟熏培根·切达芝士',price:36,orig:48,sales:'月售890',emoji:'🍔',cat:'推荐'},
-        {id:3,name:'薯条',desc:'粗切薯条·海盐',price:12,orig:0,sales:'月售2.3k',emoji:'🍟',cat:'小食'},
-        {id:4,name:'可乐',desc:'冰镇·500ml',price:6,orig:0,sales:'月售3.4k',emoji:'🥤',cat:'饮品'}
-    ]}
-];
-
-toCart = {};
-toCurrentShopIdx = 0;
-toSelectedPayMethod = 'balance';
-toCurrentTab = 'home';
-toReceiptReturnPage = 'to-success';
-toPageHistory = ['to-home'];
-toPendingDaifuOrder = null;
-
-function toRenderShopList() {
-    const el = document.getElementById('to-shop-list'); if (!el) return;
-    
-    // 每次渲染时随机打乱商家列表，实现刷新效果
-    let shuffledShops = TO_SHOPS.map((s, index) => ({ s, index })).sort(() => Math.random() - 0.5);
-    
-    el.innerHTML = shuffledShops.map(({s, index}) => `<div class="to-shop-card" onclick="toOpenShop(${index})"><div class="to-shop-img">${s.emoji}</div><div class="to-shop-info"><div><div class="to-shop-name">${s.name}</div><div class="to-shop-tags">${s.tags.map(t=>`<span class="to-shop-tag ${t==='HOT'?'hot':''}">${t}</span>`).join('')}</div></div><div class="to-shop-meta"><span class="rating">★ ${s.rating}</span><span>月售${s.sales}</span><span>约${s.time}</span></div><div class="to-shop-price"><span class="yen">¥</span><span class="num">${s.menu[0].price}</span>${s.menu[0].orig?`<span class="orig">¥${s.menu[0].orig}</span>`:''}<span style="font-size:9px;color:var(--text-secondary);margin-left:4px;">起</span></div></div></div>`).join('');
-}
-
-function toOpenShop(idx) {
-    toCurrentShopIdx = idx; toCart = {};
-    const shop = TO_SHOPS[idx];
-    document.getElementById('to-detail-name').innerText = shop.name;
-    document.getElementById('to-detail-meta').innerHTML = `<span>★ ${shop.rating}</span><span>月售${shop.sales}</span><span>约${shop.time}</span><span>起送¥${shop.minOrder}</span>`;
-    document.getElementById('to-detail-badge').innerText = shop.badge;
-    const cats = [...new Set(shop.menu.map(m=>m.cat))];
-    document.getElementById('to-menu-tabs').innerHTML = cats.map((c,i)=>`<button class="to-menu-tab ${i===0?'active':''}" onclick="toFilterMenu('${c}',this)">${c}</button>`).join('');
-    toRenderMenu(); toUpdateCartFloat(); toNavTo('to-detail'); toUpdateFavShopBtn();
-}
-
-function toFilterMenu(cat,el) { document.querySelectorAll('.to-menu-tab').forEach(t=>t.classList.remove('active')); el.classList.add('active'); toRenderMenu(cat); }
-
-function toRenderMenu(filterCat) {
-    const shop = TO_SHOPS[toCurrentShopIdx];
-    const items = filterCat ? shop.menu.filter(m=>m.cat===filterCat) : shop.menu;
-    document.getElementById('to-menu-list').innerHTML = items.map(item => {
-        const qty = toCart[item.id]||0;
-        const isFav = toFavorites.items.some(f=>f.shopId===shop.id&&f.itemId===item.id);
-                return `<div class="to-menu-item"><div class="to-menu-item-img">${item.emoji}</div><div class="to-menu-item-info"><div><div style="display:flex;align-items:center;gap:6px;"><div class="to-menu-item-name">${item.name}</div><button style="background:none;border:none;cursor:pointer;font-size:12px;padding:0;color:${isFav?'#ff3b30':'var(--text-secondary)'};" onclick="event.stopPropagation();toToggleFavItem(${item.id})">${isFav?'♥':'♡'}</button><button style="background:none;border:none;cursor:pointer;font-size:12px;padding:0;color:var(--text-secondary);margin-left:4px;" onclick="event.stopPropagation();toShareItem(${item.id})">↗</button></div><div class="to-menu-item-desc">${item.desc}</div><div class="to-menu-item-sales">${item.sales}</div></div><div class="to-menu-item-bottom"><div style="display:flex;align-items:baseline;gap:2px;"><span style="font-size:9px;color:#ff3b30;font-weight:700;">¥</span><span style="font-size:14px;color:#ff3b30;font-weight:700;">${item.price}</span>${item.orig?`<span style="font-size:9px;color:var(--text-secondary);text-decoration:line-through;margin-left:3px;">¥${item.orig}</span>`:''}</div><div class="to-qty-control">${qty>0?`<button class="to-qty-btn" onclick="event.stopPropagation();toChangeQty(${item.id},-1)">−</button><span class="to-qty-num">${qty}</span>`:''}<button class="to-qty-btn add" onclick="event.stopPropagation();toChangeQty(${item.id},1)">+</button></div></div></div></div>`;
-    }).join('');
-}
-
-function toChangeQty(id,delta) { if(!toCart[id])toCart[id]=0; toCart[id]+=delta; if(toCart[id]<=0)delete toCart[id]; toRenderMenu(); toUpdateCartFloat(); }
-
-function toUpdateCartFloat() {
-    const shop = TO_SHOPS[toCurrentShopIdx]; const floatEl = document.getElementById('to-cart-float');
-    let tq=0,tp=0; Object.keys(toCart).forEach(id=>{const item=shop.menu.find(m=>m.id==id);if(item){tq+=toCart[id];tp+=item.price*toCart[id];}});
-    if(tq>0){floatEl.classList.add('visible');document.getElementById('to-cart-badge').innerText=tq;document.getElementById('to-cart-total-num').innerText=tp;}else{floatEl.classList.remove('visible');}
-}
-
-function toClearCart(){toCart={};toRenderMenu();toUpdateCartFloat();toGoBack('to-cart','to-detail');}
-
-function toOpenCart() {
-    const shop = TO_SHOPS[toCurrentShopIdx]; let tp=0;
-    document.getElementById('to-cart-items').innerHTML = Object.keys(toCart).map(id=>{const item=shop.menu.find(m=>m.id==id);tp+=item.price*toCart[id];return`<div style="display:flex;align-items:center;gap:10px;padding:12px 20px;border-bottom:1px solid var(--gray-light);"><span style="font-size:24px;width:36px;text-align:center;">${item.emoji}</span><div style="flex:1;"><div style="font-size:12px;font-weight:600;">${item.name}</div><div style="font-size:11px;color:#ff3b30;font-weight:600;margin-top:2px;">¥${item.price} × ${toCart[id]}</div></div><div class="to-qty-control"><button class="to-qty-btn" onclick="toChangeQty(${item.id},-1);toOpenCart();">−</button><span class="to-qty-num">${toCart[id]}</span><button class="to-qty-btn add" onclick="toChangeQty(${item.id},1);toOpenCart();">+</button></div></div>`;}).join('');
-    const grand = tp + shop.delivery + shop.pack;
-    document.getElementById('to-cart-summary').innerHTML = `<div class="to-summary-row"><span>商品小计</span><span>¥${tp.toFixed(2)}</span></div><div class="to-summary-row"><span>配送费</span><span>¥${shop.delivery.toFixed(2)}</span></div><div class="to-summary-row"><span>包装费</span><span>¥${shop.pack.toFixed(2)}</span></div><div class="to-summary-row total"><span>合计</span><span class="price">¥${grand.toFixed(2)}</span></div><button class="action-btn primary" style="width:100%;border-radius:20px;padding:12px;margin-top:12px;" onclick="toGoBack('to-cart','to-detail');setTimeout(()=>toOpenOrder(),400);">去结算</button>`;
-    toNavTo('to-cart');
-}
-
-function toGetPaymentMethods() {
-    const methods = [{id:'balance',label:'💰 钱包余额',detail:`¥${fmtMoney((walletData['ME']||{}).balance||0)}`}];
-    const wd = walletData['ME']||{};
-    if(wd.huabei && wd.huabei > 0) methods.push({id:'huabei',label:'🔥 花呗',detail:`可用 ¥${fmtMoney(wd.huabei)}`});
-    (wd.bankCards||[]).forEach((c,i)=>methods.push({id:'bank_'+i,label:`🏦 ${c.bank}(${c.tail})`,detail:`¥${fmtMoney(c.balance)}`}));
-    methods.push({id:'daifu',label:'🙋 找人代付',detail:'发送给通讯录角色'});
-    return methods;
-}
-
-function toRenderPaymentMethods() {
-    const methods = toGetPaymentMethods();
-    document.getElementById('to-payment-methods').innerHTML = methods.map(m=>`<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--gray-light);cursor:pointer;" onclick="toSelectPay('${m.id}')"><div style="width:18px;height:18px;border-radius:50%;border:2px solid ${toSelectedPayMethod===m.id?'var(--text-color)':'var(--border-color)'};display:flex;align-items:center;justify-content:center;flex-shrink:0;"><div style="width:10px;height:10px;border-radius:50%;background:${toSelectedPayMethod===m.id?'var(--text-color)':'transparent'};"></div></div><div style="flex:1;"><div style="font-size:12px;font-weight:600;">${m.label}</div><div style="font-size:9px;color:var(--text-secondary);">${m.detail}</div></div></div>`).join('');
-}
-
-function toSelectPay(id){toSelectedPayMethod=id;toRenderPaymentMethods();}
-
-function toOpenOrder() {
-    const shop = TO_SHOPS[toCurrentShopIdx];
-    const addr = toAddresses.find(a=>a.id===toSelectedAddrId)||toAddresses[0]||{};
-    document.getElementById('to-order-addr-name').innerText = `${addr.tag||'地址'} · ${addr.addr||'请添加地址'}`;
-    document.getElementById('to-order-addr-detail').innerText = `${addr.name||''} ${addr.phone||''}`;
-    
-    // 收货人选择逻辑
-    const recipientHtml = `
-        <div class="to-order-section">
-            <div class="to-order-section-title">RECIPIENT / 收货人</div>
-            <select id="to-order-recipient" style="width:100%; padding:10px; border:1px solid var(--border-color); background:transparent; color:var(--text-color); font-size:11px; outline:none;">
-                <option value="ME">送给我自己</option>
-                ${roles.map(r => `<option value="${r.id}">送给 ${getDisplayName(r)}</option>`).join('')}
-            </select>
-        </div>
-    `;
-    
-    let tp=0;
-    document.getElementById('to-order-items').innerHTML = recipientHtml + Object.keys(toCart).map(id=>{const item=shop.menu.find(m=>m.id==id);const sub=item.price*toCart[id];tp+=sub;return`<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--gray-light);"><div style="display:flex;align-items:center;gap:6px;"><span style="font-size:18px;">${item.emoji}</span><div><div style="font-size:11px;font-weight:600;">${item.name}</div><div style="font-size:9px;color:var(--text-secondary);">×${toCart[id]}</div></div></div><div style="font-size:12px;font-weight:600;">¥${sub.toFixed(2)}</div></div>`;}).join('');
-    
-    const grand = tp + shop.delivery + shop.pack;
-    
-    // --- 核心机制：新人立减与深夜满减 ---
-    let discount = 0;
-    let discountLabel = '优惠';
-    
-    const currentHour = new Date().getHours();
-    const isFirstOrder = toOrderHistory.length === 0;
-    
-    if (isFirstOrder) {
-        discount = 15;
-        discountLabel = '新人首单立减';
-    } else if (currentHour >= 22 || currentHour < 4) {
-        // 深夜食堂：满减翻倍 (假设基础满减是 10%)
-        discount = Math.min(tp * 0.2, 30); // 最高减30
-        discountLabel = '深夜食堂满减';
-    } else {
-        // 基础优惠
-        discount = Math.min(5, tp * 0.1);
-    }
-    
-    // 确保优惠不会超过商品总价
-    if (discount > tp) discount = tp;
-    
-    const finalTotal = (grand - discount).toFixed(2);
-    
-    document.getElementById('to-order-summary').innerHTML = `
-        <div class="to-summary-row"><span>商品小计</span><span>¥${tp.toFixed(2)}</span></div>
-        <div class="to-summary-row"><span>配送费</span><span>¥${shop.delivery.toFixed(2)}</span></div>
-        <div class="to-summary-row"><span>包装费</span><span>¥${shop.pack.toFixed(2)}</span></div>
-        <div class="to-summary-row"><span style="color:#ff3b30;">${discountLabel}</span><span style="color:#ff3b30;">-¥${discount.toFixed(2)}</span></div>
-        <div class="to-summary-row total"><span>实付金额</span><span class="price">¥${finalTotal}</span></div>
-    `;
-    document.getElementById('to-pay-total').innerText = finalTotal;
-    toSelectedPayMethod = 'balance';
-    toRenderPaymentMethods();
-    toNavTo('to-order');
-}
-
-function toSelectTime(el){el.parentElement.querySelectorAll('.to-time-chip').forEach(c=>c.classList.remove('active'));el.classList.add('active');}
-
-function toSubmitOrder() {
-    const shop = TO_SHOPS[toCurrentShopIdx];
-    const finalTotal = parseFloat(document.getElementById('to-pay-total').innerText);
-    
-    if(toSelectedPayMethod==='daifu'){
-        toPendingDaifuOrder = { shop, finalTotal };
-        const sel = $('#daifu-role-select');
-        if(sel) sel.innerHTML = roles.map(r => `<option value="${r.id}">${getDisplayName(r)}</option>`).join('');
-        openModal('modal-daifu-select');
-        return;
-    }
-
-    const wd = walletData['ME']||(walletData['ME']={balance:0,huabei:0,bankCards:[],familyCards:[],bills:[]});
-    let payLabel = '钱包余额';
-    
-    if(toSelectedPayMethod==='balance'){
-        if(wd.balance<finalTotal)return alert('钱包余额不足！请切换支付方式或先去钱包充值');
-        wd.balance-=finalTotal; payLabel='钱包余额';
-    } else if(toSelectedPayMethod==='huabei'){
-        if(!wd.huabei||wd.huabei<finalTotal)return alert('花呗额度不足！');
-        wd.huabei-=finalTotal; payLabel='花呗';
-    } else if(toSelectedPayMethod.startsWith('bank_')){
-        const idx=parseInt(toSelectedPayMethod.split('_')[1]);
-        if(!wd.bankCards[idx]||wd.bankCards[idx].balance<finalTotal)return alert('银行卡余额不足！');
-        wd.bankCards[idx].balance-=finalTotal; payLabel=`${wd.bankCards[idx].bank}(${wd.bankCards[idx].tail})`;
-    }
-    
-    const now = new Date();
-    const nowStr = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')} ${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')}`;
-    if(!wd.bills)wd.bills=[];
-    wd.bills.unshift({time:nowStr,location:'线上交易',merchant:shop.name,amount:-finalTotal,method:payLabel});
-    DB.set('walletData',walletData);
-    
-    const orderId = 'TO'+Date.now().toString().slice(-8);
-    let tp=0;
-    const itemList = Object.keys(toCart).map(id=>{const item=shop.menu.find(m=>m.id==id);const sub=item.price*toCart[id];tp+=sub;return{name:item.name,emoji:item.emoji,qty:toCart[id],price:item.price,subtotal:sub};});
-    const addr = toAddresses.find(a=>a.id===toSelectedAddrId)||toAddresses[0]||{};
-    
-    toOrderHistory.unshift({
-        id:orderId, shop:shop.name, emoji:shop.emoji, shopId:shop.id,
-        items:itemList, itemsText:itemList.map(i=>i.name+'×'+i.qty).join('、'),
-        subtotal:tp, delivery:shop.delivery, pack:shop.pack,
-        discount:Math.min(5,tp*0.1), total:finalTotal,
-        payMethod:payLabel, address:`${addr.tag} · ${addr.addr}`,
-        contact:`${addr.name} ${addr.phone}`,
-        time:nowStr, status:'pending'
-    });
-    DB.set('toOrderHistory',toOrderHistory);
-
-    // --- 送礼逻辑：获取面具名并发送卡片 ---
-    const recipientId = document.getElementById('to-order-recipient').value;
-    if (recipientId !== 'ME') {
-        const targetRole = roles.find(r => r.id === recipientId);
-        // 获取当前面具名
-        const activeMask = masks.find(m => m.id === targetRole.activeMaskId) || masks.find(m => m.id === 'default') || masks[0];
-        const maskName = activeMask ? activeMask.name : (settings.userName || 'ME');
-        
-        const giftPayload = { 
-            shopName: shop.name, 
-            itemName: itemList[0].name, 
-            price: finalTotal, 
-            emoji: shop.emoji, 
-            status: '已送达',
-            senderName: maskName,
-            receiverName: targetRole.realName,
-            orderId: orderId
-        };
-        const msgContent = `[GIFT_TO_AI:${encodeURIComponent(JSON.stringify(giftPayload))}]`;
-        if(!chats[recipientId]) chats[recipientId] = [];
-        chats[recipientId].push({ role: 'user', content: msgContent, time: now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }), rawTime: Date.now(), status: 'SENT', mode: 'online' });
-        DB.set('chats', chats);
-        alert(`成功为 ${targetRole.realName} 下单！快去聊天界面看看TA的反应吧。`);
-    }
-    
-    document.getElementById('to-success-id').innerText = orderId;
-    document.getElementById('to-order-badge').style.display = 'flex';
-    toCart = {};
-    toNavTo('to-success');
-    toStartOrderTracking(orderId);
-}
-
-// --- 商品分享与代付逻辑 ---
-let itemToShare = null;
-
-function toShareItem(itemId) {
-    const shop = TO_SHOPS[toCurrentShopIdx];
-    itemToShare = shop.menu.find(m => m.id === itemId);
-    if (!itemToShare) return;
-    const sel = $('#share-item-role-select');
-    if(sel) sel.innerHTML = roles.map(r => `<option value="${r.id}">${getDisplayName(r)}</option>`).join('');
-    openModal('modal-share-item');
-}
-
-function confirmShareItem() {
-    const roleId = $('#share-item-role-select').value;
-    if(!roleId || !itemToShare) return;
-    const shop = TO_SHOPS[toCurrentShopIdx];
-    
-    const payload = { 
-        itemName: itemToShare.name, 
-        price: itemToShare.price, 
-        shopName: shop.name, 
-        emoji: itemToShare.emoji 
-    };
-    const msgContent = `[SHARE_ITEM:${encodeURIComponent(JSON.stringify(payload))}]`;
-
-    if(!chats[roleId]) chats[roleId] = [];
-    const now = new Date();
-    chats[roleId].push({ role: 'user', content: msgContent, time: now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }), rawTime: now.getTime(), status: 'SENT', mode: 'online' });
-    DB.set('chats', chats);
-
-    closeModal('modal-share-item');
-    closeApp('takeout');
-    openChat(roleId);
-    renderMessages(); 
-    triggerAI();
-}
-
-function confirmDaifu() {
-    const roleId = $('#daifu-role-select').value;
-    if(!roleId || !toPendingDaifuOrder) return;
-    
-    const { shop, finalTotal } = toPendingDaifuOrder;
-    
-    // 1. 先生成一个待支付的订单
-    const orderId = 'TO' + Date.now().toString().slice(-8);
-    let tp=0;
-    const itemList = Object.keys(toCart).map(id=>{const item=shop.menu.find(m=>m.id==id);const sub=item.price*toCart[id];tp+=sub;return{name:item.name,emoji:item.emoji,qty:toCart[id],price:item.price,subtotal:sub};});
-    const addr = toAddresses.find(a=>a.id===toSelectedAddrId)||toAddresses[0]||{};
-    
-    toOrderHistory.unshift({
-        id:orderId, shop:shop.name, emoji:shop.emoji, shopId:shop.id,
-        items:itemList, itemsText:itemList.map(i=>i.name+'×'+i.qty).join('、'),
-        subtotal:tp, delivery:shop.delivery, pack:shop.pack,
-        discount:Math.min(5,tp*0.1), total:finalTotal,
-        payMethod: '好友代付', address:`${addr.tag} · ${addr.addr}`,
-        contact:`${addr.name} ${addr.phone}`,
-        time: new Date().toLocaleString('zh-CN'), status:'pending_pay' // 待支付状态
-    });
-    DB.set('toOrderHistory',toOrderHistory);
-    toCart = {}; // 清空购物车
-
-    // 2. 生成代付卡片 payload，包含 orderId 和商品明细
-    const payload = { 
-        shopName: shop.name, 
-        total: finalTotal, 
-        emoji: shop.emoji,
-        orderId: orderId,
-        itemsText: itemList.map(i=>i.name).join('、')
-    };
-    const msgContent = `[PAY_REQUEST:${encodeURIComponent(JSON.stringify(payload))}]`;
-
-    if(!chats[roleId]) chats[roleId] = [];
-    const now = new Date();
-    chats[roleId].push({ role: 'user', content: msgContent, time: now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }), rawTime: now.getTime(), status: 'SENT', mode: 'online' });
-    DB.set('chats', chats);
-
-    closeModal('modal-daifu-select');
-    closeApp('takeout');
-    openChat(roleId);
-    renderMessages();
-    triggerAI();
-}
-
-function toViewReceipt(orderId) {
-    const order = toOrderHistory.find(o=>o.id===orderId);
-    if(!order)return alert('订单不存在');
-    const el = document.getElementById('to-receipt-content');
-    el.innerHTML = `
-        <div style="background:var(--bg-color);border:1px dashed var(--border-color);padding:20px;font-family:monospace,var(--font-sans);">
-            <div style="text-align:center;border-bottom:1px dashed var(--border-color);padding-bottom:12px;margin-bottom:12px;">
-                <div style="font-size:18px;font-weight:700;letter-spacing:2px;">${order.emoji} ${order.shop}</div>
-                <div style="font-size:8px;color:var(--text-secondary);margin-top:4px;letter-spacing:1px;">ELECTRONIC RECEIPT / 电子小票</div>
-            </div>
-            <div style="font-size:9px;color:var(--text-secondary);margin-bottom:10px;display:flex;justify-content:space-between;">
-                <span>单号: ${order.id}</span><span>${order.time}</span>
-            </div>
-            <div style="border-bottom:1px dashed var(--border-color);padding-bottom:10px;margin-bottom:10px;">
-                ${order.items.map(i=>`<div style="display:flex;justify-content:space-between;padding:3px 0;font-size:11px;"><span>${i.emoji} ${i.name} ×${i.qty}</span><span>¥${i.subtotal.toFixed(2)}</span></div>`).join('')}
-            </div>
-            <div style="font-size:10px;color:var(--text-secondary);margin-bottom:8px;">
-                <div style="display:flex;justify-content:space-between;padding:2px 0;"><span>商品小计</span><span>¥${order.subtotal.toFixed(2)}</span></div>
-                <div style="display:flex;justify-content:space-between;padding:2px 0;"><span>配送费</span><span>¥${order.delivery.toFixed(2)}</span></div>
-                <div style="display:flex;justify-content:space-between;padding:2px 0;"><span>包装费</span><span>¥${order.pack.toFixed(2)}</span></div>
-                <div style="display:flex;justify-content:space-between;padding:2px 0;color:#ff3b30;"><span>优惠</span><span>-¥${order.discount.toFixed(2)}</span></div>
-            </div>
-            <div style="border-top:1px dashed var(--border-color);padding-top:10px;display:flex;justify-content:space-between;font-size:14px;font-weight:700;">
-                <span>实付金额</span><span style="color:#ff3b30;">¥${order.total.toFixed(2)}</span>
-            </div>
-            <div style="margin-top:12px;padding-top:10px;border-top:1px dashed var(--border-color);font-size:9px;color:var(--text-secondary);">
-                <div style="display:flex;justify-content:space-between;padding:2px 0;"><span>支付方式</span><span>${order.payMethod}</span></div>
-                <div style="display:flex;justify-content:space-between;padding:2px 0;"><span>配送地址</span><span>${order.address}</span></div>
-                <div style="display:flex;justify-content:space-between;padding:2px 0;"><span>联系人</span><span>${order.contact}</span></div>
-                <div style="display:flex;justify-content:space-between;padding:2px 0;"><span>状态</span><span style="color:${order.status==='pending'?'#ff9500':'#34c759'};">${order.status==='pending'?'配送中':'已完成'}</span></div>
-            </div>
-            <div style="text-align:center;margin-top:15px;padding-top:10px;border-top:1px dashed var(--border-color);">
-                <div style="display:flex;justify-content:center;gap:1px;height:20px;align-items:flex-end;">${Array.from({length:20},(_,i)=>`<div style="width:2px;background:var(--text-color);opacity:0.3;height:${6+Math.abs(Math.sin(i*0.8+1))*14}px;"></div>`).join('')}</div>
-                <div style="font-size:7px;color:var(--text-secondary);margin-top:4px;letter-spacing:2px;">THANK YOU FOR YOUR ORDER</div>
-            </div>
-        </div>`;
-    toReceiptReturnPage = document.querySelector('.to-page.active')?.id || 'to-success';
-    toNavTo('to-receipt');
-}
-
-function toCloseReceipt(){toGoBack('to-receipt',toReceiptReturnPage);}
-
-function toViewOrderDetail(orderId) {
-    const order = toOrderHistory.find(o=>o.id===orderId);
-    if(!order)return;
-    const el = document.getElementById('to-order-detail-content');
-    
-    const steps = order.statusSteps || [
-        {s:'订单已提交',t:order.time,a:true},
-        {s:'商家接单',t:'等待中...',a:false},
-        {s:'骑手取餐',t:'—',a:false},
-        {s:'送达',t:'—',a:false}
-    ];
-    
-    const statusLabel = order.status === 'done' ? '已完成' : (order.status === 'delivered' ? '待确认收货' : '进行中');
-    const statusColor = order.status === 'done' ? '#155724' : (order.status === 'delivered' ? '#0c5460' : '#856404');
-    const statusBg = order.status === 'done' ? '#d4edda' : (order.status === 'delivered' ? '#d1ecf1' : '#fff3cd');
-    
-    el.innerHTML = `
-        <div style="display:flex;align-items:center;gap:10px;margin-bottom:15px;padding-bottom:15px;border-bottom:1px solid var(--gray-light);">
-            <span style="font-size:32px;">${order.emoji}</span>
-            <div style="flex:1;"><div style="font-size:16px;font-weight:600;">${order.shop}</div><div style="font-size:9px;color:var(--text-secondary);margin-top:2px;">订单号: ${order.id}</div></div>
-            <div style="font-size:9px;font-weight:600;padding:3px 8px;border-radius:8px;background:${statusBg};color:${statusColor};">${statusLabel}</div>
-        </div>
-        <div style="margin-bottom:15px;">
-            <div style="font-size:9px;font-weight:700;letter-spacing:2px;color:var(--text-secondary);margin-bottom:8px;">DELIVERY STATUS</div>
-            <div class="to-timeline">${steps.map(s=>`<div class="to-timeline-item"><div class="to-timeline-dot ${s.a?'active':''}"></div><div><div class="to-timeline-text">${s.s}</div><div class="to-timeline-time">${s.t}</div></div></div>`).join('')}</div>
-        </div>
-        <div style="margin-bottom:15px;">
-            <div style="font-size:9px;font-weight:700;letter-spacing:2px;color:var(--text-secondary);margin-bottom:8px;">ORDER ITEMS</div>
-            ${order.items.map(i=>`<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--gray-light);font-size:11px;"><span>${i.emoji} ${i.name} ×${i.qty}</span><span>¥${i.subtotal.toFixed(2)}</span></div>`).join('')}
-        </div>
-        <div style="margin-bottom:15px;">
-            <div style="font-size:9px;font-weight:700;letter-spacing:2px;color:var(--text-secondary);margin-bottom:8px;">PAYMENT</div>
-            <div class="to-summary-row"><span>商品小计</span><span>¥${order.subtotal.toFixed(2)}</span></div>
-            <div class="to-summary-row"><span>配送费</span><span>¥${order.delivery.toFixed(2)}</span></div>
-            <div class="to-summary-row"><span>包装费</span><span>¥${order.pack.toFixed(2)}</span></div>
-            <div class="to-summary-row"><span style="color:#ff3b30;">优惠</span><span style="color:#ff3b30;">-¥${order.discount.toFixed(2)}</span></div>
-            <div class="to-summary-row total"><span>实付</span><span class="price">¥${parseFloat(order.total).toFixed(2)}</span></div>
-            <div class="to-summary-row"><span>支付方式</span><span>${order.payMethod}</span></div>
-        </div>
-        <div style="margin-bottom:15px;">
-            <div style="font-size:9px;font-weight:700;letter-spacing:2px;color:var(--text-secondary);margin-bottom:8px;">DELIVERY</div>
-            <div style="font-size:11px;">${order.address}</div>
-            <div style="font-size:10px;color:var(--text-secondary);margin-top:2px;">${order.contact}</div>
-        </div>
-        <div style="display:flex;gap:8px;flex-wrap:wrap;">
-            <button class="action-btn" style="flex:1;border-radius:12px;min-width:45%;" onclick="toViewReceipt('${order.id}')">VIEW RECEIPT<span>查看小票</span></button>
-            ${order.status==='delivered'?`<button class="action-btn primary" style="flex:1;border-radius:12px;min-width:45%;" onclick="toCompleteOrder('${order.id}');toViewOrderDetail('${order.id}');">确认收货</button>`:''}
-            ${order.status==='done'?`<button class="action-btn primary" style="flex:1;border-radius:12px;min-width:45%;" onclick="toOpenShop(0)">再来一单</button>`:''}
-        </div>`;
-    toNavTo('to-order-detail');
-}
-
-function toGoHome() {
-    document.querySelectorAll('.to-page').forEach(p=>{p.classList.remove('active','base','slide-left');});
-    document.getElementById('to-home').classList.add('base');
-    document.getElementById('to-bottom-nav').style.display = 'flex';
-    toCurrentTab = 'home';
-    toPageHistory = ['to-home'];
-    document.querySelectorAll('.to-nav-item').forEach(n=>n.classList.remove('active'));
-    document.querySelectorAll('.to-nav-item')[0].classList.add('active');
-}
-
-function toNavTo(toId) {
-    document.querySelectorAll('.to-page').forEach(p=>{p.classList.remove('active','base','slide-left');});
-    document.getElementById(toId).classList.add('active');
-    document.getElementById('to-bottom-nav').style.display='flex';
-    if(toPageHistory[toPageHistory.length-1] !== toId) toPageHistory.push(toId);
-}
-
-function toGoBack(fromId, toId) {
-    // 如果没有指定目标，从历史栈中弹出
-    if (!toId) {
-        toPageHistory.pop(); // 弹出当前页
-        toId = toPageHistory[toPageHistory.length - 1] || 'to-home';
-    } else {
-        // 从历史栈中回退到目标页
-        while(toPageHistory.length > 1 && toPageHistory[toPageHistory.length-1] !== toId) {
-            toPageHistory.pop();
-        }
-    }
-    document.querySelectorAll('.to-page').forEach(p=>{p.classList.remove('active','base','slide-left');});
-    const to = document.getElementById(toId);
-    if(toId==='to-home'){to.classList.add('base');}
-    else{to.classList.add('active');}
-    document.getElementById('to-bottom-nav').style.display='flex';
-}
-
-function toGoBackAuto() {
-    toPageHistory.pop();
-    const target = toPageHistory[toPageHistory.length - 1] || 'to-home';
-    document.querySelectorAll('.to-page').forEach(p=>{p.classList.remove('active','base','slide-left');});
-    const to = document.getElementById(target);
-    if(target==='to-home'){to.classList.add('base');}
-    else{to.classList.add('active');}
-    document.getElementById('to-bottom-nav').style.display='flex';
-}
-
-function toSwitchTab(el, tab) {
-    document.querySelectorAll('.to-nav-item').forEach(n=>n.classList.remove('active'));
-    el.classList.add('active');
-    toCurrentTab = tab;
-    if(tab==='home'){toGoHome();}
-    else if(tab==='orders'){
-        toRenderOrders();
-        document.querySelectorAll('.to-page').forEach(p=>p.classList.remove('active','base','slide-left'));
-        document.getElementById('to-orders-page').classList.add('active');
-        document.getElementById('to-bottom-nav').style.display='flex';
-        toPageHistory = ['to-home','to-orders-page'];
-    }
-    else if(tab==='profile'){
-        toRenderProfile();
-        document.querySelectorAll('.to-page').forEach(p=>p.classList.remove('active','base','slide-left'));
-        document.getElementById('to-profile-page').classList.add('active');
-        document.getElementById('to-bottom-nav').style.display='flex';
-        toPageHistory = ['to-home','to-profile-page'];
-    }
-        else if(tab==='discover'){
-        toRenderFavorites();toRenderSearchResults();
-        document.querySelectorAll('.to-page').forEach(p=>p.classList.remove('active','base','slide-left'));
-        document.getElementById('to-discover-page').classList.add('active');
-        document.getElementById('to-bottom-nav').style.display='flex';
-        toPageHistory=['to-home','to-discover-page'];
-    }
-}
-
-function toRenderOrders() {
-    const el = document.getElementById('to-orders-list');
-    if(toOrderHistory.length===0){el.innerHTML='<div style="text-align:center;color:var(--text-secondary);padding:40px;font-size:10px;letter-spacing:2px;">暂无订单</div>';return;}
-    
-    const statusMap = {
-        'pending': {label:'进行中', cls:'pending', color:'#856404', bg:'#fff3cd'},
-        'delivered': {label:'待确认', cls:'pending', color:'#0c5460', bg:'#d1ecf1'},
-        'done': {label:'已完成', cls:'done', color:'#155724', bg:'#d4edda'}
-    };
-    
-    el.innerHTML = toOrderHistory.map(o => {
-        const st = statusMap[o.status] || statusMap.pending;
-        // 获取当前进度文字
-        let progressText = '';
-        if (o.statusSteps) {
-            const lastActive = [...o.statusSteps].reverse().find(s => s.a);
-            if (lastActive) progressText = lastActive.s;
-        }
-        const btnText = o.status === 'done' ? '再来一单' : (o.status === 'delivered' ? '确认收货' : progressText || '查看详情');
-        
-        return `<div class="to-order-card" onclick="toViewOrderDetail('${o.id}')">
-            <div class="to-order-card-header">
-                <div class="to-order-card-shop">${o.emoji} ${o.shop}</div>
-                <div style="font-size:9px;font-weight:600;padding:2px 8px;border-radius:8px;background:${st.bg};color:${st.color};">${st.label}</div>
-            </div>
-            <div class="to-order-card-items">${o.itemsText}</div>
-            ${progressText && o.status !== 'done' ? `<div style="font-size:9px;color:var(--text-secondary);margin:4px 0;display:flex;align-items:center;gap:4px;"><span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:#ff9500;animation:toBlink 1s infinite;"></span>${progressText}</div>` : ''}
-            <div class="to-order-card-bottom">
-                <div class="to-order-card-total">¥${parseFloat(o.total).toFixed(2)}</div>
-                <div class="to-order-card-time">${o.time}</div>
-                <button class="to-order-card-btn" onclick="event.stopPropagation();${o.status==='delivered'?`toCompleteOrder('${o.id}')`:o.status==='done'?`toOpenShop(0)`:`toViewOrderDetail('${o.id}')`}">${btnText}</button>
-            </div>
-        </div>`;
-    }).join('');
-}
-
-function toCompleteOrder(id){const o=toOrderHistory.find(x=>x.id===id);if(o){o.status='done';o.statusSteps=[{s:'订单已提交',t:o.time,a:true},{s:'商家已接单',t:o.acceptTime||'',a:true},{s:'骑手已取餐',t:o.pickupTime||'',a:true},{s:'已送达',t:new Date().toLocaleString('zh-CN'),a:true}];DB.set('toOrderHistory',toOrderHistory);toRenderOrders();}}
-
-// 订单状态自动推进系统
-function toStartOrderTracking(orderId) {
-    const order = toOrderHistory.find(o => o.id === orderId);
-    if (!order || order.status === 'done') return;
-    
-    // 初始化状态步骤
-    order.statusSteps = [
-        {s:'订单已提交', t:order.time, a:true},
-        {s:'商家接单中', t:'等待中...', a:false},
-        {s:'骑手取餐中', t:'—', a:false},
-        {s:'配送中', t:'—', a:false}
-    ];
-    order.status = 'pending';
-    DB.set('toOrderHistory', toOrderHistory);
-    
-    // 模拟商家接单（15-30秒后）
-    setTimeout(() => {
-        const o = toOrderHistory.find(x => x.id === orderId);
-        if (!o || o.status === 'done') return;
-        o.acceptTime = new Date().toLocaleString('zh-CN');
-        o.statusSteps[1] = {s:'商家已接单', t:o.acceptTime, a:true};
-        o.statusSteps[2] = {s:'骑手取餐中', t:'等待中...', a:false};
-        DB.set('toOrderHistory', toOrderHistory);
-        toRenderOrders();
-        showSystemNotification(null, '🍜 ' + o.shop, '商家已接单，正在准备您的餐品', DEFAULT_AVATAR);
-        
-        // 模拟骑手取餐（再过20-40秒）
-        setTimeout(() => {
-            const o2 = toOrderHistory.find(x => x.id === orderId);
-            if (!o2 || o2.status === 'done') return;
-            o2.pickupTime = new Date().toLocaleString('zh-CN');
-            o2.statusSteps[2] = {s:'骑手已取餐', t:o2.pickupTime, a:true};
-            o2.statusSteps[3] = {s:'配送中', t:'预计10分钟送达', a:false};
-            DB.set('toOrderHistory', toOrderHistory);
-            toRenderOrders();
-            showSystemNotification(null, '🛵 ' + o2.shop, '骑手已取餐，正在配送中', DEFAULT_AVATAR);
-            
-            // 模拟送达（再过30-60秒）
-            setTimeout(() => {
-                const o3 = toOrderHistory.find(x => x.id === orderId);
-                if (!o3 || o3.status === 'done') return;
-                o3.deliverTime = new Date().toLocaleString('zh-CN');
-                o3.statusSteps[3] = {s:'已送达', t:o3.deliverTime, a:true};
-                o3.status = 'delivered';
-                DB.set('toOrderHistory', toOrderHistory);
-                toRenderOrders();
-                showSystemNotification(null, '✅ ' + o3.shop, '您的外卖已送达，请及时取餐！', DEFAULT_AVATAR);
-            }, 30000 + Math.random() * 30000);
-        }, 20000 + Math.random() * 20000);
-    }, 15000 + Math.random() * 15000);
-}
-
-// 会员等级系统
-function toGetMemberLevel() {
-    let totalSpent = 0;
-    toOrderHistory.forEach(o => { totalSpent += parseFloat(o.total) || 0; });
-    
-    const levels = [
-        { name: '普通会员', min: 0, icon: '🥉', color: '#888', next: 200 },
-        { name: '白银会员', min: 200, icon: '🥈', color: '#aaa', next: 500 },
-        { name: '黄金会员', min: 500, icon: '🥇', color: '#f59e0b', next: 1000 },
-        { name: '铂金会员', min: 1000, icon: '💎', color: '#60a5fa', next: 2000 },
-        { name: '黑钻会员', min: 2000, icon: '🖤', color: '#1a1a1a', next: 5000 },
-        { name: '至尊会员', min: 5000, icon: '👑', color: '#dc2626', next: 99999 }
-    ];
-    
-    let current = levels[0];
-    for (let i = levels.length - 1; i >= 0; i--) {
-        if (totalSpent >= levels[i].min) { current = levels[i]; break; }
-    }
-    
-    const nextLevel = levels[Math.min(levels.indexOf(current) + 1, levels.length - 1)];
-    const progress = current.next > current.min ? Math.min(100, ((totalSpent - current.min) / (current.next - current.min)) * 100) : 100;
-    
-    return { ...current, totalSpent, progress, nextName: nextLevel.name, nextMin: current.next };
-}
-
-takeoutApiConfig = { url: '', key: '', model: '' };
-
-function openTakeoutApiModal() {
-    $('#takeout-api-url').value = takeoutApiConfig.url || '';
-    $('#takeout-api-key').value = takeoutApiConfig.key || '';
-    $('#takeout-api-model').value = takeoutApiConfig.model || '';
-    openModal('modal-takeout-api');
-}
-
-function saveTakeoutApi() {
-    takeoutApiConfig.url = $('#takeout-api-url').value.trim();
-    takeoutApiConfig.key = $('#takeout-api-key').value.trim();
-    takeoutApiConfig.model = $('#takeout-api-model').value.trim();
-    DB.set('takeoutApiConfig', takeoutApiConfig);
-    closeModal('modal-takeout-api');
-    alert('外卖副API配置已保存！');
-}
-
-function getTakeoutApi() {
-    if (takeoutApiConfig.url && takeoutApiConfig.key && takeoutApiConfig.model) {
-        return takeoutApiConfig;
-    }
-    return apiConfig; // 回退到主API
-}
-
-function toRenderProfile(){
-    document.getElementById('to-profile-name-text').innerText=settings.userName||'ME';
-    const member = toGetMemberLevel();
-    const subEl = document.querySelector('.to-profile-sub');
-    if(subEl) subEl.innerHTML = `${member.icon} ${member.name} · 累计消费 ¥${member.totalSpent.toFixed(0)}`;
-    
-    const cardEl = document.querySelector('.to-profile-card');
-    if(cardEl) {
-        cardEl.style.background = member.totalSpent >= 2000 ? 'linear-gradient(135deg, #1a1a1a, #333)' : (member.totalSpent >= 1000 ? 'linear-gradient(135deg, #1e3a5f, #2d5a87)' : (member.totalSpent >= 500 ? 'linear-gradient(135deg, #78550a, #b8860b)' : 'var(--gray-light)'));
-        cardEl.style.color = member.totalSpent >= 500 ? '#fff' : 'var(--text-color)';
-    }
-    
-    let progressEl = document.getElementById('to-member-progress');
-    if(!progressEl) {
-        const profileSection = document.querySelector('.to-profile-section');
-        if(profileSection) {
-            const progressHtml = `<div id="to-member-progress" style="padding:0 0 15px;"><div style="display:flex;justify-content:space-between;font-size:9px;color:var(--text-secondary);margin-bottom:4px;"><span>${member.name}</span><span>下一级: ${member.nextName} (¥${member.nextMin})</span></div><div style="width:100%;height:4px;background:var(--gray-light);border-radius:2px;overflow:hidden;"><div style="width:${member.progress}%;height:100%;background:var(--text-color);border-radius:2px;transition:width 0.5s;"></div></div></div>`;
-            cardEl.insertAdjacentHTML('afterend', progressHtml);
-        }
-    } else {
-        progressEl.innerHTML = `<div style="display:flex;justify-content:space-between;font-size:9px;color:var(--text-secondary);margin-bottom:4px;"><span>${member.name}</span><span>下一级: ${member.nextName} (¥${member.nextMin})</span></div><div style="width:100%;height:4px;background:var(--gray-light);border-radius:2px;overflow:hidden;"><div style="width:${member.progress}%;height:100%;background:var(--text-color);border-radius:2px;transition:width 0.5s;"></div></div>`;
-    }
-
-    // 修复菜单点击事件
-    const menuItems = document.querySelectorAll('.to-profile-menu-item');
-    if (menuItems.length >= 5) {
-        menuItems[3].onclick = () => toSwitchTab(document.querySelectorAll('.to-nav-item')[1], 'discover'); // 我的收藏
-        menuItems[4].onclick = () => openTakeoutApiModal(); // 设置 (API配置)
-    }
-}
-
-function toRenderAddresses() {
-    const el = document.getElementById('to-addr-list'); if(!el) return;
-    el.innerHTML = toAddresses.map(a=>`<div class="to-addr-card ${a.id===toSelectedAddrId?'selected':''}" onclick="toSelectAddr('${a.id}')"><div class="to-addr-icon">📍</div><div class="to-addr-info"><div class="to-addr-tag">${a.tag}</div><div class="to-addr-detail">${a.addr} · ${a.name} ${a.phone}</div></div><div class="to-addr-actions"><button class="del" onclick="event.stopPropagation();toDeleteAddr('${a.id}')">DEL</button></div></div>`).join('')+'<button class="action-btn primary" style="width:100%;border-radius:12px;margin-top:10px;" onclick="toAddAddress()">+ 新增地址</button>';
-}
-
-function toSelectAddr(id) {
-    toSelectedAddrId = id;
-    const addr = toAddresses.find(a => a.id === id);
-    if (addr) {
-        // 更新首页地址显示
-        const homeName = document.getElementById('to-current-addr-name');
-        if (homeName) homeName.innerText = addr.tag;
-        const homeDetail = document.getElementById('to-current-addr-detail');
-        if (homeDetail) homeDetail.innerText = '· ' + addr.addr;
-        
-        // 更新订单确认页地址显示
-        const orderName = document.getElementById('to-order-addr-name');
-        if (orderName) orderName.innerText = `${addr.tag || '地址'} · ${addr.addr || '请添加地址'}`;
-        const orderDetail = document.getElementById('to-order-addr-detail');
-        if (orderDetail) orderDetail.innerText = `${addr.name || ''} ${addr.phone || ''}`;
-    }
-    toRenderAddresses();
-    
-    // 如果是从订单确认页过来选地址的，选完自动丝滑返回
-    if (toPageHistory.includes('to-order')) {
-        setTimeout(() => toGoBackAuto(), 250);
-    }
-}
-function toDeleteAddr(id){if(!confirm('删除该地址？'))return;toAddresses=toAddresses.filter(a=>a.id!==id);if(toSelectedAddrId===id&&toAddresses.length>0)toSelectedAddrId=toAddresses[0].id;DB.set('toAddresses',toAddresses);toRenderAddresses();}
-function toAddAddress(){openModal('modal-to-address');}
-function toSaveAddress(){const tag=$('#to-addr-input-tag').value.trim();const addr=$('#to-addr-input-addr').value.trim();const name=$('#to-addr-input-name').value.trim();const phone=$('#to-addr-input-phone').value.trim();if(!tag||!addr)return alert('请填写标签和地址');toAddresses.push({id:'a_'+Date.now(),tag,addr,name:name||'用户',phone:phone||''});DB.set('toAddresses',toAddresses);closeModal('modal-to-address');$('#to-addr-input-tag').value='';$('#to-addr-input-addr').value='';$('#to-addr-input-name').value='';$('#to-addr-input-phone').value='';toRenderAddresses();}
-
-function toInitApp(){
-    toRenderShopList();
-    toRenderAddresses();
-    toRenderFavorites();
-    toRenderSearchResults();
-    if (toSelectedAddrId) toSelectAddr(toSelectedAddrId);
-}
-
-// 收藏商家
-function toToggleFavShop() {
-    const shop = TO_SHOPS[toCurrentShopIdx];
-    const idx = toFavorites.shops.findIndex(s=>s.id===shop.id);
-    if(idx>-1){toFavorites.shops.splice(idx,1);}
-    else{toFavorites.shops.push({id:shop.id,name:shop.name,emoji:shop.emoji,rating:shop.rating});}
-    DB.set('toFavorites',toFavorites);
-    toUpdateFavShopBtn();
-}
-
-function toUpdateFavShopBtn() {
-    const shop = TO_SHOPS[toCurrentShopIdx];
-    const btn = document.getElementById('to-fav-shop-btn');
-    if(!btn)return;
-    const isFav = toFavorites.shops.some(s=>s.id===shop.id);
-    btn.innerHTML = isFav?'♥':'♡';
-    btn.style.color = isFav?'#ff3b30':'#fff';
-}
-
-// 收藏菜品
-function toToggleFavItem(itemId) {
-    const shop = TO_SHOPS[toCurrentShopIdx];
-    const item = shop.menu.find(m=>m.id===itemId);
-    if(!item)return;
-    const idx = toFavorites.items.findIndex(f=>f.shopId===shop.id&&f.itemId===item.id);
-    if(idx>-1){toFavorites.items.splice(idx,1);}
-    else{toFavorites.items.push({shopId:shop.id,shopName:shop.name,itemId:item.id,name:item.name,emoji:item.emoji,price:item.price,desc:item.desc});}
-    DB.set('toFavorites',toFavorites);
-    toRenderMenu();
-}
-
-function toClearFavorites(type) {
-    if(!confirm('确定清空？'))return;
-    if(type==='shop')toFavorites.shops=[];
-    else toFavorites.items=[];
-    DB.set('toFavorites',toFavorites);
-    toRenderFavorites();
-}
-
-function toRenderFavorites() {
-    const shopsEl = document.getElementById('to-fav-shops');
-    const itemsEl = document.getElementById('to-fav-items');
-    if(!shopsEl||!itemsEl)return;
-    
-    if(toFavorites.shops.length===0){
-        shopsEl.innerHTML='<div style="text-align:center;color:var(--text-secondary);font-size:10px;padding:15px;">暂无收藏商家</div>';
-    } else {
-        shopsEl.innerHTML=toFavorites.shops.map(s=>{
-            const shopIdx=TO_SHOPS.findIndex(x=>x.id===s.id);
-            return `<div class="to-shop-card" style="margin-bottom:8px;" onclick="${shopIdx>-1?`toOpenShop(${shopIdx})`:''}"><div class="to-shop-img">${s.emoji}</div><div class="to-shop-info"><div class="to-shop-name">${s.name}</div><div class="to-shop-meta"><span class="rating">★ ${s.rating}</span></div></div><button style="background:none;border:none;color:#ff3b30;font-size:14px;cursor:pointer;flex-shrink:0;padding:0 5px;" onclick="event.stopPropagation();toFavorites.shops=toFavorites.shops.filter(x=>x.id!=='${s.id}');DB.set('toFavorites',toFavorites);toRenderFavorites();">♥</button></div>`;
-        }).join('');
-    }
-    
-    if(toFavorites.items.length===0){
-        itemsEl.innerHTML='<div style="text-align:center;color:var(--text-secondary);font-size:10px;padding:15px;">暂无收藏菜品</div>';
-    } else {
-        itemsEl.innerHTML=toFavorites.items.map(i=>`<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--gray-light);"><span style="font-size:22px;">${i.emoji}</span><div style="flex:1;"><div style="font-size:12px;font-weight:600;">${i.name}</div><div style="font-size:9px;color:var(--text-secondary);">${i.shopName} · ${i.desc}</div></div><div style="font-size:12px;color:#ff3b30;font-weight:700;">¥${i.price}</div><button style="background:none;border:none;color:#ff3b30;font-size:14px;cursor:pointer;padding:0 5px;" onclick="toFavorites.items=toFavorites.items.filter(x=>!(x.shopId==='${i.shopId}'&&x.itemId===${i.itemId}));DB.set('toFavorites',toFavorites);toRenderFavorites();">♥</button></div>`).join('');
-    }
-}
-
-// AI 搜索
-async function toDoSearch() {
-    const input1 = document.getElementById('to-search-input');
-    const input2 = document.getElementById('to-discover-search');
-    const query = (input1&&input1.value.trim()) || (input2&&input2.value.trim());
-    if(!query)return alert('请输入搜索关键词');
-    
-    // 先切到发现页
-    toSwitchTab(document.querySelectorAll('.to-nav-item')[1],'discover');
-    if(input2)input2.value=query;
-    
-    const resultsEl = document.getElementById('to-search-results');
-    resultsEl.innerHTML='<div style="text-align:center;padding:20px;color:var(--text-secondary);font-size:10px;"> AI 正在搜索中 请稍候「'+query+'」...</div>';
-    
-    if(!apiConfig.url){
-        // 无 API 时本地搜索
-        let found = [];
-        TO_SHOPS.forEach((s,si)=>{
-            if(s.name.includes(query)){found.push({type:'shop',shopIdx:si,shop:s});}
-            s.menu.forEach(m=>{
-                if(m.name.includes(query)||m.desc.includes(query)){found.push({type:'item',shopIdx:si,shop:s,item:m});}
-            });
-        });
-        if(found.length>0){
-            resultsEl.innerHTML=found.map(f=>{
-                if(f.type==='shop')return`<div class="to-shop-card" style="margin-bottom:8px;" onclick="toOpenShop(${f.shopIdx})"><div class="to-shop-img">${f.shop.emoji}</div><div class="to-shop-info"><div class="to-shop-name">${f.shop.name}</div><div class="to-shop-meta"><span class="rating">★ ${f.shop.rating}</span><span>约${f.shop.time}</span></div></div></div>`;
-                return`<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--gray-light);cursor:pointer;" onclick="toOpenShop(${f.shopIdx})"><span style="font-size:22px;">${f.item.emoji}</span><div style="flex:1;"><div style="font-size:12px;font-weight:600;">${f.item.name}</div><div style="font-size:9px;color:var(--text-secondary);">${f.shop.name} · ${f.item.desc}</div></div><div style="font-size:12px;color:#ff3b30;font-weight:700;">¥${f.item.price}</div></div>`;
-            }).join('');
-        } else {
-            resultsEl.innerHTML='<div style="text-align:center;padding:20px;color:var(--text-secondary);font-size:10px;">未找到相关结果<br>请配置 API 以启用 AI 智能搜索</div>';
-        }
-        return;
-    }
-    
-    const prompt = `你是一个外卖平台的数据生成器。用户搜索了「${query}」。请生成5-9个与此关键词相关的外卖商家和菜品数据。
-必须返回严格的JSON格式：
-{
-  "shops": [
-    {
-      "name": "商家名称",
-      "emoji": "一个代表该商家的emoji",
-      "rating": "4.5-5.0之间的评分",
-      "sales": "月售数量如1.2k",
-      "time": "配送时间如25min",
-      "badge": "标签如品质优选",
-      "tags": ["标签1"],
-      "menu": [
-        {"name":"菜品名","desc":"简短描述","price":数字,"emoji":"emoji","sales":"月售xxx"}
-      ]
-    }
-  ]
-}
-直接输出JSON，不要加任何其他文字。`;
-
-    try {
-        const endpoint = getChatEndpoint(apiConfig.url);
-        const res = await fetch(endpoint,{method:'POST',headers:{'Content-Type':'application/json','Authorization':`Bearer ${apiConfig.key}`},body:JSON.stringify({model:apiConfig.model,messages:[{role:'user',content:prompt}],max_tokens:1500,temperature:0.85})});
-        const data = await res.json();
-        const result = JSON.parse(extractJSON(data.choices[0].message.content));
-        
-        if(result.shops&&result.shops.length>0){
-            // 把搜索结果存起来
-            result.shops.forEach(s=>{
-                s.id = 'ai_'+Date.now()+'_'+Math.floor(Math.random()*1000);
-                s.delivery = 3; s.pack = 2; s.minOrder = 15;
-                if(!s.menu)s.menu=[];
-                s.menu.forEach((m,i)=>{m.id=i+1;m.cat='推荐';m.orig=0;if(!m.sales)m.sales='新品';});
-                // 加到商家列表
-                if(!TO_SHOPS.find(x=>x.name===s.name)){TO_SHOPS.push(s);}
-            });
-            
-            toSearchResults = result.shops;
-            DB.set('toSearchResults',toSearchResults);
-            toRenderSearchResults();
-            toRenderShopList(); // 刷新首页商家列表
-        } else {
-            resultsEl.innerHTML='<div style="text-align:center;padding:20px;color:var(--text-secondary);font-size:10px;">AI 未返回有效结果</div>';
-        }
-    } catch(e){
-        resultsEl.innerHTML='<div style="text-align:center;padding:20px;color:var(--text-secondary);font-size:10px;">搜索失败: '+e.message+'</div>';
-    }
-    if(input1)input1.value='';
-}
-
-function toRenderSearchResults() {
-    const el = document.getElementById('to-search-results');
-    if(!el)return;
-    if(toSearchResults.length===0){
-        el.innerHTML='<div style="text-align:center;padding:20px;color:var(--text-secondary);font-size:10px;">搜索美食试试吧</div>';
-        return;
-    }
-    el.innerHTML=toSearchResults.map(s=>{
-        const shopIdx=TO_SHOPS.findIndex(x=>x.name===s.name);
-        return`<div class="to-shop-card" style="margin-bottom:8px;" onclick="${shopIdx>-1?`toOpenShop(${shopIdx})`:''}"><div class="to-shop-img">${s.emoji}</div><div class="to-shop-info"><div class="to-shop-name">${s.name}</div><div class="to-shop-tags">${(s.tags||[]).map(t=>`<span class="to-shop-tag">${t}</span>`).join('')}</div><div class="to-shop-meta"><span class="rating">★ ${s.rating}</span><span>月售${s.sales}</span><span>约${s.time}</span></div></div></div>`;
-    }).join('');
-}
-
-// ==========================================
-// --- 综合地图 App 逻辑 (虚拟 + 真实) ---
-// ==========================================
 
 let vmapSelectedPinIndex = -1;
 let vmapDragData = null;
-let currentMapMode = 'virtual'; // 'virtual' or 'real'
+let currentMapMode = 'virtual'; 
 let amapInstance = null;
 
 function initMapApp() {
-    // 初始化顶部角色选择器
     const sel = document.getElementById('vmap-quick-role-select');
     if (sel) {
         if (roles.length === 0) {
             sel.innerHTML = '<option value="">请先创建角色</option>';
         } else {
             sel.innerHTML = roles.map(r => `<option value="${r.id}">${getDisplayName(r)}</option>`).join('');
-            // 如果当前在聊天界面，默认选中当前角色
             if (currentChatRoleId) sel.value = currentChatRoleId;
         }
     }
@@ -11150,11 +9833,8 @@ function switchMapMode(mode) {
     }
 }
 
-// --- 虚拟地图核心逻辑 ---
+let isVmapListCollapsed = true; 
 
-let isVmapListCollapsed = true; // 默认收起
-
-// --- SVG 图标库 ---
 const VMAP_ICONS = {
     pin: '<svg width="100%" height="100%" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>',
     home: '<svg width="100%" height="100%" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>',
@@ -11163,7 +9843,6 @@ const VMAP_ICONS = {
     star: '<svg width="100%" height="100%" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>'
 };
 
-// --- 地图拖拽、缩放与点击放置核心算法 ---
 let vmapScale = 1;
 let vmapPanX = 0;
 let vmapPanY = 0;
@@ -11178,7 +9857,7 @@ let vmapPendingCoords = { x: 50, y: 50 };
 function enterPinPlacementMode() {
     isPlacingPin = true;
     document.getElementById('vmap-toast-place').style.display = 'block';
-    if (!isVmapListCollapsed) toggleVmapList(); // 收起列表方便点选
+    if (!isVmapListCollapsed) toggleVmapList(); 
 }
 
 function startPanMap(e) {
@@ -11240,17 +9919,14 @@ function endPanMap(e) {
     document.removeEventListener('mouseup', endPanMap);
     document.removeEventListener('touchend', endPanMap);
 
-    // 如果处于“点击放置”模式，且没有发生拖拽移动，则计算坐标并打开弹窗
     if (isPlacingPin && e) {
         const clientX = e.changedTouches ? e.changedTouches[0].clientX : e.clientX;
         const clientY = e.changedTouches ? e.changedTouches[0].clientY : e.clientY;
         
-        // 判断是否真的只是点击（没有移动）
         if (Math.abs(clientX - mapStartX - vmapPanX) < 5 && Math.abs(clientY - mapStartY - vmapPanY) < 5) {
             const canvas = document.getElementById('vmap-canvas');
             const rect = canvas.getBoundingClientRect();
             
-            // 计算相对于画布的百分比坐标（考虑了缩放和平移）
             const x = ((clientX - rect.left) / rect.width) * 100;
             const y = ((clientY - rect.top) / rect.height) * 100;
             
@@ -11280,7 +9956,6 @@ function updateMapTransform() {
         canvas.style.transform = `translate(${vmapPanX}px, ${vmapPanY}px) scale(${vmapScale})`;
     }
     if (area) {
-        // 动态更新父容器的背景网格，实现无限延伸效果
         area.style.backgroundPosition = `${vmapPanX}px ${vmapPanY}px`;
         area.style.backgroundSize = `${40 * vmapScale}px ${40 * vmapScale}px`;
     }
@@ -11295,7 +9970,6 @@ function clearVirtualMap() {
     if(distEl) distEl.style.display = 'none';
 }
 
-// --- 路线情报大弹窗逻辑 ---
 let currentRouteKey = '';
 
 function openRouteNoteModal(routeKey, p1Name, p2Name) {
@@ -11349,7 +10023,6 @@ function renderVirtualMap() {
         return;
     }
 
-    // 搜索过滤逻辑，同时保留原始索引以确保点击/拖拽不出错
     const filteredLocs = virtualLocations.map((loc, index) => ({ loc, index }))
         .filter(item => !query || item.loc.name.toLowerCase().includes(query) || item.loc.desc.toLowerCase().includes(query));
 
@@ -11359,7 +10032,6 @@ function renderVirtualMap() {
         return;
     }
 
-    // 渲染列表 (只渲染过滤后的)
     listEl.innerHTML = filteredLocs.map(({loc, index}) => `
         <div style="display: flex; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--gray-light); cursor: pointer;" onclick="vmapHandleClick(${index})">
 <div style="width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; color: var(--text-color);">${VMAP_ICONS[loc.icon] || VMAP_ICONS['pin']}</div>
@@ -11374,7 +10046,6 @@ function renderVirtualMap() {
         </div>
     `).join('');
 
-    // 渲染地图上的坐标点 (只渲染过滤后的)
     pinsEl.innerHTML = filteredLocs.map(({loc, index}) => {
         if (!loc.x) loc.x = Math.floor(Math.random() * 80 + 10);
         if (!loc.y) loc.y = Math.floor(Math.random() * 60 + 25);
@@ -11400,9 +10071,8 @@ function renderVirtualMap() {
 
 let vmapTouchHandled = false;
 function vmapStartDrag(e, index) {
-    e.stopPropagation(); // 极其重要：阻止事件冒泡，防止拖拽坐标点时触发地图的拖拽
+    e.stopPropagation(); 
 
-    // 修复移动端 touch 和 mouse 双重触发导致的点击失效 Bug
     if (e.type === 'mousedown' && vmapTouchHandled) return;
     if (e.type === 'touchstart') {
         vmapTouchHandled = true;
@@ -11434,7 +10104,6 @@ function vmapMoveDrag(e) {
     if (vmapDragData.moved) {
         e.preventDefault();
         
-        // 核心修复：获取缩放和平移后的画布实际尺寸与位置，确保图标紧跟手指
         const canvas = document.getElementById('vmap-canvas');
         const canvasRect = canvas.getBoundingClientRect();
         
@@ -11494,12 +10163,8 @@ function vmapHandleClick(index) {
         const dx = p1.x - p2.x;
         const dy = p1.y - p2.y;
         
-        // --- 符合常理的算法升级 ---
-        // 1. 基础比例尺：假设地图1%的距离代表 2.5公里
         const baseDist = Math.sqrt(dx*dx + dy*dy) * 2.5;
-        // 2. 绕路系数：真实路程不可能是直线，随机增加 1.2 到 1.6 倍的折损
         const windingFactor = 1.2 + (Math.random() * 0.4);
-        // 3. 最终距离
         const distance = (baseDist * windingFactor).toFixed(1);
 
         const routeKey = [p1.name, p2.name].sort().join('<->');
@@ -11543,7 +10208,6 @@ function saveVirtualLocation() {
     DB.set('virtualLocations', virtualLocations);
     closeModal('modal-vmap-add');
     
-    // 重置状态
     isPlacingPin = false;
     vmapEditingIndex = -1;
     document.getElementById('vmap-toast-place').style.display = 'none';
@@ -11562,12 +10226,11 @@ function deleteVirtualLocation(index) {
     if(distEl) distEl.style.display = 'none';
 }
 
-// --- 虚拟地图：AI 生成与预设管理 ---
-
 async function confirmGenerateVirtualMap() {
     const roleId = document.getElementById('vmap-quick-role-select').value;
     if (!roleId) return alert("请先在通讯录创建角色！");
-    if (!apiConfig.url) return alert('请先在 System -> Engine 中配置 API。');
+    const api = getSubApi('map');
+    if (!api.url) return alert('请先在 System -> Engine 中配置 API。');
     
     const role = roles.find(r => r.id === roleId);
     if (!role) return;
@@ -11593,11 +10256,11 @@ async function confirmGenerateVirtualMap() {
     2. 【坐标分配】：x 和 y 代表该地点在地图上的坐标百分比（填写 40 到 60 之间的整数，50代表地图正中心）。请让地点保持适当的距离，既不要完全重叠，也不要离得太远（聚集在中心区域即可）。    3. 直接输出JSON，不要加任何其他文字。`;
 
     try {
-        const endpoint = getChatEndpoint(apiConfig.url);
+        const endpoint = getChatEndpoint(api.url);
         const response = await fetch(endpoint, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiConfig.key}` },
-            body: JSON.stringify({ model: apiConfig.model, messages: [{ role: 'user', content: prompt }], max_tokens: 1000, temperature: 0.85 })
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${api.key}` },
+            body: JSON.stringify({ model: api.model, messages: [{ role: 'user', content: prompt }], max_tokens: 1000, temperature: 0.85 })
         });
         const data = await response.json();
         const result = JSON.parse(extractJSON(data.choices[0].message.content));
@@ -11608,7 +10271,7 @@ async function confirmGenerateVirtualMap() {
                 x: (loc.x >= 0 && loc.x <= 100) ? loc.x : null, 
                 y: (loc.y >= 0 && loc.y <= 100) ? loc.y : null 
             }));
-            virtualLocations = [...newLocs, ...virtualLocations];
+            virtualLocations = [...newLocs, ...virtualLocations]; 
             DB.set('virtualLocations', virtualLocations);
             renderVirtualMap();
             alert(`✅ 已成功为【${role.realName}】生成专属世界地图！(已自动补全地理坐标与距离)`);
@@ -11624,7 +10287,8 @@ async function confirmGenerateVirtualMap() {
 async function expandVirtualMap() {
     const roleId = document.getElementById('vmap-quick-role-select').value;
     if (!roleId) return alert("请先在通讯录创建角色！");
-    if (!apiConfig.url) return alert('请先在 System -> Engine 中配置 API。');
+    const api = getSubApi('map');
+    if (!api.url) return alert('请先在 System -> Engine 中配置 API。');
     if (virtualLocations.length === 0) return alert('当前地图为空，请先使用 AI GENERATE 生成基础地图或手动添加地点。');
     
     const role = roles.find(r => r.id === roleId);
@@ -11654,11 +10318,11 @@ async function expandVirtualMap() {
     2. 直接输出JSON，不要加任何其他文字。`;
 
     try {
-        const endpoint = getChatEndpoint(apiConfig.url);
+        const endpoint = getChatEndpoint(api.url);
         const response = await fetch(endpoint, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiConfig.key}` },
-            body: JSON.stringify({ model: apiConfig.model, messages: [{ role: 'user', content: prompt }], max_tokens: 1000, temperature: 0.85 })
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${api.key}` },
+            body: JSON.stringify({ model: api.model, messages: [{ role: 'user', content: prompt }], max_tokens: 1000, temperature: 0.85 })
         });
         const data = await response.json();
         const result = JSON.parse(extractJSON(data.choices[0].message.content));
@@ -11715,7 +10379,7 @@ function saveVmapPreset() {
     vmapPresets.push({
         id: 'vmp_' + Date.now(),
         name: name,
-        locations: JSON.parse(JSON.stringify(virtualLocations)) // 深拷贝
+        locations: JSON.parse(JSON.stringify(virtualLocations)) 
     });
     DB.set('vmapPresets', vmapPresets);
     document.getElementById('vmap-preset-name').value = '';
@@ -11742,13 +10406,10 @@ function deleteVmapPreset(index) {
     renderVmapPresetsList();
 }
 
-// --- 真实高德地图逻辑 ---
-
 function initRealMap() {
     if (!mapConfig.key || !mapConfig.securityCode) {
         $('#map-api-key').value = mapConfig.key || '';
         $('#map-security-code').value = mapConfig.securityCode || '';
-        // 提示用户去配置
     } else {
         loadGaodeScript();
     }
@@ -11818,67 +10479,15 @@ function renderAmap() {
     });
 }
 
-async function generateVirtualMap() {
-    if (!apiConfig.url) return alert('请先在 System -> Engine 中配置 API。');
-    if (!currentChatRoleId) return alert('请先进入一次聊天界面，以确定当前要生成哪个角色的世界地图。');
-    
-    const role = roles.find(r => r.id === currentChatRoleId);
-    if (!role) return;
-
-    const btn = document.querySelector('#view-map .view-header .text-btn:last-child');
-    const origText = btn.innerHTML;
-    btn.innerHTML = 'SYNCING...';
-    btn.disabled = true;
-
-    const globalWbs = worldbooks.filter(w => w.isGlobal).map(w => w.content).join('\n');
-    const localWbs = worldbooks.filter(w => role.localWbs?.includes(w.id)).map(w => w.content).join('\n');
-    
-    const prompt = `[CORE DIRECTIVE]\n你现在是系统后台的数据生成器。请根据角色【${role.realName}】的人设（${role.persona}）以及世界观设定（${globalWbs}\n${localWbs}），生成符合其世界背景的地图地点数据。\n
-    要求返回严格的JSON格式：
-    {
-        "locations": [
-            { "name": "地点名称", "desc": "简短描述", "icon": "📍/🏠/⚔️/🛍️/✨(选一个最符合的emoji)" }
-        ]
-    }
-    注意：生成 5-8 个地点，必须极度符合人设和世界观（如修仙界的宗门/秘境，赛博朋克的黑市/公司总部）。直接输出JSON，不要加任何其他文字。`;
-
-    try {
-        const endpoint = getChatEndpoint(apiConfig.url);
-        const response = await fetch(endpoint, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiConfig.key}` },
-            body: JSON.stringify({ model: apiConfig.model, messages: [{ role: 'user', content: prompt }], max_tokens: 1000, temperature: 0.85 })
-        });
-        const data = await response.json();
-        const result = JSON.parse(extractJSON(data.choices[0].message.content));
-        
-        if (result.locations && result.locations.length > 0) {
-            // 清空旧坐标，让它们重新随机分布
-            const newLocs = result.locations.map(loc => ({ ...loc, x: null, y: null }));
-            virtualLocations = [...newLocs, ...virtualLocations]; // 新生成的放在前面
-            DB.set('virtualLocations', virtualLocations);
-            renderVirtualMap();
-            alert('✅ 虚拟地图已根据世界观生成！');
-        }
-    } catch (e) {
-        alert('生成失败: ' + e.message);
-    } finally {
-        btn.innerHTML = origText;
-        btn.disabled = false;
-    }
-}
-
-
-
-// --- 实时定位功能 (已加入专属地图绑定逻辑) ---
 async function locateCurrentRole() {
     if (!currentChatRoleId) return alert("请先进入聊天界面");
-    if (!apiConfig.url) return alert("请先在 System -> Engine 中配置 API");
+    const api = getSubApi('map');
+    if (!api.url) return alert("请先在 System -> Engine 中配置 API");
     
     const role = roles.find(r => r.id === currentChatRoleId);
     if (!role) return;
 
-        const btn = document.querySelector('#attachment-popup .attach-btn[onclick="locateCurrentRole()"]');
+    const btn = document.querySelector('#attachment-popup .attach-btn[onclick="locateCurrentRole()"]');
     const origText = btn.innerHTML;
     btn.innerHTML = '📍<span>定位中</span>';
     btn.style.pointerEvents = 'none';
@@ -11912,11 +10521,11 @@ async function locateCurrentRole() {
     注意：x和y是地图坐标百分比(10-90)。直接输出JSON，不要加任何其他文字。`;
 
     try {
-        const endpoint = getChatEndpoint(apiConfig.url);
+        const endpoint = getChatEndpoint(api.url);
         const response = await fetch(endpoint, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiConfig.key}` },
-            body: JSON.stringify({ model: apiConfig.model, messages: [{ role: 'user', content: prompt }], max_tokens: 300, temperature: 0.85 })
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${api.key}` },
+            body: JSON.stringify({ model: api.model, messages: [{ role: 'user', content: prompt }], max_tokens: 300, temperature: 0.85 })
         });
         const data = await response.json();
         const loc = JSON.parse(extractJSON(data.choices[0].message.content));
@@ -11965,9 +10574,6 @@ async function locateCurrentRole() {
     }
 }
 
-
-
-// --- 命之书 (Grimoire) 核心逻辑与音乐联动 ---
 let currentGrimoireRoleId = null;
 let editingGrimoireIndex = -1;
 
@@ -12207,14 +10813,6 @@ async function playGrimoireBGM(level, keywordContext) {
     } catch (e) { console.log("BGM随机搜索失败", e); }
 }
 
-
-
-// ==========================================
-// --- 美容院 (Beauty App) 核心逻辑 ---
-// ==========================================
-beautyPresets = [];
-activeBeautyPresetId = null;
-
 function openBeautyApp() {
     const lastSettings = DB.get('lastActiveBeautySettings', {
         color: '#000000',
@@ -12241,14 +10839,12 @@ function applyBeautyStyles() {
 
     $('#beauty-global-size-label').innerText = size;
 
-    // 注入全局字体样式
     let globalStyleEl = document.getElementById('dynamic-global-style');
     if (!globalStyleEl) {
         globalStyleEl = document.createElement('style');
         globalStyleEl.id = 'dynamic-global-style';
         document.head.appendChild(globalStyleEl);
     }
-    // 强制提升优先级，确保字体大小覆盖系统默认设置
     globalStyleEl.innerHTML = `
         :root { --text-color: ${color} !important; --font-size: ${size}px !important; }
         [data-theme="dark"] { --text-color: ${color} !important; }
@@ -12256,7 +10852,6 @@ function applyBeautyStyles() {
         #chat-input { font-size: ${size}px !important; }
     `;
 
-    // 注入聊天界面CSS
     let chatStyleEl = document.getElementById('dynamic-chat-style');
     if (!chatStyleEl) {
         chatStyleEl = document.createElement('style');
@@ -12265,7 +10860,6 @@ function applyBeautyStyles() {
     }
     chatStyleEl.innerHTML = chatCss;
 
-    // 注入气泡CSS
     let bubbleStyleEl = document.getElementById('dynamic-bubble-style');
     if (!bubbleStyleEl) {
         bubbleStyleEl = document.createElement('style');
@@ -12274,7 +10868,6 @@ function applyBeautyStyles() {
     }
     bubbleStyleEl.innerHTML = bubbleCss;
 
-    // 保存当前设置，以便下次打开时恢复
     DB.set('lastActiveBeautySettings', { color, size, chatCss, bubbleCss });
 }
 
@@ -12416,7 +11009,6 @@ async function fetchWeatherForRole() {
     previewEl.innerText = '正在搜索城市并获取气象数据...';
 
     try {
-        // 1. 使用 Open-Meteo 的地理编码 API 搜索城市经纬度
         const geoRes = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(realCity)}&count=1&language=zh`);
         const geoData = await geoRes.json();
         
@@ -12428,7 +11020,6 @@ async function fetchWeatherForRole() {
         const lon = geoData.results[0].longitude;
         const resolvedCity = geoData.results[0].name;
 
-        // 2. 获取详细天气数据
         const weatherRes = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,apparent_temperature,precipitation,weather_code,wind_speed_10m`);
         const weatherJson = await weatherRes.json();
         
@@ -12454,11 +11045,9 @@ async function fetchWeatherForRole() {
         else if (feelsLike < 28) clothing = '适合短袖';
         else clothing = '清凉防暑';
         
-        // 3. 组装详细的文本信息
         const detailedInfo = `【${resolvedCity} 实时气象】\n天气状况: ${condition}\n当前温度: ${temp}°C (体感 ${feelsLike}°C)\n空气湿度: ${humidity}%\n当前风速: ${wind} km/h\n降水量: ${precip} mm\n穿衣建议: ${clothing}`;
         
-        // 4. 渲染可点击展开的卡片
-        previewEl.dataset.rawInfo = detailedInfo; // 存入 dataset 供保存时读取
+        previewEl.dataset.rawInfo = detailedInfo; 
         previewEl.innerHTML = `
             <div style="white-space:pre-wrap; text-align:left; background:var(--bg-color); padding:10px; border-radius:8px; border:1px solid var(--border-color); cursor:pointer; max-height:38px; overflow:hidden; transition:max-height 0.3s ease;" onclick="this.style.maxHeight = this.style.maxHeight === '38px' ? '200px' : '38px'">
                 ${detailedInfo}
@@ -12473,7 +11062,6 @@ async function fetchWeatherForRole() {
     }
 }
 
-// 播放通话记录中的缓存录音
 async function playCachedAudio(audioId) {
     if (!audioId || audioId === 'null') return alert("这段通话没有生成录音文件哦");
     try {
@@ -12492,10 +11080,7 @@ async function playCachedAudio(audioId) {
         alert("播放失败: " + e.message);
     }
 }
-// ==========================================
-// --- 系统生命周期启动线 ---
-// ==========================================
+
 document.addEventListener('DOMContentLoaded', () => {
-    // 当 DOM 树加载完毕后，启动数据库并初始化整个 OS
     bootDatabase();
 });

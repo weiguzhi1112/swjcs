@@ -1470,34 +1470,39 @@ body.is-app .to-page { padding-bottom: calc(70px + env(safe-area-inset-bottom)) 
     background: var(--text-color);
     color: var(--bg-color);
 }
-.status-history-slider {
-    display: flex;
-    overflow-x: auto;
-    scroll-snap-type: x mandatory;
-    gap: 10px;
-    padding: 5px 0;
-    scrollbar-width: none;
-}
-.status-history-slider::-webkit-scrollbar { display: none; }
 .status-history-item {
-    min-width: 100%;
-    scroll-snap-align: start;
-    flex-shrink: 0;
-}
-.status-history-indicator {
-    display: flex;
-    justify-content: center;
-    gap: 5px;
-    margin-top: 10px;
-}
-.status-history-dot {
-    width: 6px; height: 6px;
-    border-radius: 50%;
     background: var(--gray-light);
-    transition: background 0.3s;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 12px;
+    position: relative;
 }
-.status-history-dot.active {
+.status-checkbox {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    width: 16px;
+    height: 16px;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    background: var(--bg-color);
+    display: none;
+    cursor: pointer;
+}
+.status-manage-mode .status-checkbox {
+    display: block;
+}
+.status-checkbox.checked {
     background: var(--text-color);
+}
+.status-checkbox.checked::after {
+    content: '';
+    position: absolute;
+    top: 2px; left: 5px;
+    width: 4px; height: 8px;
+    border: solid var(--bg-color);
+    border-width: 0 2px 2px 0;
+    transform: rotate(45deg);
 }
 /* ==================== 状态栏预设管理 ==================== */
 .preset-card {
