@@ -1465,7 +1465,7 @@ function updateKeepAliveUI(isOn) {
             const heartHtml = settings.showHeart ? `<div class="bubble-heart" style="display:flex; align-items:center; justify-content:center;"><svg width="8" height="8" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="1"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg></div>` : '';
             
             let contentHtml = escapeHTML(m.content);
-            contentHtml = contentHtml.replace(/&lt;/g, '<').replace(/&gt;/g, '>');
+            contentHtml = contentHtml.replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"');
             const touchHandlers = `onmousedown="handleTouchStart(event, ${realIndex})" onmouseup="handleTouchEnd()" onmouseleave="handleTouchEnd()" ontouchstart="handleTouchStart(event, ${realIndex})" ontouchend="handleTouchEnd()" ontouchcancel="handleTouchEnd()"`;
 
             if (contentHtml.startsWith('[REAL_CALL:')) {
@@ -1611,9 +1611,9 @@ function updateKeepAliveUI(isOn) {
                 let parts = contentHtml.split('===TRANSLATION==='); 
                 if (settings.translationMode) {
                     contentHtml = parts[0].trim().replace(/\n/g, '<br>') + 
-                    `<div onclick="event.stopPropagation(); const t = this.querySelector('.msg-translation-text'); const d = this.querySelector('.msg-translation-divider'); if(t.style.display==='none'){t.style.display='block'; d.innerHTML=''; d.style.opacity='0.3';}else{t.style.display='none'; d.innerHTML='<span style=\\'font-size:8px; background:var(--bg-color); color:var(--text-color); padding:2px 6px; border-radius:8px; position:relative; top:-6px;\\'>点击展开翻译</span>'; d.style.opacity='1';}" style="cursor:pointer; margin-top: 4px;">` +
-                    `<div class="msg-translation-divider" style="border-top: 1px dashed currentColor; margin: 8px 0; opacity: 0.3; text-align: center; height: 1px;"></div>` + 
-                    `<div class="msg-translation-text">` + parts[1].trim().replace(/\n/g, '<br>') + `</div>` +
+                    `<div onclick="event.stopPropagation(); const t = this.querySelector('.msg-translation-text'); if(t.style.display==='none'){t.style.display='block';}else{t.style.display='none';}" style="cursor:pointer; margin-top: 4px;">` +
+                    `<div class="msg-translation-divider" style="border-top: 1px dashed currentColor; margin: 8px 0; opacity: 0.3; height: 1px;"></div>` + 
+                    `<div class="msg-translation-text" style="display:block;">` + parts[1].trim().replace(/\n/g, '<br>') + `</div>` +
                     `</div>`; 
                 } else { contentHtml = parts[0].trim().replace(/\n/g, '<br>'); }
             } else { contentHtml = contentHtml.replace(/\n/g, '<br>'); }

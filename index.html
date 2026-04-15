@@ -1098,9 +1098,10 @@
                     <div id="char-status-body" style="display:flex; flex-direction:column; gap:10px; max-height:50vh; overflow-y:auto;">
                         <div style="text-align:center; color:var(--text-secondary); font-size:10px; padding:20px;">暂无状态数据</div>
                     </div>
-                    <div id="status-selection-bar" style="display:none; justify-content:space-between; margin-top:15px; padding-top:10px; border-top:1px solid var(--gray-light);">
-                        <button class="action-btn primary" style="width:48%; margin:0;" onclick="deleteSelectedStatus()">DELETE</button>
-                        <button class="action-btn" style="width:48%; margin:0;" onclick="toggleStatusManageMode()">CANCEL</button>
+                    <div id="status-selection-bar" style="display:none; justify-content:space-between; margin-top:15px; padding-top:10px; border-top:1px solid var(--gray-light); gap: 10px;">
+                        <button class="action-btn" style="flex:1; margin:0;" onclick="selectAllStatus()">ALL<span>全选</span></button>
+                        <button class="action-btn primary" style="flex:1; margin:0;" onclick="deleteSelectedStatus()">DELETE<span>删除</span></button>
+                        <button class="action-btn" style="flex:1; margin:0;" onclick="toggleStatusManageMode()">CANCEL<span>取消</span></button>
                     </div>
                 </div>
             </div>
