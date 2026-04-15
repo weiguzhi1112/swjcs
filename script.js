@@ -238,7 +238,18 @@ document.addEventListener('touchmove', function(e) {
         apiPresets = DB.get('apiPresets', []);
         apiConfig = DB.get('api', { url: '', key: '', model: 'gpt-4o', maxTokens: 128000, temperature: 0.8, topP: 1.0 });
         feeds = DB.get('feeds', []);
-        reincBank = DB.get('reincBank', [{ name: '鼠标', past: '宫廷玉如意', present: '天天被手摸，偶尔还被摔' }, { name: '水杯', past: '太上老君的炼丹炉', present: '天天被灌水，冷暖自知' }]);
+                reincBank = DB.get('reincBank', [
+            { name: '鼠标', past: '宫廷玉如意', present: '天天被手摸，偶尔还被摔' }, 
+            { name: '水杯', past: '太上老君的炼丹炉', present: '天天被灌水，冷暖自知' },
+            { name: '手机', past: '古代的烽火台', present: '天天被盯着看，没电就失去灵魂' },
+            { name: '钥匙', past: '城门守卫的令牌', present: '总是在被找，偶尔被遗忘在角落' },
+            { name: '镜子', past: '照妖镜', present: '每天被迫欣赏人类的各种鬼脸' },
+            { name: '耳机', past: '顺风耳的法器', present: '天天在口袋里打结，还要被迫听各种奇怪的歌' },
+            { name: '充电宝', past: '女娲补天的五彩石', present: '燃烧自己，照亮别人的电量' },
+            { name: '雨伞', past: '铁扇公主的芭蕉扇', present: '晴天被嫌弃，雨天被死死抱住' },
+            { name: '键盘', past: '古代的算盘', present: '天天被敲打，承受了太多不该承受的愤怒' },
+            { name: '橡皮擦', past: '孟婆的忘情水', present: '为了抹去别人的错误，牺牲了自己' }
+        ]);
     reincCurrent = { mode: 'user', roleId: null, aiItem: null };
 
     reincChats = DB.get('reincChats', []); 
@@ -8577,8 +8588,8 @@ function onAiAvatarDblClick() {
             `).join('') : '<div style="font-size:9px; color:var(--text-secondary); margin-bottom:20px;">暂无送出的亲属卡</div>'}
 
             <div class="wallet-section-title" style="margin-top: 20px;"><span>TRANSACTIONS / 账单明细</span></div>
-            ${data.bills.map((b, i) => `
-                <div class="wallet-list-item">
+                       ${data.bills.map((b, i) => `
+                <div class="wallet-list-item" style="cursor:pointer;" onclick="showWalletBillReceipt(${i})">
                     <div>
                         <div style="font-size:13px; font-weight:600; margin-bottom:4px;">${b.merchant}</div>
                         <div style="font-size:9px; color:var(--text-secondary); line-height:1.4;">${b.time}<br>${b.location} | ${b.method}</div>
@@ -8587,7 +8598,7 @@ function onAiAvatarDblClick() {
                         <div style="font-family:var(--font-serif); font-size:16px; font-weight:600; color:${b.amount > 0 ? '#22c55e' : 'var(--text-color)'};">
                             ${b.amount > 0 ? '+' : ''}${fmtMoney(b.amount)}
                         </div>
-                        <div style="font-size:9px; color:var(--text-secondary); cursor:pointer; text-decoration:underline;" onclick="deleteWalletItem('bill', ${i})">删除</div>
+                        <div style="font-size:9px; color:var(--text-secondary); cursor:pointer; text-decoration:underline;" onclick="event.stopPropagation(); deleteWalletItem('bill', ${i})">删除</div>
                     </div>
                 </div>
             `).join('')}
@@ -8595,13 +8606,33 @@ function onAiAvatarDblClick() {
         content.innerHTML = html;
     }
 
+       let currentWalletBgTarget = { type: 'main', index: 0 };
     function changeWalletBg(type, index = 0) {
-        const url = prompt("请输入背景图片的 URL 链接：");
-        if (!url) return;
-        if (type === 'main') walletData[currentWalletAccount].mainBg = url;
-        else if (type === 'card') walletData[currentWalletAccount].bankCards[index].bg = url;
+        currentWalletBgTarget = { type, index };
+        $('#wallet-bg-url').value = '';
+        openModal('modal-wallet-bg');
+    }
+
+    function confirmWalletBg() {
+        const url = $('#wallet-bg-url').value.trim();
+        if (!url) return alert('请输入或上传图片');
+        if (currentWalletBgTarget.type === 'main') {
+            walletData[currentWalletAccount].mainBg = url;
+        } else if (currentWalletBgTarget.type === 'card') {
+            walletData[currentWalletAccount].bankCards[currentWalletBgTarget.index].bg = url;
+        }
         DB.set('walletData', walletData);
         renderWalletMain();
+        closeModal('modal-wallet-bg');
+    }
+
+    function showWalletBillReceipt(index) {
+        const b = walletData[currentWalletAccount].bills[index];
+        if (!b) return;
+        const type = b.amount > 0 ? '收入' : '支出';
+        const absAmount = Math.abs(b.amount);
+        const id = 'BILL' + Date.now().toString().slice(-6) + index;
+        showReceipt(b.merchant, type, absAmount, b.method, id, b.time);
     }
 
     function openAddBankCardModal() {

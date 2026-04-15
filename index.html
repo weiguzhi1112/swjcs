@@ -2239,7 +2239,50 @@
         </div>
     </div>
 </div>
+<!-- 通用小票弹窗 -->
+<div class="modal-overlay" id="modal-receipt">
+    <div class="modal" style="background: #fff; color: #333; border-radius: 0; width: 280px; padding: 30px 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); font-family: monospace;">
+        <div style="text-align: center; font-size: 18px; font-weight: bold; margin-bottom: 15px; border-bottom: 1px dashed #ccc; padding-bottom: 15px;">交易凭证</div>
+        <div style="display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 12px;">
+            <span style="color: #666;">交易对象</span>
+            <span id="receipt-merchant" style="font-weight: bold; text-align: right; max-width: 150px;"></span>
+        </div>
+        <div style="display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 12px;">
+            <span style="color: #666;">交易类型</span>
+            <span id="receipt-type" style="font-weight: bold;"></span>
+        </div>
+        <div style="display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 12px;">
+            <span style="color: #666;">支付方式</span>
+            <span id="receipt-method" style="font-weight: bold;"></span>
+        </div>
+        <div style="display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 12px;">
+            <span style="color: #666;">交易单号</span>
+            <span id="receipt-id" style="font-weight: bold;"></span>
+        </div>
+        <div style="display: flex; justify-content: space-between; margin-bottom: 15px; font-size: 12px;">
+            <span style="color: #666;">交易时间</span>
+            <span id="receipt-time" style="font-weight: bold;"></span>
+        </div>
+        <div style="border-top: 1px dashed #ccc; padding-top: 15px; display: flex; justify-content: space-between; align-items: center;">
+            <span style="font-size: 14px; font-weight: bold;">合计</span>
+            <span id="receipt-total" style="font-size: 20px; font-weight: bold; color: #ff3b30;"></span>
+        </div>
+        <button class="action-btn" style="width: 100%; margin-top: 25px; border-radius: 20px; background: #f5f5f5; color: #333; border: 1px solid #ddd;" onclick="closeModal('modal-receipt')">关闭</button>
+    </div>
+</div>
 
+<!-- 钱包背景上传弹窗 -->
+<div class="modal-overlay" id="modal-wallet-bg">
+    <div class="modal">
+        <h3>Wallet Background <span>更换背景</span></h3>
+        <input type="text" id="wallet-bg-url" placeholder="IMAGE URL">
+        <label class="file-upload-btn" style="margin-top:10px;">LOCAL UPLOAD<input type="file" style="display:none" accept="image/*" onchange="handleImageUpload(this, 'wallet-bg-url')"></label>
+        <div class="modal-btns">
+            <button class="btn-cancel" onclick="closeModal('modal-wallet-bg')">CANCEL<span>取消</span></button>
+            <button class="btn-confirm" onclick="confirmWalletBg()">SAVE<span>保存</span></button>
+        </div>
+    </div>
+</div>
 <script src="script.js"></script>
 </body>
 </html>
