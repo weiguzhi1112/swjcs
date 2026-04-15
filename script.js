@@ -529,7 +529,7 @@ async function checkDiscordCallback() {
                 img.onload = () => {
                     let quality = settings.imageQuality !== undefined ? settings.imageQuality : 0.8;
                     
-                    if (quality >= 1.0 && file.size < 5 * 1024 * 1024) {
+                        if (quality >= 1.0) {
                         finishUpload(resultData, targetInputId, type);
                         return;
                     }
@@ -2343,55 +2343,6 @@ let currentCallAudioId = null;
         }
     }
 
-    let TO_SHOPS = [];
-    function toInitApp() {
-        if (!window.toCart) window.toCart = {};
-    }
-    function toGoHome() {
-        document.querySelectorAll('.to-page').forEach(p => p.classList.remove('active', 'base', 'slide-left'));
-        const home = document.getElementById('to-home');
-        if(home) home.classList.add('active', 'base');
-    }
-    function toSwitchTab(el, tab) {
-        document.querySelectorAll('.to-nav-item').forEach(n => n.classList.remove('active'));
-        if(el) el.classList.add('active');
-        document.querySelectorAll('.to-page').forEach(p => p.classList.remove('active', 'base', 'slide-left'));
-        if (tab === 'home') document.getElementById('to-home').classList.add('active', 'base');
-        if (tab === 'discover') document.getElementById('to-discover-page').classList.add('active');
-        if (tab === 'orders') document.getElementById('to-orders-page').classList.add('active');
-        if (tab === 'profile') document.getElementById('to-profile-page').classList.add('active');
-    }
-    function toOpenCart() {
-        const cart = document.getElementById('to-cart');
-        if(cart) cart.classList.add('active');
-    }
-    function toGoBackAuto() {
-        const pages = document.querySelectorAll('.to-page.active');
-        if(pages.length > 0) {
-            pages[pages.length - 1].classList.remove('active');
-        }
-    }
-    function toNavTo(pageId) {
-        const page = document.getElementById(pageId);
-        if(page) page.classList.add('active');
-    }
-    function toUpdateCartFloat() {}
-    function toClearCart() { window.toCart = {}; alert('购物车已清空'); }
-    function toOpenOrder() { document.getElementById('to-order').classList.add('active'); }
-    function toSubmitOrder() { document.getElementById('to-success').classList.add('active'); }
-    function toViewReceipt() { document.getElementById('to-receipt').classList.add('active'); }
-    function toAddAddress() { openModal('modal-to-address'); }
-    function toSaveAddress() { closeModal('modal-to-address'); alert('地址已保存'); }
-    function toDoSearch() { alert('搜索功能已触发'); }
-    function toClearFavorites() { alert('收藏已清空'); }
-    function toToggleFavShop() { alert('已收藏/取消收藏'); }
-    function toSelectTime(el) {
-        document.querySelectorAll('.to-time-chip').forEach(c => c.classList.remove('active'));
-        el.classList.add('active');
-    }
-    function toRenderShopList() {}
-    function toOpenShop() {}
-
         async function triggerAI(isReroll = false) {
         if (!currentChatRoleId || window.isAiResponding) return;
 
@@ -2759,6 +2710,11 @@ ${modeRules}
             
             DB.set('chats', chats);
             renderMessages();
+            
+            // 修复：如果用户切到了后台，AI回复完成后弹出通知
+            if (document.hidden) {
+                showSystemNotification(currentChatRoleId, getDisplayName(role), finalChatMode === 'offline' ? formattedReply : finalSentences.join(' '), role.avatar);
+            }
 
         } catch (err) {
             addApiLog('Chat Error', err.message, true);
@@ -3077,7 +3033,7 @@ ${modeRules}
                     const img = new Image();
                     img.onload = () => {
                         let quality = settings.imageQuality !== undefined ? settings.imageQuality : 0.8;
-                        if (quality >= 1.0 && file.size < 5 * 1024 * 1024) {
+    if (quality >= 1.0) {
                             album.photos.push({ id: Date.now().toString() + index, url: resultData, virtual: '', desc: '' });
                             checkDone();
                             return;
@@ -3647,7 +3603,7 @@ async function generateTodaySummary(roleId) {
         $('#role-show-header-avatar').checked = isEditing ? !!role.showHeaderAvatar : false;
         $('#role-default-chat-mode').value = isEditing ? (role.defaultChatMode || 'online') : 'online';
         $('#role-auto-switch-mode').checked = isEditing ? !!role.autoSwitchMode : false;
-        if ($('#role-hide-mode-switcher')) $('#role-hide-mode-switcher').checked = isEditing ? !!role.hideModeSwitcher : false; 
+        if ($('#role-hide-mode-switcher')) $('#role-hide-mode-switcher').checked = isEditing ? !!role.hideModeSwitcher : false;  
         
         const totalMsgs = isEditing ? (chats[id] || []).length : 0;
         const advMem = isEditing ? (advancedMemories[id] || {}) : {};
@@ -3717,8 +3673,6 @@ async function generateTodaySummary(roleId) {
             activeMaskId, 
             boundMapId,
             showHeaderAvatar: $('#role-show-header-avatar').checked,
-            defaultChatMode: $('#role-default-chat-mode').value,
-            autoSwitchMode: $('#role-auto-switch-mode').checked
         };
         const idx = roles.findIndex(x => x.id === id); 
         if(idx > -1) roles[idx] = roleData; 
@@ -6500,7 +6454,7 @@ async function generateAutoMsg(roleId) {
             }
             DB.set('chats', chats);
             
-            showSystemNotification(roleId, getDisplayName(role), sentences[0], role.avatar);
+    showSystemNotification(roleId, getDisplayName(role), sentences.join(' '), role.avatar);
             if (settings.notificationSound) { try { new Audio(settings.notificationSound).play(); } catch(e) {} }
             if (currentChatRoleId === roleId) renderMessages();
             renderRecent();
@@ -8351,6 +8305,18 @@ function toggleStatusSelect(index) {
     if (!isStatusManageMode) return;
     if (selectedStatusIndices.has(index)) selectedStatusIndices.delete(index);
     else selectedStatusIndices.add(index);
+    renderStatusPanelList();
+}
+
+function selectAllStatus() {
+    if (!currentChatRoleId) return;
+    const config = statusBarData[currentChatRoleId];
+    if (!config || config.history.length === 0) return;
+    if (selectedStatusIndices.size === config.history.length) {
+        selectedStatusIndices.clear();
+    } else {
+        config.history.forEach((_, i) => selectedStatusIndices.add(i));
+    }
     renderStatusPanelList();
 }
 
