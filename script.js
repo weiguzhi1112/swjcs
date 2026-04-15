@@ -50,6 +50,7 @@ function hideGlobalTyping() {
 
 function updateAppViewportVars() {
     const docStyle = document.documentElement.style;
+    const body = document.body;
     const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
     
     if (isIOS && window.visualViewport) {
@@ -63,7 +64,7 @@ function updateAppViewportVars() {
             docStyle.setProperty('--app-height', `${Math.max(...candidates)}px`);
         }
         window.scrollTo(0, 0);
-        document.body.scrollTop = 0;
+        if (body) body.scrollTop = 0;
     } else {
         docStyle.setProperty('--app-height', `${window.innerHeight}px`);
     }
@@ -80,9 +81,12 @@ if (window.visualViewport) {
         }
     });
 }
-updateAppViewportVars();
-
-if (window.navigator.standalone) document.body.classList.add('ios-standalone');
+document.addEventListener('DOMContentLoaded', () => {
+    updateAppViewportVars();
+    if (window.navigator.standalone && document.body) {
+        document.body.classList.add('ios-standalone');
+    }
+});
 
 document.addEventListener('touchmove', function(event) {
     if (event.touches.length > 1) event.preventDefault();
@@ -488,8 +492,6 @@ async function checkDiscordCallback() {
     let appOrder = [];
     let appGrid = null; 
 
-    musicPlaylist = [];
-    savedPlaylists = [];
     musicCurrentTrackIndex = -1;
     musicAudio = null;
     musicIsPlaying = false;
@@ -718,28 +720,32 @@ async function checkDiscordCallback() {
     setupAudioPlayer();
 
     const chatViewObserver = new MutationObserver(mutations => {
-        mutations.forEach(mutation => {
-            if (mutation.attributeName === 'class') {
-                const chatView = mutation.target;
-                const role = roles.find(r => r.id === currentChatRoleId);
-                if (!chatView.classList.contains('active') && window.isAiResponding) {
-                    if (typeof showGlobalTyping === 'function' && role) {
-                        const el = document.getElementById('global-typing-indicator');
-                        if (el) {
-                            document.getElementById('global-typing-name').innerText = role.realName || 'AI';
-                            el.style.display = 'flex';
-                            el.style.opacity = '1';
-                            el.style.transform = 'translateX(-50%) translateY(0)';
-                        }
-                    }
-                } else if (chatView.classList.contains('active')) {
+    mutations.forEach(mutation => {
+        if (mutation.attributeName === 'class') {
+            const chatView = mutation.target;
+            const role = roles.find(r => r.id === currentChatRoleId);
+            if (!chatView.classList.contains('active') && window.isAiResponding) {
+                if (typeof showGlobalTyping === 'function' && role) {
                     const el = document.getElementById('global-typing-indicator');
-                    if (el) el.style.display = 'none';
+                    const nameEl = document.getElementById('global-typing-name');
+                    if (el && nameEl) {
+                        nameEl.innerText = role.realName || 'AI';
+                        el.style.display = 'flex';
+                        el.style.opacity = '1';
+                        el.style.transform = 'translateX(-50%) translateY(0)';
+                    }
                 }
+            } else if (chatView.classList.contains('active')) {
+                const el = document.getElementById('global-typing-indicator');
+                if (el) el.style.display = 'none';
             }
-        });
+        }
     });
-    chatViewObserver.observe(document.getElementById('chat-view'), { attributes: true });
+});
+const chatViewEl = document.getElementById('chat-view');
+if (chatViewEl) {
+    chatViewObserver.observe(chatViewEl, { attributes: true });
+}
     
     const island = document.getElementById('dynamic-island');
     if (island) {
@@ -850,20 +856,29 @@ function processPendingBgMessages() {
     });
     
     if (window.visualViewport) { 
-        window.visualViewport.addEventListener('resize', () => { 
-            const isKeyboardOpen = window.visualViewport.height < window.innerHeight * 0.75; 
-            document.getElementById('phone-shell').classList.toggle('keyboard-open', isKeyboardOpen); 
-        }); 
-    } else { 
-        document.addEventListener('focusin', (e) => { 
-            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') { 
-                document.getElementById('phone-shell').classList.add('keyboard-open'); 
-            } 
-        }); 
-        document.addEventListener('focusout', () => { 
-            document.getElementById('phone-shell').classList.remove('keyboard-open'); 
-        }); 
-    } 
+    window.visualViewport.addEventListener('resize', () => { 
+        const isKeyboardOpen = window.visualViewport.height < window.innerHeight * 0.75; 
+        const phoneShell = document.getElementById('phone-shell');
+        if (phoneShell) {
+            phoneShell.classList.toggle('keyboard-open', isKeyboardOpen);
+        }
+    }); 
+} else { 
+    document.addEventListener('focusin', (e) => { 
+        if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') { 
+            const phoneShell = document.getElementById('phone-shell');
+            if (phoneShell) {
+                phoneShell.classList.add('keyboard-open'); 
+            }
+        } 
+    }); 
+    document.addEventListener('focusout', () => { 
+        const phoneShell = document.getElementById('phone-shell');
+        if (phoneShell) {
+            phoneShell.classList.remove('keyboard-open'); 
+        }
+    }); 
+}
     
     document.addEventListener('click', (e) => { 
         const popup = $('#attachment-popup'); 
@@ -876,41 +891,49 @@ function processPendingBgMessages() {
     function renderAll() { renderDesktop(); renderRecent(); renderContacts(); renderWorldbooks(); renderMasks(); renderWeather(); renderAlbums(); renderStickers(); renderMemoryView(); renderTimeAwarenessStatus(); renderAppearanceApp(); renderFeeds(); renderMusicApp(); renderBubbleCountStatus(); renderTranslationStatus(); renderForum(); cipherRenderMenu();}
     function updateTime() { $('#time').innerText = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }); }
     function setupKeyboardShortcuts() { 
-        const chatInput = $('#chat-input');
-        chatInput.addEventListener('keydown', function(e) { 
-            if (e.isComposing || e.keyCode === 229) return; 
-            if (navigator.vibrate && e.key !== 'Enter') {
-                try { navigator.vibrate(5); } catch(err){}
-            }
-            if (e.key === 'Enter' && !e.shiftKey && !e.ctrlKey && !e.metaKey) { 
-                e.preventDefault(); 
-                if (navigator.vibrate) try { navigator.vibrate(15); } catch(err){}
-                sendMessage(); 
-            } else if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { 
-                e.preventDefault(); 
-                if (navigator.vibrate) try { navigator.vibrate(15); } catch(err){}
-                triggerAI(); 
-            } 
-        }); 
-        chatInput.addEventListener('input', function() {
-            this.style.height = '38px';
-            this.style.height = Math.min(this.scrollHeight, 120) + 'px';
-        });
-        chatInput.addEventListener('focus', function() {
-            setTimeout(() => {
-                const container = $('#chat-messages');
-                if (container) container.scrollTop = container.scrollHeight;
-            }, 300);
-        });
-        const chatMessages = $('#chat-messages');
-        if (chatMessages) {
-            chatMessages.addEventListener('touchstart', function() {
-                if (document.activeElement === chatInput) {
-                    chatInput.blur();
-                }
-            }, { passive: true });
-        }
+    const chatInput = $('#chat-input');
+    if (!chatInput) {
+        console.warn('#chat-input not found');
+        return;
     }
+
+    chatInput.addEventListener('keydown', function(e) { 
+        if (e.isComposing || e.keyCode === 229) return; 
+        if (navigator.vibrate && e.key !== 'Enter') {
+            try { navigator.vibrate(5); } catch(err){}
+        }
+        if (e.key === 'Enter' && !e.shiftKey && !e.ctrlKey && !e.metaKey) { 
+            e.preventDefault(); 
+            if (navigator.vibrate) try { navigator.vibrate(15); } catch(err){}
+            sendMessage(); 
+        } else if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { 
+            e.preventDefault(); 
+            if (navigator.vibrate) try { navigator.vibrate(15); } catch(err){}
+            triggerAI(); 
+        } 
+    }); 
+
+    chatInput.addEventListener('input', function() {
+        this.style.height = '38px';
+        this.style.height = Math.min(this.scrollHeight, 120) + 'px';
+    });
+
+    chatInput.addEventListener('focus', function() {
+        setTimeout(() => {
+            const container = $('#chat-messages');
+            if (container) container.scrollTop = container.scrollHeight;
+        }, 300);
+    });
+
+    const chatMessages = $('#chat-messages');
+    if (chatMessages) {
+        chatMessages.addEventListener('touchstart', function() {
+            if (document.activeElement === chatInput) {
+                chatInput.blur();
+            }
+        }, { passive: true });
+    }
+}
 
 function getOrCreateDeviceId() {
     let did = null;
@@ -4043,45 +4066,45 @@ async function generateTodaySummary(roleId) {
     }
     function importData(event) { const file = event.target.files[0]; if(!file) return; const reader = new FileReader(); reader.onload = function(e) { try { const data = JSON.parse(e.target.result); if(confirm('覆盖所有数据？')) { Object.keys(data).forEach(key => DB.set(key, data[key])); location.reload(); } } catch(err) { alert('CORRUPT FILE.'); } }; reader.readAsText(file); }
     function fixSystemBugs() {
-        let fixCount = 0;
-        Object.keys(chats).forEach(roleId => {
-            chats[roleId].forEach(msg => {
-                if (msg.content.includes('[PAY_REQUEST:') || msg.content.includes('[ORDER_RECEIPT_CARD:') || msg.content.includes('[TRANSFER:') || msg.content.includes('[FAMILY_CARD:') || msg.content.includes('[OURSPACE_INVITE:')) {
-                    try {
-                        const tagMatch = msg.content.match(/$$(PAY_REQUEST|ORDER_RECEIPT_CARD|TRANSFER|FAMILY_CARD|OURSPACE_INVITE):(.*?)$$/);
-                        if (tagMatch) {
-                            const tagType = tagMatch[1];
-                            const rawJson = tagMatch[2];
-                            let card = JSON.parse(decodeURIComponent(rawJson));
-                            let needsFix = false;
-                            if (!card.status) {
-                                if (tagType === 'PAY_REQUEST') card.status = '待支付';
-                                if (tagType === 'ORDER_RECEIPT_CARD') card.status = '已支付';
-                                if (tagType === 'TRANSFER' || tagType === 'FAMILY_CARD') card.status = '待接收';
-                                if (tagType === 'OURSPACE_INVITE') card.status = '等待对方回复配对码';
-                                needsFix = true;
-                            }
-                            if (needsFix) {
-                                msg.content = msg.content.replace(tagMatch[0], `[${tagType}:${encodeURIComponent(JSON.stringify(card))}]`);
-                                fixCount++;
-                            }
+    let fixCount = 0;
+    Object.keys(chats).forEach(roleId => {
+        chats[roleId].forEach(msg => {
+            if (msg.content.includes('[PAY_REQUEST:') || msg.content.includes('[ORDER_RECEIPT_CARD:') || msg.content.includes('[TRANSFER:') || msg.content.includes('[FAMILY_CARD:') || msg.content.includes('[OURSPACE_INVITE:')) {
+                try {
+                    const tagMatch = msg.content.match(/\[(PAY_REQUEST|ORDER_RECEIPT_CARD|TRANSFER|FAMILY_CARD|OURSPACE_INVITE):(.*?)\]/);
+                    if (tagMatch) {
+                        const tagType = tagMatch[1];
+                        const rawJson = tagMatch[2];
+                        let card = JSON.parse(decodeURIComponent(rawJson));
+                        let needsFix = false;
+                        if (!card.status) {
+                            if (tagType === 'PAY_REQUEST') card.status = '待支付';
+                            if (tagType === 'ORDER_RECEIPT_CARD') card.status = '已支付';
+                            if (tagType === 'TRANSFER' || tagType === 'FAMILY_CARD') card.status = '待接收';
+                            if (tagType === 'OURSPACE_INVITE') card.status = '等待对方回复配对码';
+                            needsFix = true;
                         }
-                    } catch(e) {}
-                }
-            });
+                        if (needsFix) {
+                            msg.content = msg.content.replace(tagMatch[0], `[${tagType}:${encodeURIComponent(JSON.stringify(card))}]`);
+                            fixCount++;
+                        }
+                    }
+                } catch(e) {}
+            }
         });
-        DB.set('chats', chats);
+    });
+    DB.set('chats', chats);
 
-        if (!walletData['ME']) { walletData['ME'] = { balance: 0, huabei: 0, bankCards: [], familyCards: [], bills: [] }; fixCount++; }
-        Object.keys(walletData).forEach(k => {
-            if (!walletData[k].bills) { walletData[k].bills = []; fixCount++; }
-            if (!walletData[k].familyCards) { walletData[k].familyCards = []; fixCount++; }
-        });
-        DB.set('walletData', walletData);
+    if (!walletData['ME']) { walletData['ME'] = { balance: 0, huabei: 0, bankCards: [], familyCards: [], bills: [] }; fixCount++; }
+    Object.keys(walletData).forEach(k => {
+        if (!walletData[k].bills) { walletData[k].bills = []; fixCount++; }
+        if (!walletData[k].familyCards) { walletData[k].familyCards = []; fixCount++; }
+    });
+    DB.set('walletData', walletData);
 
-        alert(`修复完成！共修复了 ${fixCount} 处数据异常。`);
-        if (currentChatRoleId) renderMessages();
-    }
+    alert(`修复完成！共修复了 ${fixCount} 处数据异常。`);
+    if (currentChatRoleId) renderMessages();
+}
 
     function saveCloudConfig() {
         settings.cloudApiKey = document.getElementById('cloud-api-key').value.trim();
@@ -4219,7 +4242,20 @@ async function generateTodaySummary(roleId) {
             }).join('');
         }
     }
-    function clearAllData() { if (prompt('输入 "PURGE" 确认清空所有数据:') === 'PURGE') { localStorage.clear(); location.reload(); } }
+    async function clearAllData() {
+    if (prompt('输入 "PURGE" 确认清空所有数据:') !== 'PURGE') return;
+
+    try {
+        localStorage.clear();
+    } catch (e) {}
+
+    try {
+        indexedDB.deleteDatabase('锁雾机OS_DB');
+    } catch (e) {}
+
+    alert('数据已清空，即将刷新');
+    location.reload();
+}
     function testBannerNotification() {
     const testRole = roles[0];
     const name = testRole ? getDisplayName(testRole) : 'TEST';
@@ -4576,7 +4612,7 @@ async function generateTodaySummary(roleId) {
             f.likes = f.likes || 0; f.liked = f.liked || false; f.comments = f.comments || []; 
             
             let contentHtml = f.content.replace(/\n/g, '<br>'); 
-            contentHtml = contentHtml.replace(/$$VIRTUAL_IMG:(.*?)$$/g, `<div class="virtual-img-box" data-text="$1" onclick="revealVirtualText(this)" style="width:100%; height:180px; margin-top:10px; border-radius:0;">【图片被小猫吃掉啦】</div>`); 
+            contentHtml = contentHtml.replace(/\[VIRTUAL_IMG:(.*?)\]/g, `<div class="virtual-img-box" data-text="$1" onclick="revealVirtualText(this)" style="width:100%; height:180px; margin-top:10px; border-radius:0;">【图片被小猫吃掉啦】</div>`); 
             
             const commentsHtml = f.comments.map(c => { 
                 let cName = c.author || (c.role === 'user' ? (settings.userName || 'ME') : (role ? getDisplayName(role) : 'AI')); 
@@ -5883,61 +5919,67 @@ ${extraLorePrompt}
     
     let currentPlayId = 0;
     async function playMusicTrack(index) {
-        if (index < 0 || index >= musicPlaylist.length) return;
-        musicCurrentTrackIndex = index;
-        const track = musicPlaylist[index];
-        const playId = ++currentPlayId;
+    if (index < 0 || index >= musicPlaylist.length) return;
+
+    musicCurrentTrackIndex = index;
+    const track = musicPlaylist[index];
+    const playId = ++currentPlayId;
+
+    try {
+        updatePlayerUI(track.name, track.artist, track.picUrl, null, null);
 
         try {
-            updatePlayerUI(track.name, track.artist, track.picUrl, null, null);
-            
-            try {
-                const lyricRes = await fetch(`${MUSIC_API_BASE}/lyric?id=${track.id}`);
-                const lyricData = await lyricRes.json();
-                musicLyrics = parseLRC(lyricData && lyricData.lrc ? lyricData.lrc.lyric : '');
-            } catch (e) {
-                console.warn("获取歌词失败", e);
-                musicLyrics = [{ time: 0, text: "纯音乐 / 暂无歌词" }];
-            }
+            const lyricRes = await fetch(`${MUSIC_API_BASE}/lyric?id=${track.id}`);
+            const lyricData = await lyricRes.json();
+            musicLyrics = parseLRC(lyricData && lyricData.lrc ? lyricData.lrc.lyric : '');
+        } catch (e) {
+            console.warn("获取歌词失败", e);
+            musicLyrics = [{ time: 0, text: "纯音乐 / 暂无歌词" }];
+        }
 
-            if (playId !== currentPlayId) return;
-            const songUrl = `${AUDIO_API_METING}${trac
-            
-            musicAudio.onerror = async () => {
-                musicAudio.onerror = null; 
-                console.warn("Meting 播放失败，尝试备用接口...");
-                try {
-                    const fallbackRes = await fetch(`${MUSIC_API_BASE}/song/url/v1?id=${track.id}&level=exhigh`);
-                    const fallbackData = await fallbackRes.json();
-                    if (fallbackData && fallbackData.data && fallbackData.data[0] && fallbackData.data[0].url) {
-                        musicAudio.src = fallbackData.data[0].url;
-                        await musicAudio.play();
-                    } else {
-                        throw new Error('无法获取音频');
-                    }
-                } catch (err) {
-                    alert('无法播放哦，这可能是一首VIP/付费歌曲，或者已经下架啦。');
-                    musicIsPlaying = false;
-                    updatePlayerUI(track.name, track.artist, track.picUrl, null, false);
+        if (playId !== currentPlayId) return;
+
+        const songUrl = `${AUDIO_API_METING}${track.id}`;
+        musicAudio.src = songUrl;
+
+        musicAudio.onerror = async () => {
+            musicAudio.onerror = null;
+            console.warn("Meting 播放失败，尝试备用接口...");
+            try {
+                const fallbackRes = await fetch(`${MUSIC_API_BASE}/song/url/v1?id=${track.id}&level=exhigh`);
+                const fallbackData = await fallbackRes.json();
+                if (fallbackData && fallbackData.data && fallbackData.data[0] && fallbackData.data[0].url) {
+                    musicAudio.src = fallbackData.data[0].url;
+                    await musicAudio.play();
+                    musicIsPlaying = true;
+                    updatePlayerUI(track.name, track.artist, track.picUrl, null, true);
+                } else {
+                    throw new Error('无法获取音频');
                 }
-            };
-
-            try {
-                await musicAudio.play();
-                musicIsPlaying = true;
-                renderMusicPlaylist();
             } catch (err) {
-                console.warn("浏览器拦截了自动播放:", err);
+                alert('无法播放哦，这可能是一首VIP/付费歌曲，或者已经下架啦。');
                 musicIsPlaying = false;
                 updatePlayerUI(track.name, track.artist, track.picUrl, null, false);
             }
+        };
 
-        } catch (e) {
-            alert(`播放失败: ${e.message}`);
+        try {
+            await musicAudio.play();
+            musicIsPlaying = true;
+            updatePlayerUI(track.name, track.artist, track.picUrl, null, true);
+            renderMusicPlaylist();
+        } catch (err) {
+            console.warn("浏览器拦截了自动播放:", err);
             musicIsPlaying = false;
             updatePlayerUI(track.name, track.artist, track.picUrl, null, false);
         }
+
+    } catch (e) {
+        alert(`播放失败: ${e.message}`);
+        musicIsPlaying = false;
+        updatePlayerUI(track.name, track.artist, track.picUrl, null, false);
     }
+}
     
     const SVG_PLAY = '<svg width="1em" height="1em" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>';
     const SVG_PAUSE = '<svg width="1em" height="1em" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>';
@@ -6030,20 +6072,21 @@ ${extraLorePrompt}
     }
     
     function parseLRC(lrc) { 
-        if (!lrc) return []; 
-        const lines = lrc.split('\n'); 
-        const result = []; 
-        const timeRegex = /$$(\d{2}):(\d{2})\.(\d{2,3})$$/; 
-        for (const line of lines) { 
-            const match = line.match(timeRegex); 
-            if (match) { 
-                const time = parseInt(match[1], 10) * 60 + parseInt(match[2], 10) + parseInt(match[3], 10) / 1000; 
-                const text = line.replace(timeRegex, '').trim(); 
-                if (text) { result.push({ time, text }); } 
-            } 
+    if (!lrc) return []; 
+    const lines = lrc.split('\n'); 
+    const result = []; 
+    const timeRegex = /\[(\d{2}):(\d{2})\.(\d{2,3})\]/; 
+    for (const line of lines) { 
+        const match = line.match(timeRegex); 
+        if (match) { 
+            const ms = match[3].length === 2 ? parseInt(match[3], 10) * 10 : parseInt(match[3], 10);
+            const time = parseInt(match[1], 10) * 60 + parseInt(match[2], 10) + ms / 1000; 
+            const text = line.replace(timeRegex, '').trim(); 
+            if (text) { result.push({ time, text }); } 
         } 
-        return result; 
-    }
+    } 
+    return result; 
+}
     
     function updateLyrics(currentTime) { 
         if (musicLyrics.length === 0) return; 
