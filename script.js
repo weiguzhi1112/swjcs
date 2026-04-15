@@ -109,7 +109,7 @@ document.addEventListener('touchmove', function(e) {
         e.preventDefault();
     }
 }, { passive: false });
-    function throttle(func, delay) { let timer = null; let startTime = Date.now(); return function(...args) { let curTime = Date.now(); let remaining = delay - (curTime - startTime); const context = this; clearTimeout(timer); if (remaining <= 0) { func.apply(context, args); startTime = Date.now(); } else { timer = setTimeout(() => { func.apply(context, args); }, remaining); } }; }
+    function throttle(func, delay) { let lastCall = 0; return function(...args) { const now = Date.now(); if (now - lastCall >= delay) { lastCall = now; func.apply(this, args); } }; }
    
     const DB = {
         cache: {},
@@ -138,6 +138,15 @@ document.addEventListener('touchmove', function(e) {
     let toCart, toCurrentShopIdx, toSelectedPayMethod, toAddresses, toSelectedAddrId, toOrderHistory, toCurrentTab, toReceiptReturnPage, toPageHistory, toFavorites, toSearchResults, toPendingDaifuOrder;
     let listenTogetherSession, listenTogetherHistory, musicUserInfo, autoMsgLastSent, autoFeedLastSent, subApiConfigs;
     const aliveHumanPrompt = "【活人感指令】请表现得像一个真实的人类，有自己的情绪、思考和反应，不要像一个AI助手。";
+
+    function escapeHTML(str) {
+        if (!str) return '';
+        return String(str)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;');
+    }
 
     async function bootDatabase() {
         if (navigator.storage && navigator.storage.persist) {
@@ -1035,6 +1044,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (appId === 'calendar') renderCalendar();
         if (appId === 'profile') {
             setTimeout(refreshStorageVisual, 100);
+            if (window.storageRefreshInterval) clearInterval(window.storageRefreshInterval);
             window.storageRefreshInterval = setInterval(refreshStorageVisual, 3000);
         }
         if (appId === 'forum') renderForum();
@@ -1445,7 +1455,8 @@ function updateKeepAliveUI(isOn) {
             const checkboxHtml = isSelectionMode ? `<div class="msg-checkbox ${selectedMsgs.has(realIndex) ? 'checked' : ''}"></div>` : '';
             const heartHtml = settings.showHeart ? `<div class="bubble-heart" style="display:flex; align-items:center; justify-content:center;"><svg width="8" height="8" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="1"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg></div>` : '';
             
-            let contentHtml = m.content;
+            let contentHtml = escapeHTML(m.content);
+            contentHtml = contentHtml.replace(/&lt;/g, '<').replace(/&gt;/g, '>');
             const touchHandlers = `onmousedown="handleTouchStart(event, ${realIndex})" onmouseup="handleTouchEnd()" onmouseleave="handleTouchEnd()" ontouchstart="handleTouchStart(event, ${realIndex})" ontouchend="handleTouchEnd()" ontouchcancel="handleTouchEnd()"`;
 
             if (contentHtml.startsWith('[REAL_CALL:')) {
@@ -1650,9 +1661,13 @@ function updateKeepAliveUI(isOn) {
         yesterday.setDate(yesterday.getDate() - 1);
         const yesterdayStr = yesterday.toDateString();
 
+        const fragment = document.createDocumentFragment();
         rows.forEach((row, i) => {
             const msg = msgs[i];
-            if (!msg || !msg.rawTime) return;
+            if (!msg || !msg.rawTime) {
+                fragment.appendChild(row);
+                return;
+            }
             if (msg.rawTime - lastTime > 5 * 60 * 1000) {
                 const d = new Date(msg.rawTime);
                 const msgDateStr = d.toDateString();
@@ -1671,10 +1686,13 @@ function updateKeepAliveUI(isOn) {
                 const timeDiv = document.createElement('div');
                 timeDiv.style.cssText = 'text-align:center; font-size:10px; color:var(--text-secondary); margin: 15px 0 10px 0; letter-spacing: 1px; width: 100%; font-weight: 500;';
                 timeDiv.innerText = timeStr;
-                container.insertBefore(timeDiv, row);
+                fragment.appendChild(timeDiv);
                 lastTime = msg.rawTime;
             } else if (!lastTime) { lastTime = msg.rawTime; }
+            fragment.appendChild(row);
         });
+        container.innerHTML = '';
+        container.appendChild(fragment);
         if(!isSelectionMode) container.scrollTop = container.scrollHeight; 
     }
         function getDeliveryStatusHtml(msgIndex) { 
@@ -2966,7 +2984,7 @@ ${modeRules}
             album.boundRoleIds = boundRoleIds; 
             delete album.boundRoleId;
         } else { 
-            albums.push({ id: Date.now().toString(), name, boundRoleIds, photos: [] }); 
+            albums.push({ id: Date.now().toString(36) + Math.random().toString(36).substring(2, 8), name, boundRoleIds, photos: [] }); 
         } 
         DB.set('albums', albums); 
         renderAlbums(); 
@@ -2975,7 +2993,7 @@ ${modeRules}
 
     function deleteAlbum() { if (!confirm('删除图集？')) return; albums = albums.filter(a => a.id !== editingAlbumId); DB.set('albums', albums); renderAlbums(); closeModal('modal-album-editor'); }
     function openAddPhotoModal(albumId) { editingAlbumId = albumId; $('#photo-url').value = ''; $('#photo-virtual').value = ''; openModal('modal-add-photo'); }
-    function addPhotoToAlbum() { const url = $('#photo-url').value.trim(); const virtual = $('#photo-virtual').value.trim(); if (!url && !virtual) return alert('URL OR VIRTUAL TEXT REQUIRED.'); const album = albums.find(a => a.id === editingAlbumId); album.photos.push({ id: Date.now().toString(), url: url, virtual: virtual, desc: '' }); DB.set('albums', albums); renderAlbums(); closeModal('modal-add-photo'); }
+    function addPhotoToAlbum() { const url = $('#photo-url').value.trim(); const virtual = $('#photo-virtual').value.trim(); if (!url && !virtual) return alert('URL OR VIRTUAL TEXT REQUIRED.'); const album = albums.find(a => a.id === editingAlbumId); album.photos.push({ id: Date.now().toString(36) + Math.random().toString(36).substring(2, 8), url: url, virtual: virtual, desc: '' }); DB.set('albums', albums); renderAlbums(); closeModal('modal-add-photo'); }
     
     function handleAlbumMultiUpload(inputEl) {
         const files = inputEl.files;
@@ -3167,7 +3185,7 @@ ${modeRules}
             group.boundRoleIds = boundRoleIds; 
             delete group.boundRoleId; 
         } else { 
-            stickers.push({ id: Date.now().toString(), name, boundRoleIds, items: [] }); 
+            stickers.push({ id: Date.now().toString(36) + Math.random().toString(36).substring(2, 8), name, boundRoleIds, items: [] }); 
         } 
         DB.set('stickers', stickers); 
         renderStickers(); 
@@ -3176,7 +3194,7 @@ ${modeRules}
 
     function deleteStickerGroup() { if (!confirm('删除分组？')) return; stickers = stickers.filter(a => a.id !== editingStickerId); DB.set('stickers', stickers); renderStickers(); closeModal('modal-sticker-editor'); }
     function openAddStickerModal(groupId) { editingStickerId = groupId; $('#sticker-url').value = ''; $('#sticker-virtual').value = ''; openModal('modal-add-sticker'); }
-    function addStickerToGroup() { const url = $('#sticker-url').value.trim(); const virtual = $('#sticker-virtual').value.trim(); if (!url && !virtual) return alert('URL OR VIRTUAL TEXT REQUIRED.'); const group = stickers.find(a => a.id === editingStickerId); group.items.push({ id: Date.now().toString(), url: url, virtual: virtual }); DB.set('stickers', stickers); renderStickers(); closeModal('modal-add-sticker'); }
+function addStickerToGroup() { const url = $('#sticker-url').value.trim(); const virtual = $('#sticker-virtual').value.trim(); if (!url && !virtual) return alert('URL OR VIRTUAL TEXT REQUIRED.'); const group = stickers.find(a => a.id === editingStickerId); group.items.push({ id: Date.now().toString(36) + Math.random().toString(36).substring(2, 8), url: url, virtual: virtual }); DB.set('stickers', stickers); renderStickers(); closeModal('modal-add-sticker'); }
     
     function importStickersFromDoc(event) {
         const file = event.target.files[0];
@@ -3719,6 +3737,44 @@ async function generateTodaySummary(roleId) {
             openApiLogsModal();
         }
     }
+
+    let currentSubApiAppId = null;
+
+    function openSubApiModal(appId) {
+        currentSubApiAppId = appId;
+        const config = subApiConfigs[appId] || { url: '', key: '', model: '' };
+        document.getElementById('sub-api-url').value = config.url || '';
+        document.getElementById('sub-api-key').value = config.key || '';
+        document.getElementById('sub-api-model').value = config.model || '';
+        openModal('modal-sub-api');
+    }
+
+    function saveSubApi() {
+        if (!currentSubApiAppId) return;
+        const url = document.getElementById('sub-api-url').value.trim();
+        const key = document.getElementById('sub-api-key').value.trim();
+        const model = document.getElementById('sub-api-model').value.trim();
+        
+        subApiConfigs[currentSubApiAppId] = { url: url, key: key, model: model };
+        DB.set('subApiConfigs', subApiConfigs);
+        closeModal('modal-sub-api');
+        alert('引擎配置已保存！');
+    }
+
+    function getSubApi(appId) {
+        const sub = subApiConfigs[appId];
+        if (sub && sub.url && sub.key) {
+            return {
+                url: sub.url,
+                key: sub.key,
+                model: sub.model || apiConfig.model,
+                temperature: apiConfig.temperature,
+                maxTokens: apiConfig.maxTokens
+            };
+        }
+        return apiConfig;
+    }
+
     function openApiModal() { 
         apiConfig = DB.get('api', { url: '', key: '', model: 'gpt-4o', maxTokens: 128000, temperature: 0.8, topP: 1.0, ttsGroupId: '', ttsApiKey: '', ttsVoiceId: '' }); 
         $('#api-url').value = apiConfig.url || ''; $('#api-key').value = apiConfig.key || ''; $('#api-model').value = apiConfig.model || ''; $('#api-tokens').value = apiConfig.maxTokens || 128000; $('#api-temp').value = apiConfig.temperature || 0.8; $('#val-temp').innerText = apiConfig.temperature || 0.8; $('#api-topp').value = apiConfig.topP || 1.0; $('#val-topp').innerText = apiConfig.topP || 1.0; 
@@ -3781,7 +3837,7 @@ async function generateTodaySummary(roleId) {
             const idx = worldbooks.findIndex(x => x.id === editingWbId); 
             worldbooks[idx] = { ...worldbooks[idx], title, keyword, content: finalContent, position, isGlobal }; 
         } else { 
-            worldbooks.push({ id: Date.now().toString(), title, keyword, content: finalContent, position, isGlobal }); 
+            worldbooks.push({ id: Date.now().toString(36) + Math.random().toString(36).substring(2, 8), title, keyword, content: finalContent, position, isGlobal }); 
         } 
         DB.set('worldbooks', worldbooks); 
         closeModal('modal-worldbook'); 
@@ -3820,7 +3876,7 @@ async function generateTodaySummary(roleId) {
     
     function renderMasks() { $('#mask-list').innerHTML = masks.map(m => `<div class="list-item" onclick="openMaskModal('${m.id}')"><div class="item-info"><div class="item-name">${m.name} ${m.id === 'default' ? '<span style="font-size:10px;color:var(--text-secondary);">(DEFAULT)</span>' : ''}</div><div class="item-desc">${m.content}</div></div><div class="item-actions"><button class="btn-edit">CONFIG</button></div></div>`).join(''); }
     function openMaskModal(id = null) { editingMaskId = id; if (id) { const m = masks.find(x => x.id === id); $('#mask-modal-title').innerText = 'CONFIG PERSONA'; $('#mask-name').value = m.name; $('#mask-content').value = m.content; $('#btn-del-mask').style.display = m.id !== 'default' ? 'block' : 'none'; } else { $('#mask-modal-title').innerText = 'NEW PERSONA'; $('#mask-name').value = ''; $('#mask-content').value = ''; $('#btn-del-mask').style.display = 'none'; } openModal('modal-mask'); }
-    function saveMask() { const name = $('#mask-name').value.trim(), content = $('#mask-content').value.trim(); if(!name || !content) return alert('REQUIRED FIELDS EMPTY.'); if (editingMaskId) { const idx = masks.findIndex(x => x.id === editingMaskId); masks[idx] = { ...masks[idx], name, content }; } else { masks.push({ id: Date.now().toString(), name, content }); } DB.set('masks', masks); closeModal('modal-mask'); renderMasks(); }
+    function saveMask() { const name = $('#mask-name').value.trim(), content = $('#mask-content').value.trim(); if(!name || !content) return alert('REQUIRED FIELDS EMPTY.'); if (editingMaskId) { const idx = masks.findIndex(x => x.id === editingMaskId); masks[idx] = { ...masks[idx], name, content }; } else { masks.push({ id: Date.now().toString(36) + Math.random().toString(36).substring(2, 8), name, content }); } DB.set('masks', masks); closeModal('modal-mask'); renderMasks(); }
     function deleteMask() { if (editingMaskId === 'default' || !confirm('删除面具？')) return; roles.forEach(r => { if (r.activeMaskId === editingMaskId) r.activeMaskId = 'default'; }); DB.set('roles', roles); masks = masks.filter(x => x.id !== editingMaskId); DB.set('masks', masks); closeModal('modal-mask'); renderMasks(); }
     function openBeautyModal() { $('#beauty-bg').value = settings.bgImage; $('#beauty-font').value = settings.fontSize; $('#val-font').innerText = settings.fontSize; $('#beauty-pad').value = parseInt(settings.bubblePadding); $('#val-pad').innerText = parseInt(settings.bubblePadding); $('#beauty-avatar').value = settings.avatarSize || 28; $('#val-avatar').innerText = settings.avatarSize || 28; $('#beauty-avatar-radius').value = settings.avatarRadius || 0; $('#val-avatar-radius').innerText = settings.avatarRadius || 0; $('#beauty-heart').checked = settings.showHeart; $('#beauty-hide-borders').checked = settings.hideIconBorders || false; $('#beauty-hide-names').checked = settings.hideAppNames || false; $('#beauty-island').checked = settings.showDynamicIsland !== false; $('#beauty-sound-url').value = settings.notificationSound || ''; openModal('modal-beauty'); }
     function applyBeauty() { settings.bgImage = $('#beauty-bg').value.trim(); settings.fontSize = $('#beauty-font').value; settings.bubblePadding = $('#beauty-pad').value; settings.avatarSize = $('#beauty-avatar').value; settings.avatarRadius = $('#beauty-avatar-radius').value; settings.showHeart = $('#beauty-heart').checked; settings.hideIconBorders = $('#beauty-hide-borders').checked; settings.hideAppNames = $('#beauty-hide-names').checked; settings.showDynamicIsland = $('#beauty-island').checked; if (!settings.showDynamicIsland) { const di = $('#dynamic-island'); if (di) di.classList.remove('active'); } settings.notificationSound = $('#beauty-sound-url').value.trim(); $('#val-font').innerText = settings.fontSize; $('#val-pad').innerText = settings.bubblePadding; $('#val-avatar').innerText = settings.avatarSize; $('#val-avatar-radius').innerText = settings.avatarRadius; DB.set('settings', settings); applySettings(); }
@@ -5724,9 +5780,15 @@ ${extraLorePrompt}
                 }
             };
 
-            await musicAudio.play();
-            musicIsPlaying = true;
-            renderMusicPlaylist();
+            try {
+                await musicAudio.play();
+                musicIsPlaying = true;
+                renderMusicPlaylist();
+            } catch (err) {
+                console.warn("浏览器拦截了自动播放:", err);
+                musicIsPlaying = false;
+                updatePlayerUI(track.name, track.artist, track.picUrl, null, false);
+            }
 
         } catch (e) {
             alert(`播放失败: ${e.message}`);
