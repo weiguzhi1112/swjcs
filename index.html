@@ -16,6 +16,11 @@
     
 <link rel="stylesheet" href="style.css"></head>
 <body>
+<div id="boot-fallback" style="position:fixed;inset:0;background:#111;color:#fff;z-index:999999;display:flex;align-items:center;justify-content:center;flex-direction:column;font-family:sans-serif;">
+    <div style="font-size:20px;margin-bottom:10px;">锁雾机 OS</div>
+    <div style="font-size:12px;opacity:.7;">启动中...</div>
+    <pre id="boot-error-text" style="display:none;margin-top:15px;max-width:90%;white-space:pre-wrap;font-size:11px;color:#ff8080;"></pre>
+</div>
 <div id="phone-shell">
 <!-- 自动登录连星动画遮罩 -->
 <div id="auto-login-overlay">
@@ -719,7 +724,7 @@
             <div class="to-scroll"><div class="to-profile-section">
                 <div class="to-profile-card"><div class="to-profile-avatar" id="to-profile-avatar-icon">👤</div><div><div class="to-profile-name" id="to-profile-name-text">用户</div><div class="to-profile-sub">普通会员</div></div></div>
                 <div class="to-profile-menu-item" onclick="toNavTo('to-address')"><span class="to-profile-menu-label">📍 收货地址管理</span><span class="to-profile-menu-arrow">›</span></div>
-                <div class="to-profile-menu-item" onclick="toSwitchTab(document.querySelectorAll('.to-nav-item')[2],'orders')"><span class="to-profile-menu-label">📋 我的订单</span><span class="to-profile-menu-arrow">›</span></div>
+                <div class="to-profile-menu-item" onclick="toSwitchTab(document.querySelectorAll('.to-nav-item')[3],'orders')"><span class="to-profile-menu-label">📋 我的订单</span><span class="to-profile-menu-arrow">›</span></div>
         <div class="to-profile-menu-item"><span class="to-profile-menu-label">🎫 优惠券</span><span class="to-profile-menu-arrow">›</span></div>
         <div class="to-profile-menu-item"><span class="to-profile-menu-label">⭐ 我的收藏</span><span class="to-profile-menu-arrow">›</span></div>
         <div class="to-profile-menu-item" onclick="openSubApiModal('takeout')"><span class="to-profile-menu-label">⚙️ 引擎设置</span><span class="to-profile-menu-arrow">›</span></div>

@@ -1,3 +1,23 @@
+window.addEventListener('error', function (e) {
+    const box = document.getElementById('boot-fallback');
+    const text = document.getElementById('boot-error-text');
+    if (box && text) {
+        box.style.display = 'flex';
+        text.style.display = 'block';
+        text.textContent = '启动错误：\n' + (e.message || 'unknown error') + '\n\n文件：' + (e.filename || '') + '\n行号：' + (e.lineno || '');
+    }
+});
+
+window.addEventListener('unhandledrejection', function (e) {
+    const box = document.getElementById('boot-fallback');
+    const text = document.getElementById('boot-error-text');
+    if (box && text) {
+        box.style.display = 'flex';
+        text.style.display = 'block';
+        text.textContent = 'Promise 未处理异常：\n' + (e.reason && e.reason.message ? e.reason.message : String(e.reason));
+    }
+});
+
 if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost' || location.protocol.startsWith('http'))) {
         window.addEventListener('load', () => {
             navigator.serviceWorker.register('./sw.js').then(reg => {
@@ -615,7 +635,7 @@ async function checkDiscordCallback() {
         });
     }
 
-    function init() { 
+   function init() { 
     restoreWidgetData(); 
     const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone || document.referrer.includes('android-app://');
     if (isStandalone) { 
@@ -635,14 +655,16 @@ async function checkDiscordCallback() {
             playAutoLoginAnimation();
         } else {
             DB.set('activated', false);
-            $('#view-login').classList.add('active');
+            const loginView = $('#view-login');
+            if (loginView) loginView.classList.remove('hidden');
             const s = document.getElementById('display-device-id');
             if (s) s.textContent = _did;
         }
     }).catch(err => {
         console.error("Login check failed:", err);
         DB.set('activated', false);
-        $('#view-login').classList.add('active');
+        const loginView = $('#view-login');
+        if (loginView) loginView.classList.remove('hidden');
         const s = document.getElementById('display-device-id');
         if (s) s.textContent = _did;
     });
@@ -656,8 +678,7 @@ async function checkDiscordCallback() {
         
         const loginView = document.getElementById('view-login');
         if (loginView) {
-            loginView.classList.remove('active');
-            loginView.style.display = 'none';
+            loginView.classList.add('hidden');
         }
 
         overlay.classList.add('active');
@@ -718,6 +739,9 @@ async function checkDiscordCallback() {
     updateCoTDisplayUI();
     setupKeyboardShortcuts(); 
     setupAudioPlayer();
+
+    const bootFallback = document.getElementById('boot-fallback');
+    if (bootFallback) bootFallback.style.display = 'none';
 
     const chatViewObserver = new MutationObserver(mutations => {
     mutations.forEach(mutation => {
@@ -982,11 +1006,10 @@ function showDesktop() {
         loginView.classList.add('fade-out');
         
         setTimeout(() => {
-            loginView.classList.remove('active');
+            loginView.classList.add('hidden');
             loginView.classList.remove('fade-out');
-            loginView.style.display = 'none';
             loginView.style.pointerEvents = 'none';
-        }, 1000); 
+        }, 1000);
     }
 
     setTimeout(() => {
@@ -1126,20 +1149,72 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
     function openApp(appId) {
-        const appNames = { messages:'微信', contacts:'通讯录', feed:'动态', music:'音乐', calendar:'日历', forum:'叙欲论坛', cipher:'情绪密码', reincarnation:'前世今生', takeout:'外卖', wallet:'钱包', ourspace:'心动日常', album:'相册', stickers:'表情包', map:'高德地图', grimoire:'命之书' };
-        trackAppSwitch(appNames[appId] || appId);
-        
+    const appNames = {
+        messages: '微信',
+        contacts: '通讯录',
+        feed: '动态',
+        music: '音乐',
+        calendar: '日历',
+        forum: '叙欲论坛',
+        cipher: '情绪密码',
+        reincarnation: '前世今生',
+        takeout: '外卖',
+        wallet: '钱包',
+        ourspace: '心动日常',
+        album: '相册',
+        stickers: '表情包',
+        map: '高德地图',
+        grimoire: '命之书',
+        beauty: '美容院',
+        appearance: '外观'
+    };
+
+    trackAppSwitch(appNames[appId] || appId);
+
+    try {
         history.pushState({ appOpen: true, appId: appId }, '');
+    } catch (e) {
+        console.warn('pushState failed', e);
+    }
 
-        const appView = document.getElementById(`view-${appId}`);
-        if (!appView) return;
+    const appView = document.getElementById(`view-${appId}`);
+    if (!appView) return;
 
-        document.querySelectorAll('.view-container').forEach(v => v.classList.remove('active'));
-        if (currentChatRoleId) closeChat();
+    document.querySelectorAll('.view-container').forEach(v => v.classList.remove('active'));
+    if (currentChatRoleId) closeChat();
 
+    appView.classList.add('active');
+
+    const desktop = $('#view-desktop');
+    if (desktop) {
+        desktop.style.opacity = '0';
+        desktop.style.pointerEvents = 'none';
+        desktop.style.visibility = 'hidden';
+    }
+
+    const pagination = $('#desktop-pagination');
+    if (pagination) {
+        pagination.style.opacity = '0';
+        pagination.style.visibility = 'hidden';
+    }
+
+    const dock = $('#desktop-dock');
+    if (dock) {
+        dock.style.opacity = '0';
+        dock.style.pointerEvents = 'none';
+        dock.style.visibility = 'hidden';
+    }
+
+    try {
         if (appId === 'messages') renderRecent();
         if (appId === 'contacts') renderContacts();
         if (appId === 'appearance') renderAppearanceApp();
+        if (appId === 'beauty') {
+            if (typeof openBeautyApp === 'function') {
+                openBeautyApp();
+                return;
+            }
+        }
         if (appId === 'feed') renderFeeds();
         if (appId === 'music') renderMusicApp();
         if (appId === 'calendar') renderCalendar();
@@ -1149,33 +1224,44 @@ document.addEventListener('DOMContentLoaded', () => {
             window.storageRefreshInterval = setInterval(refreshStorageVisual, 3000);
         }
         if (appId === 'forum') renderForum();
-        if (appId === 'cipher') { cipherRenderMenu(); cipherBuildKb(); }
-        if (appId === 'reincarnation') { reincNav('reinc-menu'); }
-        if (appId === 'takeout') { toInitApp(); toGoHome(); }
-        if (appId === 'map') { initMapApp(); }
-        if (appId === 'grimoire') { renderGrimoireRoles(); } 
-        if (appId === 'wallet') { renderWalletApp(); }
-        if (appId === 'ourspace') { 
+        if (appId === 'cipher') {
+            cipherRenderMenu();
+            cipherBuildKb();
+        }
+        if (appId === 'reincarnation') {
+            reincNav('reinc-menu');
+        }
+        if (appId === 'takeout') {
+            if (typeof toInitApp === 'function') toInitApp();
+            if (typeof toGoHome === 'function') toGoHome();
+        }
+        if (appId === 'map') {
+            initMapApp();
+        }
+        if (appId === 'grimoire') {
+            renderGrimoireRoles();
+        }
+        if (appId === 'wallet') {
+            renderWalletApp();
+        }
+        if (appId === 'ourspace') {
+            const pairingView = document.getElementById('os-pairing-view');
+            const mainView = document.getElementById('os-main-view');
             if (ourSpaceData.isPaired) {
-                document.getElementById('os-pairing-view').style.display = 'none';
-                document.getElementById('os-main-view').style.display = 'flex';
-                initOurSpace(); 
+                if (pairingView) pairingView.style.display = 'none';
+                if (mainView) mainView.style.display = 'flex';
+                initOurSpace();
             } else {
-                document.getElementById('os-pairing-view').style.display = 'flex';
-                document.getElementById('os-main-view').style.display = 'none';
+                if (pairingView) pairingView.style.display = 'flex';
+                if (mainView) mainView.style.display = 'none';
                 renderOsPairingView();
             }
         }
-
-        appView.classList.add('active');
-
-        const desktop = $('#view-desktop');
-        if (desktop) { desktop.style.opacity = '0'; desktop.style.pointerEvents = 'none'; desktop.style.visibility = 'hidden'; }
-        const pagination = $('#desktop-pagination');
-        if (pagination) { pagination.style.opacity = '0'; pagination.style.visibility = 'hidden'; }
-        const dock = $('#desktop-dock');
-        if (dock) { dock.style.opacity = '0'; dock.style.pointerEvents = 'none'; dock.style.visibility = 'hidden'; }
+    } catch (err) {
+        console.error(`openApp(${appId}) failed:`, err);
+        alert(`APP 打开失败：${appId}\n\n错误信息：${err.message}`);
     }
+}
     
     function closeApp(appId) {
         trackAppSwitch('桌面');
@@ -1625,7 +1711,7 @@ function updateKeepAliveUI(isOn) {
 
                     const phoneIcon = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="${textColor}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>`;
 
-                    return `<div class="msg-row ${m.role === 'user' ? 'me' : 'ai'} ${isSelectionMode ? 'selection-mode' : ''}" onclick="handleMsgClick(${realIndex})">${checkboxHtml}${m.role === 'ai' ? aiAvatarTag : ''}<div class="msg-wrapper"><div style="background:${bubbleColor}; color:${textColor}; ${border} padding: var(--bubble-padding); cursor:pointer; min-width:160px; max-width:240px; border-radius: 18px;" onclick="event.stopPropagation(); showCallDetail(${realIndex})" ${touchHandlers}>
+                    return `<div class="msg-row bubble-row ${m.role === 'user' ? 'me' : 'ai'} ${isSelectionMode ? 'selection-mode' : ''}" onclick="handleMsgClick(${realIndex})">${checkboxHtml}${m.role === 'ai' ? aiAvatarTag : ''}<div class="msg-wrapper"><div style="background:${bubbleColor}; color:${textColor}; ${border} padding: var(--bubble-padding); cursor:pointer; min-width:160px; max-width:240px; border-radius: 18px;" onclick="event.stopPropagation(); showCallDetail(${realIndex})" ${touchHandlers}>
                         <div style="display:flex; align-items:center; gap:10px;">
                             <div style="width:28px; height:28px; border-radius:50%; background:${m.role === 'user' ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.08)'}; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
                                 ${phoneIcon}
@@ -1646,27 +1732,44 @@ function updateKeepAliveUI(isOn) {
                 const bubbleColor = m.role === 'user' ? 'var(--text-color)' : 'var(--bg-color)';
                 const textColor = m.role === 'user' ? 'var(--bg-color)' : 'var(--text-color)';
                 const border = m.role === 'ai' ? `border: 1px solid var(--border-color);` : '';
-                return `<div class="msg-row ${m.role === 'user' ? 'me' : 'ai'}" onclick="handleMsgClick(${realIndex})">${m.role === 'ai' ? aiAvatarTag : ''}<div class="msg-wrapper"><div style="background:${bubbleColor}; color:${textColor}; ${border} padding: var(--bubble-padding); cursor:pointer; min-width:140px; max-width:220px; border-radius: 18px;" onclick="toggleVoiceExpand(${realIndex})" ${touchHandlers}><div style="display:flex; align-items:center; gap:10px;"><div style="width:28px; height:28px; border-radius:50%; background:${m.role === 'user' ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.08)'}; display:flex; align-items:center; justify-content:center; flex-shrink:0;"><svg width="13" height="13" viewBox="0 0 24 24" fill="${textColor}"><path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm-1-9c0-.55.45-1 1-1s1 .45 1 1v6c0 .55-.45 1-1 1s-1-.45-1-1V5zm6 6c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/></svg></div><div style="flex:1; display:flex; align-items:center; gap:2px; height:20px;">${Array.from({length: 12}, (_, i) => `<div style="width:2.5px; border-radius:2px; background:${textColor}; opacity:${0.3 + Math.sin(i * 0.8) * 0.35 + 0.15}; height:${6 + Math.abs(Math.sin(i * 0.9 + 1)) * 12}px;"></div>`).join('')}</div><span style="font-size:10px; opacity:0.65; flex-shrink:0; font-family:var(--font-sans); letter-spacing:0.5px;">${dur}"</span></div>${isExpanded ? `<div style="margin-top:8px; padding-top:8px; border-top:1px solid ${m.role === 'user' ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.1)'}; font-size:11px; line-height:1.5; opacity:0.8; font-family:var(--font-sans);">${voiceText}</div>` : ''}</div><div class="msg-status">${m.time}</div></div>${m.role === 'user' ? userAvatarTag : ''}</div>`;
+                return `<div class="msg-row bubble-row ${m.role === 'user' ? 'me' : 'ai'}" onclick="handleMsgClick(${realIndex})">${m.role === 'ai' ? aiAvatarTag : ''}<div class="msg-wrapper"><div style="background:${bubbleColor}; color:${textColor}; ${border} padding: var(--bubble-padding); cursor:pointer; min-width:140px; max-width:220px; border-radius: 18px;" onclick="toggleVoiceExpand(${realIndex})" ${touchHandlers}><div style="display:flex; align-items:center; gap:10px;"><div style="width:28px; height:28px; border-radius:50%; background:${m.role === 'user' ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.08)'}; display:flex; align-items:center; justify-content:center; flex-shrink:0;"><svg width="13" height="13" viewBox="0 0 24 24" fill="${textColor}"><path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm-1-9c0-.55.45-1 1-1s1 .45 1 1v6c0 .55-.45 1-1 1s-1-.45-1-1V5zm6 6c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/></svg></div><div style="flex:1; display:flex; align-items:center; gap:2px; height:20px;">${Array.from({length: 12}, (_, i) => `<div style="width:2.5px; border-radius:2px; background:${textColor}; opacity:${0.3 + Math.sin(i * 0.8) * 0.35 + 0.15}; height:${6 + Math.abs(Math.sin(i * 0.9 + 1)) * 12}px;"></div>`).join('')}</div><span style="font-size:10px; opacity:0.65; flex-shrink:0; font-family:var(--font-sans); letter-spacing:0.5px;">${dur}"</span></div>${isExpanded ? `<div style="margin-top:8px; padding-top:8px; border-top:1px solid ${m.role === 'user' ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.1)'}; font-size:11px; line-height:1.5; opacity:0.8; font-family:var(--font-sans);">${voiceText}</div>` : ''}</div><div class="msg-status">${m.time}</div></div>${m.role === 'user' ? userAvatarTag : ''}</div>`;
             }
 
             if (contentHtml.startsWith('[MUSIC_CARD:')) {
                 const invite = parseMusicCardContent(contentHtml) || {};
-                return `<div class="msg-row me ${isSelectionMode ? 'selection-mode' : ''}" onclick="handleMsgClick(${realIndex})" ${touchHandlers}>${checkboxHtml}<div class="msg-wrapper"><div class="music-card" onclick="if(isSelectionMode || document.getElementById('context-menu-overlay').style.display === 'flex') return; openMusicInviteModal(${realIndex})"><div class="music-card-cover" style="background-image:url(${invite.picUrl || ''})"></div><div class="music-card-info"><div class="music-card-title">${invite.name || '未知歌曲'}</div><div class="music-card-artist">${invite.artist || '未知歌手'}</div><div class="music-card-tag">${invite.status || '一起听邀请'}</div></div></div><div class="msg-status">${m.time}</div></div>${userAvatarTag}</div>`;
+                return `<div class="msg-row card-row me ${isSelectionMode ? 'selection-mode' : ''}" onclick="handleMsgClick(${realIndex})" ${touchHandlers}>${checkboxHtml}<div class="msg-wrapper"><div class="music-card" onclick="if(isSelectionMode || document.getElementById('context-menu-overlay').style.display === 'flex') return; openMusicInviteModal(${realIndex})"><div class="music-card-cover" style="background-image:url(${invite.picUrl || ''})"></div><div class="music-card-info"><div class="music-card-title">${invite.name || '未知歌曲'}</div><div class="music-card-artist">${invite.artist || '未知歌手'}</div><div class="music-card-tag">${invite.status || '一起听邀请'}</div></div></div><div class="msg-status">${m.time}</div></div>${userAvatarTag}</div>`;
             }
 
             if (contentHtml.startsWith('[TICKET:')) {
                 const ticketData = parseTicketContent(m.content);
                 if (ticketData) {
                     const ticketHtml = renderTicketPair(ticketData);
-                    return `<div class="msg-row ${m.role === 'user' ? 'me' : 'ai'} ${isSelectionMode ? 'selection-mode' : ''}" style="max-width:100%;" onclick="handleMsgClick(${realIndex})" ${touchHandlers}>${checkboxHtml}${m.role === 'ai' ? aiAvatarTag : ''}<div class="msg-wrapper" style="max-width:90%; pointer-events: ${isSelectionMode ? 'none' : 'auto'};">${ticketHtml}<div class="msg-status">${m.time}</div></div>${m.role === 'user' ? userAvatarTag : ''}</div>`;
+                    return `<div class="msg-row card-row ${m.role === 'user' ? 'me' : 'ai'} ${isSelectionMode ? 'selection-mode' : ''}" style="max-width:100%;" onclick="handleMsgClick(${realIndex})" ${touchHandlers}>${checkboxHtml}${m.role === 'ai' ? aiAvatarTag : ''}<div class="msg-wrapper" style="max-width:90%; pointer-events: ${isSelectionMode ? 'none' : 'auto'};">${ticketHtml}<div class="msg-status">${m.time}</div></div>${m.role === 'user' ? userAvatarTag : ''}</div>`;
                 }
+            }
+                        if (contentHtml.startsWith('[FORUM_CARD:')) {
+                try {
+                    const raw = m.content.slice(12, -1);
+                    const card = JSON.parse(decodeURIComponent(raw));
+                    const isMe = m.role === 'user';
+                    return `<div class="msg-row card-row ${isMe ? 'me' : 'ai'} ${isSelectionMode ? 'selection-mode' : ''}" onclick="handleMsgClick(${realIndex})" ${touchHandlers}>${checkboxHtml}${isMe ? '' : aiAvatarTag}<div class="msg-wrapper"><div class="share-card" onclick="if(isSelectionMode) return; closeChat(); openApp('forum')"><div class="share-card-badge">论坛帖子</div><div class="share-card-title">${escapeHTML(card.title || '未命名帖子')}</div><div class="share-card-desc">${escapeHTML((card.author || '匿名') + ' · ' + (card.category || 'THREAD'))}</div><div class="share-card-preview">${escapeHTML(card.content || '')}</div></div><div class="msg-status">${m.time}</div></div>${isMe ? userAvatarTag : ''}</div>`;
+                } catch(e) {}
+            }
+
+            if (contentHtml.startsWith('[FEED_CARD:')) {
+                try {
+                    const raw = m.content.slice(11, -1);
+                    const card = JSON.parse(decodeURIComponent(raw));
+                    const isMe = m.role === 'user';
+                    return `<div class="msg-row card-row ${isMe ? 'me' : 'ai'} ${isSelectionMode ? 'selection-mode' : ''}" onclick="handleMsgClick(${realIndex})" ${touchHandlers}>${checkboxHtml}${isMe ? '' : aiAvatarTag}<div class="msg-wrapper"><div class="share-card" onclick="if(isSelectionMode) return; closeChat(); openApp('feed')"><div class="share-card-badge">动态分享</div><div class="share-card-title">${escapeHTML(card.author || 'ME')}</div><div class="share-card-desc">朋友圈 / Feed</div><div class="share-card-preview">${escapeHTML(card.content || '')}</div></div><div class="msg-status">${m.time}</div></div>${isMe ? userAvatarTag : ''}</div>`;
+                } catch(e) {}
             }
 
             if (contentHtml.startsWith('[GIFT_TO_AI:')) {
                 const raw = contentHtml.slice(12, -1);
                 try {
                     const card = JSON.parse(decodeURIComponent(raw));
-                    return `<div class="msg-row me ${isSelectionMode ? 'selection-mode' : ''}" onclick="handleMsgClick(${realIndex})" ${touchHandlers}>${checkboxHtml}<div class="msg-wrapper"><div class="daifu-card" style="border-color:#ff8da1;" onclick="if(isSelectionMode) return; openOrderReceiptDetail(${realIndex})"><div class="daifu-icon">${card.emoji || '🎁'}</div><div class="daifu-info"><div class="daifu-title" style="color:#ff8da1;">${card.senderName} 已为 ${card.receiverName} 下单商品</div><div class="daifu-desc">${card.shopName} · ${card.itemName}</div><div class="daifu-bottom"><div class="daifu-price">¥ ${parseFloat(card.price).toFixed(2)}</div><div class="daifu-tag" style="background:#ff8da1;">${card.status}</div></div></div></div><div class="msg-status">${m.time}</div></div>${userAvatarTag}</div>`;
+                    return `<div class="msg-row card-row me ${isSelectionMode ? 'selection-mode' : ''}" onclick="handleMsgClick(${realIndex})" ${touchHandlers}>${checkboxHtml}<div class="msg-wrapper"><div class="daifu-card" style="border-color:#ff8da1;" onclick="if(isSelectionMode) return; openOrderReceiptDetail(${realIndex})"><div class="daifu-icon">${card.emoji || '🎁'}</div><div class="daifu-info"><div class="daifu-title" style="color:#ff8da1;">${card.senderName} 已为 ${card.receiverName} 下单商品</div><div class="daifu-desc">${card.shopName} · ${card.itemName}</div><div class="daifu-bottom"><div class="daifu-price">¥ ${parseFloat(card.price).toFixed(2)}</div><div class="daifu-tag" style="background:#ff8da1;">${card.status}</div></div></div></div><div class="msg-status">${m.time}</div></div>${userAvatarTag}</div>`;
                 } catch(e) { return `<div class="msg-row me">解析错误</div>`; }
             } 
 
@@ -1688,7 +1791,7 @@ function updateKeepAliveUI(isOn) {
                         footerLeft: 'BIND TICKET'
                     };
                     const ticketHtml = renderTicketCard(ticketData);
-                    return `<div class="msg-row ${isMe ? 'me' : 'ai'} ${isSelectionMode ? 'selection-mode' : ''}" style="max-width:100%;" onclick="handleMsgClick(${realIndex})" ${touchHandlers}>${checkboxHtml}${isMe ? '' : aiAvatarTag}<div class="msg-wrapper" style="max-width:90%; pointer-events: ${isSelectionMode ? 'none' : 'auto'};" onclick="if(!isSelectionMode) openApp('ourspace')">${ticketHtml}<div class="msg-status">${m.time}</div></div>${isMe ? userAvatarTag : ''}</div>`;
+                    return `<div class="msg-row card-row ${isMe ? 'me' : 'ai'} ${isSelectionMode ? 'selection-mode' : ''}" style="max-width:100%;" onclick="handleMsgClick(${realIndex})" ${touchHandlers}>${checkboxHtml}${isMe ? '' : aiAvatarTag}<div class="msg-wrapper" style="max-width:90%; pointer-events: ${isSelectionMode ? 'none' : 'auto'};" onclick="if(!isSelectionMode) openApp('ourspace')">${ticketHtml}<div class="msg-status">${m.time}</div></div>${isMe ? userAvatarTag : ''}</div>`;
                 } catch(e) {}
             }
 
@@ -1741,7 +1844,7 @@ function updateKeepAliveUI(isOn) {
                         clickAction = `openTransactionDetail(${realIndex})`;
                     }
                     
-                    return `<div class="msg-row ${isMe ? 'me' : 'ai'} ${isSelectionMode ? 'selection-mode' : ''}" onclick="handleMsgClick(${realIndex})" ${touchHandlers}>${checkboxHtml}${isMe ? '' : aiAvatarTag}<div class="msg-wrapper"><div class="daifu-card" onclick="if(isSelectionMode) return; ${clickAction}"><div class="daifu-icon">${iconText}</div><div class="daifu-info"><div class="daifu-title">${titleText}</div><div class="daifu-desc">${descText}</div><div class="daifu-bottom"><div class="daifu-price">${priceText}</div><div class="daifu-tag">${card.status || '待处理'}</div></div></div></div><div class="msg-status">${m.time}</div></div>${isMe ? userAvatarTag : ''}</div>`;
+                    return `<div class="msg-row card-row ${isMe ? 'me' : 'ai'} ${isSelectionMode ? 'selection-mode' : ''}" onclick="handleMsgClick(${realIndex})" ${touchHandlers}>${checkboxHtml}${isMe ? '' : aiAvatarTag}<div class="msg-wrapper"><div class="daifu-card" onclick="if(isSelectionMode) return; ${clickAction}"><div class="daifu-icon">${iconText}</div><div class="daifu-info"><div class="daifu-title">${titleText}</div><div class="daifu-desc">${descText}</div><div class="daifu-bottom"><div class="daifu-price">${priceText}</div><div class="daifu-tag">${card.status || '待处理'}</div></div></div></div><div class="msg-status">${m.time}</div></div>${isMe ? userAvatarTag : ''}</div>`;
                 } catch(e) {}
             }
 
@@ -1797,7 +1900,7 @@ function updateKeepAliveUI(isOn) {
             }
             const deliveryHtml = m.role === 'user' ? getDeliveryStatusHtml(realIndex) : '';
             const messageId = m.id ? `id="${m.id}"` : '';
-            return `<div class="msg-row ${m.role === 'user' ? 'me' : 'ai'} ${isSelectionMode ? 'selection-mode' : ''}" ${messageId} onclick="handleMsgClick(${realIndex})">${checkboxHtml}${m.role === 'ai' ? aiAvatarTag : ''}<div class="msg-wrapper"><div class="msg-bubble ${m.mode === 'offline' && m.role === 'ai' ? 'offline-mode' : ''}" ${customBubbleStyle} ${touchHandlers}><div class="msg-bubble-content">${quoteHtml}${contentHtml}</div>${heartHtml}</div><div class="msg-status">${m.time}${deliveryHtml}</div></div>${m.role === 'user' ? userAvatarTag : ''}</div>`;
+            return `<div class="msg-row bubble-row ${m.role === 'user' ? 'me' : 'ai'} ${isSelectionMode ? 'selection-mode' : ''}" ${messageId} onclick="handleMsgClick(${realIndex})">${checkboxHtml}${m.role === 'ai' ? aiAvatarTag : ''}<div class="msg-wrapper"><div class="msg-bubble ${m.mode === 'offline' && m.role === 'ai' ? 'offline-mode' : ''}" ${customBubbleStyle} ${touchHandlers}><div class="msg-bubble-content">${quoteHtml}${contentHtml}</div>${heartHtml}</div><div class="msg-status">${m.time}${deliveryHtml}</div></div>${m.role === 'user' ? userAvatarTag : ''}</div>`;
         }).join(''); 
         
         const rows = Array.from(container.children);
@@ -3863,7 +3966,51 @@ async function generateTodaySummary(roleId) {
         }
     }
     function openCurrentRoleInfo() { if(currentChatRoleId) editRole(currentChatRoleId); }
-    function renderRecent() { const list = $('#recent-list'); const recentChats = Object.keys(chats).map(roleId => { const role = roles.find(r => r.id === roleId); if(!role) return null; const msgs = chats[roleId]; if (msgs.length === 0) return null; const lastMsg = msgs[msgs.length-1]; return { role, lastMsgContent: lastMsg.content, time: lastMsg.time, rawTime: lastMsg.rawTime }; }).filter(Boolean); recentChats.sort((a, b) => (b.rawTime || 0) - (a.rawTime || 0)); list.innerHTML = recentChats.length > 0 ? recentChats.map(c => `<div class="list-item" onclick="openChat('${c.role.id}')"><div class="item-info"><div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px;"><div class="item-name">${getDisplayName(c.role)}</div><div style="font-size:9px;color:var(--text-secondary);letter-spacing:1px;">${c.time}</div></div><div class="item-desc">${c.lastMsgContent.replace(/<img[^>]*class="chat-inline-img"[^>]*>/g, '[表情包]').replace(/<[^>]*>/g, '').replace(/\[VIRTUAL_IMG:(.*?)\]/g, '[$1]').replace(/\[MUSIC_CARD:.*?\]/g, '[一起听邀请]').replace(/\[FORUM_CARD:.*?\]/g, '[论坛帖子]').replace(/\[VOICE:(\d+)s\|(.*?)\]/g, '[语音] $2').replace(/\[TICKET:.*?\]/g, '[票根]').replace(/\[TRANSFER:.*?\]/g, '[转账]').replace(/\[FAMILY_CARD:.*?\]/g, '[亲属卡]').replace(/\[PAY_REQUEST:.*?\]/g, '[代付请求]').replace(/\[OURSPACE_INVITE:.*?\]/g, '[情侣空间邀请]')}</div></div></div>`).join('') : `<div style="text-align:center; color:var(--text-secondary); padding: 40px; font-size:10px; letter-spacing:2px;">VOID.</div>`; }
+    function renderRecent() {
+    const list = $('#recent-list');
+    const recentChats = Object.keys(chats).map(roleId => {
+        const role = roles.find(r => r.id === roleId);
+        if (!role) return null;
+        const msgs = chats[roleId];
+        if (msgs.length === 0) return null;
+        const lastMsg = msgs[msgs.length - 1];
+        return {
+            role,
+            lastMsgContent: lastMsg.content,
+            time: lastMsg.time,
+            rawTime: lastMsg.rawTime
+        };
+    }).filter(Boolean);
+
+    recentChats.sort((a, b) => (b.rawTime || 0) - (a.rawTime || 0));
+
+    list.innerHTML = recentChats.length > 0
+        ? recentChats.map(c => `
+            <div class="list-item" onclick="openChat('${c.role.id}')">
+                <div class="item-info">
+                    <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px;">
+                        <div class="item-name">${getDisplayName(c.role)}</div>
+                        <div style="font-size:9px;color:var(--text-secondary);letter-spacing:1px;">${c.time}</div>
+                    </div>
+                    <div class="item-desc">${c.lastMsgContent
+                        .replace(/<img[^>]*class="chat-inline-img"[^>]*>/g, '[表情包]')
+                        .replace(/<[^>]*>/g, '')
+                        .replace(/\[VIRTUAL_IMG:(.*?)\]/g, '[$1]')
+                        .replace(/\[MUSIC_CARD:.*?\]/g, '[一起听邀请]')
+                        .replace(/\[FORUM_CARD:.*?\]/g, '[论坛帖子]')
+                        .replace(/\[FEED_CARD:.*?\]/g, '[动态分享]')
+                        .replace(/\[VOICE:(\d+)s\|(.*?)\]/g, '[语音] $2')
+                        .replace(/\[TICKET:.*?\]/g, '[票根]')
+                        .replace(/\[TRANSFER:.*?\]/g, '[转账]')
+                        .replace(/\[FAMILY_CARD:.*?\]/g, '[亲属卡]')
+                        .replace(/\[PAY_REQUEST:.*?\]/g, '[代付请求]')
+                        .replace(/\[OURSPACE_INVITE:.*?\]/g, '[情侣空间邀请]')}
+                    </div>
+                </div>
+            </div>
+        `).join('')
+        : `<div style="text-align:center; color:var(--text-secondary); padding: 40px; font-size:10px; letter-spacing:2px;">VOID.</div>`;
+}
     function renderContacts() { const list = $('#contacts-list'); if (roles.length === 0) { list.innerHTML = `<div style="text-align:center; color:var(--text-secondary); padding: 40px; font-size:10px; letter-spacing:2px;">VOID.</div>`; return; } list.innerHTML = roles.map(role => ` <div class="list-item" onclick="openChat('${role.id}')"><img class="avatar" src="${role.avatar && role.avatar.trim() ? role.avatar.trim() : DEFAULT_AVATAR}" onerror="this.src='${DEFAULT_AVATAR}'"> <div class="item-info"> <div class="item-name">${getDisplayName(role)}</div> <div class="item-desc">${(role.persona || '').substring(0, 50) || 'NO DIRECTIVES'}...</div> </div> <div class="item-actions"> <button class="btn-edit" onclick="event.stopPropagation(); editRole('${role.id}')">CONFIG<span>设置</span></button> <button class="btn-delete" onclick="event.stopPropagation(); clearEntityData('${role.id}')">PURGE<span>清空</span></button> </div> </div> `).join(''); }
     function addApiLog(type, details, isError = false) {
         apiLogs.unshift({ time: new Date().toLocaleString('zh-CN'), type, details, isError });
@@ -6897,22 +7044,31 @@ function renderCalendar() {
     const monthNames = ['January','February','March','April','May','June','July','August','September','October','November','December'];
     $('#cal-month-title').innerText = `${monthNames[calViewMonth]} ${calViewYear}`;
     let cells = '';
-    for (let i = 0; i < firstDay; i++) { const d = daysInPrev - firstDay + 1 + i; cells += `<div class="cal-cell other-month">${d}</div>`; }
+    for (let i = 0; i < firstDay; i++) {
+        const d = daysInPrev - firstDay + 1 + i;
+        cells += `<div class="cal-cell other-month">${d}</div>`;
+    }
     for (let d = 1; d <= daysInMonth; d++) {
         const isToday = d === today && calViewMonth === todayMonth && calViewYear === todayYear;
         const events = getAllEventsForDate(calViewMonth + 1, d);
         const hasFestival = events.some(e => e.type === 'festival');
         const hasEvent = events.length > 0;
         const isSelected = calSelectedDate && calSelectedDate.d === d && calSelectedDate.m === calViewMonth && calSelectedDate.y === calViewYear;
+
         let cls = 'cal-cell';
+        let inlineStyle = '';
+
         if (isToday) cls += ' today';
         if (hasFestival && !isToday) cls += ' festival';
         if (hasEvent) cls += ' has-event';
-        if (isSelected && !isToday) cls += '" style="outline:2px solid var(--text-color); border-radius:50%';
-        cells += `<div class="${cls}" onclick="calSelectDate(${d})">${d}</div>`;
+        if (isSelected && !isToday) inlineStyle = 'outline:2px solid var(--text-color); border-radius:50%;';
+
+        cells += `<div class="${cls}" style="${inlineStyle}" onclick="calSelectDate(${d})">${d}</div>`;
     }
     const remaining = 42 - firstDay - daysInMonth;
-    for (let d = 1; d <= remaining; d++) { cells += `<div class="cal-cell other-month">${d}</div>`; }
+    for (let d = 1; d <= remaining; d++) {
+        cells += `<div class="cal-cell other-month">${d}</div>`;
+    }
     $('#cal-grid').innerHTML = cells;
     renderCalCountdown();
     renderCalDayEvents();
@@ -11143,7 +11299,6 @@ function openBeautyApp() {
     $('#beauty-bubble-css').value = lastSettings.bubbleCss;
 
     renderBeautyPresets();
-    openApp('beauty');
 }
 
 function applyBeautyStyles() {

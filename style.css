@@ -126,15 +126,21 @@ body {
 
 /* --- 奢侈风 Activation View --- */
 #view-login {
-    position: absolute; top: 0; left: 0; right: 0; bottom: 0;
-    background-color: #050505; /* 极致深邃的黑 */
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: #050505;
     z-index: 10000;
-    display: none;
+    display: flex;
     justify-content: center;
     align-items: center;
     transition: transform 1.2s cubic-bezier(0.25, 1, 0.5, 1), opacity 0.8s ease;
 }
-#view-login.active { display: flex; }
+#view-login.hidden {
+    display: none;
+}
 #view-login.fade-out {
     transform: scale(1.15);
     opacity: 0;
@@ -616,6 +622,56 @@ body {
         .daifu-bottom { display: flex; justify-content: space-between; align-items: flex-end; margin-top: 6px; }
         .daifu-price { font-size: 15px; font-weight: 700; color: #ff3b30; font-family: var(--font-serif); }
         .daifu-tag { font-size: 8px; background: var(--text-color); color: var(--bg-color); padding: 2px 6px; text-transform: uppercase; letter-spacing: 1px; font-weight: 600; }
+        .share-card {
+    border: 1px solid var(--border-color);
+    padding: 12px;
+    background: var(--glass-bg);
+    backdrop-filter: blur(15px);
+    -webkit-backdrop-filter: blur(15px);
+    border-radius: 0;
+    cursor: pointer;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+}
+
+.share-card-badge {
+    display: inline-block;
+    font-size: 7px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--bg-color);
+    background: var(--text-color);
+    padding: 3px 6px;
+    margin-bottom: 8px;
+}
+
+.share-card-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-color);
+    line-height: 1.4;
+    margin-bottom: 4px;
+    word-break: break-word;
+}
+
+.share-card-desc {
+    font-size: 9px;
+    color: var(--text-secondary);
+    margin-bottom: 6px;
+    letter-spacing: 0.5px;
+}
+
+.share-card-preview {
+    font-size: 11px;
+    color: var(--text-color);
+    line-height: 1.5;
+    opacity: 0.9;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    word-break: break-word;
+}
 
         /* 详情弹窗 (纯色背景 + 尖角) */
         .music-invite-modal { 
@@ -686,75 +742,48 @@ html, body {
 
 /* 强制修复 iOS 底部黑块：已通过 100dvh 动态视口高度与背景色同步解决 */
 
-/* ==================== Telegram 风格气泡 ==================== */
-.msg-row.me .msg-bubble::before,
-.msg-row.me .msg-bubble::after,
-.msg-row.ai .msg-bubble::before,
-.msg-row.ai .msg-bubble::after {
+/* ==================== 稳定版气泡与卡片分离 ==================== */
+.msg-row.bubble-row.me .msg-bubble::before,
+.msg-row.bubble-row.me .msg-bubble::after,
+.msg-row.bubble-row.ai .msg-bubble::before,
+.msg-row.bubble-row.ai .msg-bubble::after {
     display: none !important;
 }
 
-.msg-row.me .msg-bubble,
-.msg-row.ai .msg-bubble {
+.msg-row.bubble-row.me .msg-bubble,
+.msg-row.bubble-row.ai .msg-bubble {
     border-radius: 18px !important;
 }
 
-.msg-row.me .msg-bubble {
-    border-bottom-right-radius: 4px !important;
+.msg-row.bubble-row.me .msg-bubble {
+    border-bottom-right-radius: 8px !important;
 }
 
-.msg-row.me:has(+ .msg-row.me) .msg-bubble {
-    border-bottom-right-radius: 4px !important;
-    border-top-right-radius: 18px !important;
+.msg-row.bubble-row.ai .msg-bubble {
+    border-bottom-left-radius: 8px !important;
 }
 
-.msg-row.me + .msg-row.me:has(+ .msg-row.me) .msg-bubble {
-    border-top-right-radius: 4px !important;
-    border-bottom-right-radius: 4px !important;
+.msg-row.bubble-row + .msg-row.bubble-row {
+    margin-top: 4px !important;
 }
 
-.msg-row.me + .msg-row.me:not(:has(+ .msg-row.me)) .msg-bubble {
-    border-top-right-radius: 4px !important;
-    border-bottom-right-radius: 18px !important;
+.msg-row.card-row {
+    margin-top: 10px !important;
+    margin-bottom: 10px !important;
 }
 
-.msg-row.ai .msg-bubble {
-    border-bottom-left-radius: 4px !important;
+.msg-row.card-row + .msg-row.bubble-row,
+.msg-row.bubble-row + .msg-row.card-row,
+.msg-row.card-row + .msg-row.card-row {
+    margin-top: 10px !important;
 }
 
-.msg-row.ai:has(+ .msg-row.ai) .msg-bubble {
-    border-bottom-left-radius: 4px !important;
-    border-top-left-radius: 18px !important;
+.msg-row.card-row .msg-avatar {
+    visibility: visible !important;
 }
 
-.msg-row.ai + .msg-row.ai:has(+ .msg-row.ai) .msg-bubble {
-    border-top-left-radius: 4px !important;
-    border-bottom-left-radius: 4px !important;
-}
-
-.msg-row.ai + .msg-row.ai:not(:has(+ .msg-row.ai)) .msg-bubble {
-    border-top-left-radius: 4px !important;
-    border-bottom-left-radius: 18px !important;
-}
-
-.msg-row.me + .msg-row.me,
-.msg-row.ai + .msg-row.ai {
-    margin-top: -4px !important;
-}
-
-.msg-row.me + .msg-row.ai,
-.msg-row.ai + .msg-row.me {
-    margin-top: 8px !important;
-}
-
-.msg-row.me:has(+ .msg-row.me) .msg-status,
-.msg-row.ai:has(+ .msg-row.ai) .msg-status {
-    display: none;
-}
-
-.msg-row.me:has(+ .msg-row.me) .msg-avatar,
-.msg-row.ai:has(+ .msg-row.ai) .msg-avatar {
-    visibility: hidden;
+.msg-row.card-row .msg-wrapper {
+    max-width: 86% !important;
 }
 
 /* ==================== 毛玻璃输入框 ==================== */
