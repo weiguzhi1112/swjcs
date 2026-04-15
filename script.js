@@ -2331,6 +2331,56 @@ let currentCallAudioId = null;
             resultsEl.innerHTML = `<div style="text-align:center;padding:20px;color:var(--text-secondary);font-size:10px;">生成失败: ${e.message}</div>`;
         }
     }
+
+    let TO_SHOPS = [];
+    function toInitApp() {
+        if (!window.toCart) window.toCart = {};
+    }
+    function toGoHome() {
+        document.querySelectorAll('.to-page').forEach(p => p.classList.remove('active', 'base', 'slide-left'));
+        const home = document.getElementById('to-home');
+        if(home) home.classList.add('active', 'base');
+    }
+    function toSwitchTab(el, tab) {
+        document.querySelectorAll('.to-nav-item').forEach(n => n.classList.remove('active'));
+        if(el) el.classList.add('active');
+        document.querySelectorAll('.to-page').forEach(p => p.classList.remove('active', 'base', 'slide-left'));
+        if (tab === 'home') document.getElementById('to-home').classList.add('active', 'base');
+        if (tab === 'discover') document.getElementById('to-discover-page').classList.add('active');
+        if (tab === 'orders') document.getElementById('to-orders-page').classList.add('active');
+        if (tab === 'profile') document.getElementById('to-profile-page').classList.add('active');
+    }
+    function toOpenCart() {
+        const cart = document.getElementById('to-cart');
+        if(cart) cart.classList.add('active');
+    }
+    function toGoBackAuto() {
+        const pages = document.querySelectorAll('.to-page.active');
+        if(pages.length > 0) {
+            pages[pages.length - 1].classList.remove('active');
+        }
+    }
+    function toNavTo(pageId) {
+        const page = document.getElementById(pageId);
+        if(page) page.classList.add('active');
+    }
+    function toUpdateCartFloat() {}
+    function toClearCart() { window.toCart = {}; alert('购物车已清空'); }
+    function toOpenOrder() { document.getElementById('to-order').classList.add('active'); }
+    function toSubmitOrder() { document.getElementById('to-success').classList.add('active'); }
+    function toViewReceipt() { document.getElementById('to-receipt').classList.add('active'); }
+    function toAddAddress() { openModal('modal-to-address'); }
+    function toSaveAddress() { closeModal('modal-to-address'); alert('地址已保存'); }
+    function toDoSearch() { alert('搜索功能已触发'); }
+    function toClearFavorites() { alert('收藏已清空'); }
+    function toToggleFavShop() { alert('已收藏/取消收藏'); }
+    function toSelectTime(el) {
+        document.querySelectorAll('.to-time-chip').forEach(c => c.classList.remove('active'));
+        el.classList.add('active');
+    }
+    function toRenderShopList() {}
+    function toOpenShop() {}
+
         async function triggerAI(isReroll = false) {
         if (!currentChatRoleId || window.isAiResponding) return;
 
