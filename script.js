@@ -8,8 +8,6 @@ if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.
         });
     }
     
-
-
 function showGlobalTyping(name) {
     const chatView = document.getElementById('chat-view');
     const isChatActive = chatView && chatView.classList.contains('active');
@@ -2640,11 +2638,12 @@ ${modeRules}
                 updateStatusBarButton();
             }
 
+
             if (!settings.showCoT) {
-                fullReply = fullReply.replace(thoughtRegex, '').replace(stateRegex, '').trim();
+                fullReply = fullReply.replace(/<thought>[\s\S]*?<\/thought>/gi, '').replace(/思考：[\s\S]*?(?=\n\n|$)/gi, '').replace(/<state>[\s\S]*?<\/state>/gi, '').trim();
             } else {
                 fullReply = fullReply.replace(/<thought>([\s\S]*?)<\/thought>/gi, '<div style="opacity:0.6; font-size:0.85em; border-left:2px solid currentColor; padding-left:8px; margin-bottom:8px; font-style:italic;">$1</div>')
-                                     .replace(stateRegex, '').trim();
+                                     .replace(/<state>[\s\S]*?<\/state>/gi, '').trim();
             }
             
             const avatarMatch = fullReply.match(/\[CHANGE_AVATAR:(.*?)\]/);
@@ -3601,8 +3600,8 @@ async function generateTodaySummary(roleId) {
         $('#role-opening').value = isEditing ? (role.opening || '') : '';
 
         $('#role-show-header-avatar').checked = isEditing ? !!role.showHeaderAvatar : false;
-        $('#role-default-chat-mode').value = isEditing ? (role.defaultChatMode || 'online') : 'online';
-        $('#role-auto-switch-mode').checked = isEditing ? !!role.autoSwitchMode : false;
+        if ($('#role-default-chat-mode')) $('#role-default-chat-mode').value = isEditing ? (role.defaultChatMode || 'online') : 'online';
+        if ($('#role-auto-switch-mode')) $('#role-auto-switch-mode').checked = isEditing ? !!role.autoSwitchMode : false;
         if ($('#role-hide-mode-switcher')) $('#role-hide-mode-switcher').checked = isEditing ? !!role.hideModeSwitcher : false;  
         
         const totalMsgs = isEditing ? (chats[id] || []).length : 0;
@@ -6383,13 +6382,49 @@ async function generateAutoMsg(roleId) {
         apiMessages.push({ role: 'system', content: systemPrompt });
         
         const contextMsgs = chatHistory.slice(-contextLimit).map(m => {
-            let textContent = m.content.replace(/<[^>]*>/g, '').replace(/$$VIRTUAL_IMG:.*?$$/g, '[图片]').replace(/$$MUSIC_CARD:.*?$$/g, '[分享歌曲]').replace(/$$TICKET:.*?$$/g, '[票根]');
+            let textContent = m.content;
+            textContent = textContent.replace(/<state>[\s\S]*?<\/state>\n*/gi, '');
+            textContent = textContent.replace(/<thought>[\s\S]*?<\/thought>\n*/gi, '');
+            textContent = textContent.replace(/思考：[\s\S]*?\n\n/gi, '');
+            textContent = textContent.replace(/\[GIFT_TO_AI:(.*?)\]/g, (match, p1) => {
+                try { const data = JSON.parse(decodeURIComponent(p1)); return `[系统提示：用户为你点了一份礼物/外卖，物品：${data.itemName}，来自：${data.shopName}，价值：¥${data.price}]`; } catch(e) { return '[收到一份礼物]'; }
+            });
+            textContent = textContent.replace(/\[TRANSFER:(.*?)\]/g, (match, p1) => {
+                try { const data = JSON.parse(decodeURIComponent(p1)); return `[系统提示：用户向你转账了 ¥${data.amount}]`; } catch(e) { return '[收到一笔转账]'; }
+            });
+            textContent = textContent.replace(/\[FAMILY_CARD:(.*?)\]/g, (match, p1) => {
+                try { const data = JSON.parse(decodeURIComponent(p1)); return `[系统提示：用户赠送了你一张亲属卡，每月额度：¥${data.limit}]`; } catch(e) { return '[收到一张亲属卡]'; }
+            });
+            textContent = textContent.replace(/\[PAY_REQUEST:(.*?)\]/g, (match, p1) => {
+                try { const data = JSON.parse(decodeURIComponent(p1)); return `[系统提示：用户向你发送了代付请求，物品：${data.shopName}，需要你支付：¥${data.total}]`; } catch(e) { return '[收到一个代付请求]'; }
+            });
+            textContent = textContent.replace(/\[OURSPACE_INVITE:(.*?)\]/g, (match, p1) => {
+                try { 
+                    const data = JSON.parse(decodeURIComponent(p1)); 
+                    return `[系统提示：用户向你发送了专属情侣空间(OurSpace)的绑定邀请，用户的配对码为：${data.code}。如果你同意绑定，请务必在回复中包含隐藏指令 [ACCEPT_OURSPACE:${data.code}]，并且你需要自己编造一个全新的 6 位数字配对码发给用户，让用户去输入。]`; 
+                } catch(e) { return '[收到情侣空间绑定邀请]'; }
+            });
+            textContent = textContent.replace(/\[MUSIC_CARD:(.*?)\]/g, (match, p1) => {
+                try { const data = JSON.parse(decodeURIComponent(p1)); return `[系统提示：用户邀请你一起听歌：《${data.name}》- ${data.artist}]`; } catch(e) { return '[收到一起听歌邀请]'; }
+            });
+            textContent = textContent.replace(/\[TICKET:(.*?)\]/g, (match, p1) => {
+                try { const data = JSON.parse(decodeURIComponent(p1)); return `[系统提示：用户向你分享了一张票根：${data.title} (${data.subtitle})]`; } catch(e) { return '[收到一张票根]'; }
+            });
+            textContent = textContent.replace(/\[FEED_CARD:(.*?)\]/g, (match, p1) => {
+                try { const data = JSON.parse(decodeURIComponent(p1)); return `[系统提示：用户向你分享了一条动态，作者：${data.author}，内容：${data.content}]`; } catch(e) { return '[分享了一条动态]'; }
+            });
+            textContent = textContent.replace(/<div class="virtual-img-box" data-text="(.*?)".*?<\/div>/g, '[图片: $1]');
+            textContent = textContent.replace(/<img[^>]*src="([^"]+)"[^>]*>/g, '[发送了一张图片]');
+            textContent = textContent.replace(/<[^>]*>/g, '').trim();
+
             if (settings.timeAware && m.rawTime) {
                 const msgDate = new Date(m.rawTime);
                 const timePrefix = `[${msgDate.getFullYear()}/${String(msgDate.getMonth() + 1).padStart(2, '0')}/${String(msgDate.getDate()).padStart(2, '0')} ${weekdays[msgDate.getDay()]} ${String(msgDate.getHours()).padStart(2, '0')}:${String(msgDate.getMinutes()).padStart(2, '0')}]`;
                 textContent = timePrefix + ' ' + textContent;
             }
-            return { role: m.role === 'user' ? 'user' : 'assistant', content: textContent };
+            let msgRole = m.role;
+            if (msgRole !== 'user' && msgRole !== 'system') msgRole = 'assistant';
+            return { role: msgRole, content: textContent };
         });
         
         apiMessages.push(...contextMsgs);
