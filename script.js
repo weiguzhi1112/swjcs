@@ -1,32 +1,62 @@
-window.addEventListener('error', function (e) {
+function showBootStatus(message) {
     const box = document.getElementById('boot-fallback');
+    const status = document.getElementById('boot-status-text');
     const text = document.getElementById('boot-error-text');
-    if (box && text) {
-        box.style.display = 'flex';
-        text.style.display = 'block';
-        text.textContent = '启动错误：\n' + (e.message || 'unknown error') + '\n\n文件：' + (e.filename || '') + '\n行号：' + (e.lineno || '');
+    if (box && status && text) {
+        status.textContent = message || '启动中...';
+        text.style.display = 'none';
+        text.textContent = '';
+        box.style.opacity = '1';
+        box.style.transform = 'translateY(0)';
     }
+}
+
+function showBootError(message) {
+    const box = document.getElementById('boot-fallback');
+    const status = document.getElementById('boot-status-text');
+    const text = document.getElementById('boot-error-text');
+    if (box && status && text) {
+        status.textContent = '启动异常';
+        text.style.display = 'block';
+        text.textContent = message || '未知错误';
+        box.style.opacity = '1';
+        box.style.transform = 'translateY(0)';
+    }
+}
+
+function hideBootStatus() {
+    const box = document.getElementById('boot-fallback');
+    if (box) {
+        box.style.opacity = '0';
+        box.style.transform = 'translateY(-8px)';
+    }
+}
+
+window.addEventListener('error', function (e) {
+    showBootError(
+        '启动错误：\n' +
+        (e.message || 'unknown error') +
+        '\n\n文件：' + (e.filename || '') +
+        '\n行号：' + (e.lineno || '')
+    );
 });
 
 window.addEventListener('unhandledrejection', function (e) {
-    const box = document.getElementById('boot-fallback');
-    const text = document.getElementById('boot-error-text');
-    if (box && text) {
-        box.style.display = 'flex';
-        text.style.display = 'block';
-        text.textContent = 'Promise 未处理异常：\n' + (e.reason && e.reason.message ? e.reason.message : String(e.reason));
-    }
+    showBootError(
+        'Promise 未处理异常：\n' +
+        (e.reason && e.reason.message ? e.reason.message : String(e.reason))
+    );
 });
 
 if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost' || location.protocol.startsWith('http'))) {
-        window.addEventListener('load', () => {
-            navigator.serviceWorker.register('./sw.js').then(reg => {
-                console.log('Service Worker registered:', reg.scope);
-            }).catch(err => {
-                console.log('Service Worker registration failed:', err);
-            });
+    window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js').then(reg => {
+            console.log('Service Worker registered:', reg.scope);
+        }).catch(err => {
+            console.log('Service Worker registration failed:', err);
         });
-    }
+    });
+}
     
 function showGlobalTyping(name) {
     const chatView = document.getElementById('chat-view');
@@ -181,9 +211,11 @@ document.addEventListener('touchmove', function(e) {
     }
 
     async function bootDatabase() {
+    try {
         if (navigator.storage && navigator.storage.persist) {
             try { await navigator.storage.persist(); } catch(e) {}
         }
+
         window.idbStore = await new Promise((resolve) => {
             try {
                 const request = indexedDB.open('锁雾机OS_DB', 1);
@@ -192,13 +224,31 @@ document.addEventListener('touchmove', function(e) {
                     const db = e.target.result;
                     resolve({
                         get: (key) => new Promise(r => {
-                            try { const req = db.transaction('store', 'readonly').objectStore('store').get(key); req.onsuccess = () => r(req.result); req.onerror = () => r(undefined); } catch(err) { r(undefined); }
+                            try {
+                                const req = db.transaction('store', 'readonly').objectStore('store').get(key);
+                                req.onsuccess = () => r(req.result);
+                                req.onerror = () => r(undefined);
+                            } catch(err) {
+                                r(undefined);
+                            }
                         }),
                         put: (val, key) => new Promise(r => {
-                            try { const req = db.transaction('store', 'readwrite').objectStore('store').put(val, key); req.onsuccess = () => r(true); req.onerror = () => r(false); } catch(err) { r(false); }
+                            try {
+                                const req = db.transaction('store', 'readwrite').objectStore('store').put(val, key);
+                                req.onsuccess = () => r(true);
+                                req.onerror = () => r(false);
+                            } catch(err) {
+                                r(false);
+                            }
                         }),
                         getAllKeys: () => new Promise(r => {
-                            try { const req = db.transaction('store', 'readonly').objectStore('store').getAllKeys(); req.onsuccess = () => r(req.result); req.onerror = () => r([]); } catch(err) { r([]); }
+                            try {
+                                const req = db.transaction('store', 'readonly').objectStore('store').getAllKeys();
+                                req.onsuccess = () => r(req.result);
+                                req.onerror = () => r([]);
+                            } catch(err) {
+                                r([]);
+                            }
                         })
                     });
                 };
@@ -217,23 +267,38 @@ document.addEventListener('touchmove', function(e) {
                         const key = localStorage.key(i);
                         if (key && key.startsWith('suowu_')) {
                             const realKey = key.substring(6);
-                            try { const val = JSON.parse(localStorage.getItem(key)); await window.idbStore.put(val, realKey); DB.cache[realKey] = val; } catch(e) {}
+                            try {
+                                const val = JSON.parse(localStorage.getItem(key));
+                                await window.idbStore.put(val, realKey);
+                                DB.cache[realKey] = val;
+                            } catch(e) {}
                         }
                     }
                 } else {
-                    for (const key of keys) { DB.cache[key] = await window.idbStore.get(key); }
+                    for (const key of keys) {
+                        DB.cache[key] = await window.idbStore.get(key);
+                    }
                 }
             } else {
                 for (let i = 0; i < localStorage.length; i++) {
                     const key = localStorage.key(i);
-                    if (key && key.startsWith('suowu_')) { try { DB.cache[key.substring(6)] = JSON.parse(localStorage.getItem(key)); } catch(e) {} }
+                    if (key && key.startsWith('suowu_')) {
+                        try {
+                            DB.cache[key.substring(6)] = JSON.parse(localStorage.getItem(key));
+                        } catch(e) {}
+                    }
                 }
             }
         } catch (e) {
             console.warn("LocalStorage 被拦截，降级使用内存模式", e);
         }
+
         initGlobalVariables();
+    } catch (e) {
+        console.error("bootDatabase internal error", e);
+        throw e;
     }
+}
 
     function initGlobalVariables() {
         roles = DB.get('roles', []);
@@ -740,8 +805,7 @@ async function checkDiscordCallback() {
     setupKeyboardShortcuts(); 
     setupAudioPlayer();
 
-    const bootFallback = document.getElementById('boot-fallback');
-    if (bootFallback) bootFallback.style.display = 'none';
+    hideBootStatus();
 
     const chatViewObserver = new MutationObserver(mutations => {
     mutations.forEach(mutation => {
@@ -1180,39 +1244,16 @@ document.addEventListener('DOMContentLoaded', () => {
     const appView = document.getElementById(`view-${appId}`);
     if (!appView) return;
 
-    document.querySelectorAll('.view-container').forEach(v => v.classList.remove('active'));
-    if (currentChatRoleId) closeChat();
-
-    appView.classList.add('active');
-
-    const desktop = $('#view-desktop');
-    if (desktop) {
-        desktop.style.opacity = '0';
-        desktop.style.pointerEvents = 'none';
-        desktop.style.visibility = 'hidden';
-    }
-
-    const pagination = $('#desktop-pagination');
-    if (pagination) {
-        pagination.style.opacity = '0';
-        pagination.style.visibility = 'hidden';
-    }
-
-    const dock = $('#desktop-dock');
-    if (dock) {
-        dock.style.opacity = '0';
-        dock.style.pointerEvents = 'none';
-        dock.style.visibility = 'hidden';
-    }
-
     try {
+        document.querySelectorAll('.view-container').forEach(v => v.classList.remove('active'));
+        if (currentChatRoleId) closeChat();
+
         if (appId === 'messages') renderRecent();
         if (appId === 'contacts') renderContacts();
         if (appId === 'appearance') renderAppearanceApp();
         if (appId === 'beauty') {
             if (typeof openBeautyApp === 'function') {
                 openBeautyApp();
-                return;
             }
         }
         if (appId === 'feed') renderFeeds();
@@ -1257,9 +1298,32 @@ document.addEventListener('DOMContentLoaded', () => {
                 renderOsPairingView();
             }
         }
+
+        appView.classList.add('active');
+
+        const desktop = $('#view-desktop');
+        if (desktop) {
+            desktop.style.opacity = '0';
+            desktop.style.pointerEvents = 'none';
+            desktop.style.visibility = 'hidden';
+        }
+
+        const pagination = $('#desktop-pagination');
+        if (pagination) {
+            pagination.style.opacity = '0';
+            pagination.style.visibility = 'hidden';
+        }
+
+        const dock = $('#desktop-dock');
+        if (dock) {
+            dock.style.opacity = '0';
+            dock.style.pointerEvents = 'none';
+            dock.style.visibility = 'hidden';
+        }
     } catch (err) {
         console.error(`openApp(${appId}) failed:`, err);
         alert(`APP 打开失败：${appId}\n\n错误信息：${err.message}`);
+        closeApp(appId);
     }
 }
     
@@ -1642,6 +1706,7 @@ function updateKeepAliveUI(isOn) {
             DB.set('chats', chats); 
         } 
         updateStatusBarButton();
+        applyRoleCustomCss(roleId);
         renderMessages(); 
     }
     function closeChat() { if (currentChatRoleId) { let leaveTimes = DB.get('leaveTimes', {}); leaveTimes[currentChatRoleId] = Date.now(); DB.set('leaveTimes', leaveTimes); } $('#chat-view').classList.remove('active'); $('#main-content-area').classList.remove('chat-active'); $('#chat-view').style.removeProperty('--role-accent-color'); currentChatRoleId = null; cancelSelectionMode(); cancelQuote(); $('#attachment-popup').style.display = 'none'; updateMusicPlayerForSession(); renderRecent(); }
@@ -8365,9 +8430,7 @@ function initStatusBarData(roleId) {
     if (!statusBarData[roleId]) {
         statusBarData[roleId] = {
             enabled: false,
-            promptSuffix: '',
-            regex: '',
-            htmlTemplate: '',
+            customCss: '',
             history: []
         };
     }
@@ -8379,11 +8442,7 @@ function openStatusConfigModal() {
     if (!roleId) return alert('请先选择一个角色');
     const config = initStatusBarData(roleId);
     $('#status-enabled-check').checked = config.enabled;
-    $('#status-prompt-suffix').value = config.promptSuffix || '';
-    $('#status-regex-pattern').value = config.regex || '';
-    $('#status-html-template').value = config.htmlTemplate || '';
-    $('#status-test-input').value = '';
-    $('#status-test-result').innerHTML = '测试结果显示区域';
+    $('#status-custom-css').value = config.customCss || '';
     openModal('modal-status-config');
 }
 
@@ -8392,13 +8451,27 @@ function saveStatusConfig() {
     if (!roleId) return;
     const config = initStatusBarData(roleId);
     config.enabled = $('#status-enabled-check').checked;
-    config.promptSuffix = $('#status-prompt-suffix').value.trim();
-    config.regex = $('#status-regex-pattern').value.trim();
-    config.htmlTemplate = $('#status-html-template').value.trim();
+    config.customCss = $('#status-custom-css').value.trim();
     statusBarData[roleId] = config;
     DB.set('statusBarData', statusBarData);
+    applyRoleCustomCss(roleId);
     updateStatusBarButton();
     closeModal('modal-status-config');
+}
+
+function applyRoleCustomCss(roleId) {
+    let styleEl = document.getElementById('role-custom-css-' + roleId);
+    if (!styleEl) {
+        styleEl = document.createElement('style');
+        styleEl.id = 'role-custom-css-' + roleId;
+        document.head.appendChild(styleEl);
+    }
+    const config = statusBarData[roleId];
+    if (config && config.enabled && config.customCss) {
+        styleEl.innerHTML = config.customCss;
+    } else {
+        styleEl.innerHTML = '';
+    }
 }
 
 function testStatusRegex() {
@@ -11551,8 +11624,24 @@ async function playCachedAudio(audioId) {
     }
 }
 
-document.addEventListener('DOMContentLoaded', () => {
-    bootDatabase();
+document.addEventListener('DOMContentLoaded', async () => {
+    showBootStatus('启动中...');
+    
+    const autoHideTimer = setTimeout(() => {
+        hideBootStatus();
+    }, 1800);
+
+    try {
+        await bootDatabase();
+        clearTimeout(autoHideTimer);
+        setTimeout(() => {
+            hideBootStatus();
+        }, 300);
+    } catch (err) {
+        clearTimeout(autoHideTimer);
+        console.error('bootDatabase failed:', err);
+        showBootError('bootDatabase 启动失败：\n' + (err && err.message ? err.message : String(err)));
+    }
 });
 
 document.addEventListener('visibilitychange', () => {

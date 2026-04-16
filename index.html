@@ -1579,60 +1579,20 @@
 <!-- 状态栏配置弹窗（含预设管理） -->
 <div class="modal-overlay" id="modal-status-config">
     <div class="modal" style="max-height:85vh;">
-        <h3>Status Bar <span>角色状态栏</span></h3>
+        <h3>Status Bar <span>角色状态栏美化</span></h3>
 
         <!-- 启用开关 -->
         <div class="setting-group" style="border:none; padding:0;">
             <label style="display:flex; align-items:center; gap:10px; margin-bottom:10px;">
                 <input type="checkbox" id="status-enabled-check" style="width:auto;">
-                启用角色状态栏
+                启用自定义CSS美化
             </label>
-        </div>
-
-        <!-- 预设快捷操作栏 -->
-        <div style="display:flex; gap:6px; margin-bottom:15px; flex-wrap:wrap;">
-            <button class="action-btn" onclick="openModal('modal-status-presets')" style="flex:1; min-width:0;">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>
-                PRESETS
-            </button>
-            <button class="action-btn" onclick="saveCurrentAsPreset()" style="flex:1; min-width:0;">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-                SAVE AS
-            </button>
-            <button class="action-btn" onclick="exportStatusPresets()" style="flex:1; min-width:0;">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
-                EXPORT
-            </button>
-            <button class="action-btn" onclick="document.getElementById('status-preset-import-file').click()" style="flex:1; min-width:0;">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
-                IMPORT
-            </button>
-            <input type="file" id="status-preset-import-file" accept=".json" style="display:none" onchange="importStatusPresets(event)">
         </div>
 
         <!-- 配置表单 -->
         <div class="setting-group" style="border:none; padding:0;">
-            <label>PROMPT SUFFIX / 提示词后缀</label>
-            <textarea id="status-prompt-suffix" placeholder="告诉AI用什么格式输出状态..." style="width:100%; min-height:80px; padding:8px; border:1px solid var(--border-color); background:transparent; color:var(--text-color); font-size:11px; outline:none; resize:vertical;"></textarea>
-        </div>
-        <div class="setting-group" style="border:none; padding:0;">
-            <label>REGEX / 提取正则</label>
-            <input type="text" id="status-regex-pattern" placeholder="例如：\[STATUS:(.*?)\|(.*?)\]" style="width:100%; padding:8px; border:1px solid var(--border-color); background:transparent; color:var(--text-color); font-size:11px; outline:none; font-family:monospace;">
-        </div>
-        <div class="setting-group" style="border:none; padding:0;">
-            <label>HTML TEMPLATE / 渲染模板</label>
-            <textarea id="status-html-template" placeholder="用 $1 $2 引用捕获组..." style="width:100%; min-height:80px; padding:8px; border:1px solid var(--border-color); background:transparent; color:var(--text-color); font-size:11px; outline:none; resize:vertical; font-family:monospace;"></textarea>
-        </div>
-
-        <!-- 测试区 -->
-        <div class="setting-group" style="border:none; padding:0;">
-            <label>TEST / 测试</label>
-            <textarea id="status-test-input" placeholder="粘贴包含状态码的AI回复来测试..." style="width:100%; min-height:40px; padding:8px; border:1px solid var(--border-color); background:transparent; color:var(--text-color); font-size:11px; outline:none; resize:vertical;"></textarea>
-            <button class="action-btn" onclick="testStatusRegex()" style="width:100%; margin-top:5px;">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
-                RUN TEST
-            </button>
-            <div id="status-test-result" style="margin-top:10px; padding:10px; border:1px dashed var(--border-color); min-height:30px; font-size:11px; color:var(--text-secondary);">测试结果显示区域</div>
+            <label>CUSTOM CSS / 自定义CSS代码</label>
+            <textarea id="status-custom-css" placeholder="在这里输入CSS代码来美化状态栏..." style="width:100%; min-height:200px; padding:8px; border:1px solid var(--border-color); background:transparent; color:var(--text-color); font-size:11px; outline:none; resize:vertical; font-family:monospace;"></textarea>
         </div>
 
         <div class="modal-btns">
