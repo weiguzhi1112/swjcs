@@ -104,7 +104,88 @@ body {
     box-shadow: none !important;
     margin: 0 !important;
 }
-        #status-bar { height: var(--status-bar-height); display: flex; justify-content: space-between; padding: 0 25px; align-items: center; font-size: 11px; font-weight: 600; letter-spacing: 1px; color: var(--text-color); z-index: 1000; position: relative; flex-shrink: 0; font-family: var(--font-sans); }
+        #status-bar {
+            height: var(--status-bar-height);
+            display: flex;
+            justify-content: space-between;
+            padding: 0 25px;
+            align-items: center;
+            font-size: 12px;
+            font-weight: 600;
+            letter-spacing: 1px;
+            color: var(--text-color);
+            z-index: 1000;
+            position: relative;
+            flex-shrink: 0;
+            font-family: var(--font-sans);
+        }
+        .status-icons {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .css-signal {
+            display: flex;
+            align-items: flex-end;
+            gap: 1.5px;
+            height: 10px;
+        }
+        .signal-bar {
+            width: 2.5px;
+            background-color: currentColor;
+            border-radius: 1px;
+        }
+        .signal-bar:nth-child(1) { height: 3px; }
+        .signal-bar:nth-child(2) { height: 5px; }
+        .signal-bar:nth-child(3) { height: 7px; }
+        .signal-bar:nth-child(4) { height: 10px; }
+        .css-wifi {
+            position: relative;
+            width: 14px;
+            height: 10px;
+            display: flex;
+            justify-content: center;
+            align-items: flex-end;
+            overflow: hidden;
+        }
+        .wifi-arc {
+            position: absolute;
+            border: 2px solid currentColor;
+            border-radius: 50%;
+            border-bottom-color: transparent;
+            border-left-color: transparent;
+            border-right-color: transparent;
+        }
+        .arc-3 { width: 18px; height: 18px; bottom: -6px; }
+        .arc-2 { width: 10px; height: 10px; bottom: -2px; }
+        .arc-1 { width: 4px; height: 4px; bottom: 0; background-color: currentColor; border: none; }
+        .css-battery {
+            display: flex;
+            align-items: center;
+            margin-left: 2px;
+        }
+        .battery-body {
+            width: 22px;
+            height: 11px;
+            border: 1px solid currentColor;
+            border-radius: 3px;
+            padding: 1px;
+            display: flex;
+            align-items: center;
+        }
+        .battery-fill {
+            height: 100%;
+            width: 80%;
+            background-color: currentColor;
+            border-radius: 1px;
+        }
+        .battery-cap {
+            width: 2px;
+            height: 4px;
+            background-color: currentColor;
+            border-radius: 0 2px 2px 0;
+            margin-left: 1px;
+        }
         #main-content-area {
     position: relative;
     flex: 1;
