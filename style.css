@@ -1987,3 +1987,16 @@ body.is-app .to-page { padding-bottom: calc(70px + env(safe-area-inset-bottom)) 
         opacity: 1;
     }
 }
+.css-signal { display: flex; align-items: flex-end; gap: 1px; height: 10px; }
+.css-signal span { width: 2px; background: currentColor; border-radius: 1px; }
+.css-signal span:nth-child(1) { height: 3px; }
+.css-signal span:nth-child(2) { height: 5px; }
+.css-signal span:nth-child(3) { height: 7px; }
+.css-signal span:nth-child(4) { height: 10px; }
+.css-wifi { position: relative; width: 14px; height: 10px; display: flex; justify-content: center; align-items: flex-end; overflow: hidden; }
+.css-wifi span { position: absolute; border: 2px solid currentColor; border-radius: 50%; border-bottom-color: transparent; border-left-color: transparent; border-right-color: transparent; }
+.css-wifi span:nth-child(1) { width: 18px; height: 18px; bottom: -6px; }
+.css-wifi span:nth-child(2) { width: 10px; height: 10px; bottom: -2px; }
+.css-wifi span:nth-child(3) { width: 4px; height: 4px; bottom: 0; background: currentColor; border: none; }
+.css-battery { position: relative; width: 20px; height: 10px; border: 1px solid currentColor; border-radius: 3px; padding: 1px; display: flex; align-items: center; margin-left: 2px; }
+.css-battery::after { content: ''; position: absolute; right: -3px; top: 2px; width: 2px; height: 4px; background: currentColor; border-radius: 0 2px 2px 0; }

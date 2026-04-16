@@ -16,10 +16,9 @@
     
 <link rel="stylesheet" href="style.css"></head>
 <body>
-<div id="boot-fallback" style="position:fixed;inset:0;background:#111;color:#fff;z-index:999999;display:flex;align-items:center;justify-content:center;flex-direction:column;font-family:sans-serif;">
-    <div style="font-size:20px;margin-bottom:10px;">锁雾机 OS</div>
-    <div style="font-size:12px;opacity:.7;">启动中...</div>
-    <pre id="boot-error-text" style="display:none;margin-top:15px;max-width:90%;white-space:pre-wrap;font-size:11px;color:#ff8080;"></pre>
+<div id="boot-fallback" style="position:fixed;top:12px;right:12px;background:rgba(17,17,17,0.92);color:#fff;z-index:999999;display:flex;align-items:flex-start;justify-content:center;flex-direction:column;font-family:sans-serif;padding:10px 12px;border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,0.25);max-width:280px;pointer-events:none;transition:opacity .25s ease, transform .25s ease;opacity:0;transform:translateY(-8px);">
+    <div id="boot-status-text" style="font-size:12px;line-height:1.4;">启动中...</div>
+    <pre id="boot-error-text" style="display:none;margin-top:8px;white-space:pre-wrap;font-size:11px;line-height:1.45;color:#ff8080;"></pre>
 </div>
 <div id="phone-shell">
 <!-- 自动登录连星动画遮罩 -->
@@ -40,10 +39,10 @@
 <div id="msg-banner-container" style="display:none;"></div>
     <div id="status-bar">
         <span id="time">12:00</span>
-        <div style="display:flex; align-items:center; gap:5px;">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C7.31 2 3.07 4.9 0 8.98L12 22L24 8.98C20.93 4.9 16.69 2 12 2Z"/></svg>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M2 22H22V2L2 22Z"/></svg>
-            <div style="position:relative; width:20px; height:10px; border:1px solid currentColor; border-radius:3px; padding:1px; display:flex; align-items:center;"><div id="battery-level" style="height:100%; width:80%; background:currentColor; border-radius:1px;"></div><div style="position:absolute; right:-3px; top:2px; width:2px; height:4px; background:currentColor; border-radius:0 2px 2px 0;"></div></div>
+        <div style="display:flex; align-items:center; gap:6px;">
+            <div class="css-signal"><span></span><span></span><span></span><span></span></div>
+            <div class="css-wifi"><span></span><span></span><span></span></div>
+            <div class="css-battery"><div id="battery-level" style="height:100%; width:80%; background:currentColor; border-radius:1px;"></div></div>
         </div>
     </div>
     
