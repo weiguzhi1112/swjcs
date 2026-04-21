@@ -1380,6 +1380,13 @@ document.addEventListener('DOMContentLoaded', () => {
     function toggleStatusBar() { settings.showStatusBar = !settings.showStatusBar; DB.set('settings', settings); applySettings(); }
         function applySettings() { 
         document.documentElement.setAttribute('data-theme', settings.theme); 
+        
+        // 动态修改系统状态栏/底栏颜色，消除黑色长条
+        const metaThemeColor = document.querySelector('meta[name="theme-color"]');
+        if (metaThemeColor) {
+            metaThemeColor.setAttribute('content', settings.theme === 'dark' ? '#000000' : '#ffffff');
+        }
+
         document.documentElement.style.setProperty('--font-size', `${settings.fontSize}px`); 
         document.documentElement.style.setProperty('--bubble-padding', `${settings.bubblePadding}px ${Math.max(8, Math.round(settings.bubblePadding * 1.2))}px`); 
         document.documentElement.style.setProperty('--avatar-size', `${settings.avatarSize || 28}px`); 
@@ -1912,15 +1919,11 @@ function updateKeepAliveUI(isOn) {
                     return `<div class="msg-row card-row ${isMe ? 'me' : 'ai'} ${isSelectionMode ? 'selection-mode' : ''}" onclick="handleMsgClick(${realIndex})" ${touchHandlers}>${checkboxHtml}${isMe ? '' : aiAvatarTag}<div class="msg-wrapper"><div class="daifu-card" onclick="if(isSelectionMode) return; ${clickAction}"><div class="daifu-icon">${iconText}</div><div class="daifu-info"><div class="daifu-title">${titleText}</div><div class="daifu-desc">${descText}</div><div class="daifu-bottom"><div class="daifu-price">${priceText}</div><div class="daifu-tag">${card.status || '待处理'}</div></div></div></div><div class="msg-status">${m.time}</div></div>${isMe ? userAvatarTag : ''}</div>`;
                 } catch(e) {}
             }
-
-            if (contentHtml.includes('===TRANSLATION===')) { 
+                if (contentHtml.includes('===TRANSLATION===')) { 
                 let parts = contentHtml.split('===TRANSLATION==='); 
                 if (settings.translationMode) {
-                    contentHtml = parts[0].trim().replace(/\n/g, '<br>') + 
-                    `<div onclick="event.stopPropagation(); const t = this.querySelector('.msg-translation-text'); if(t.style.display==='none'){t.style.display='block';}else{t.style.display='none';}" style="cursor:pointer; margin-top: 4px;">` +
-                    `<div class="msg-translation-divider" style="border-top: 1px dashed currentColor; margin: 8px 0; opacity: 0.3; height: 1px;"></div>` + 
-                    `<div class="msg-translation-text" style="display:block;">` + parts[1].trim().replace(/\n/g, '<br>') + `</div>` +
-                    `</div>`; 
+                    contentHtml = `<div onclick="event.stopPropagation(); const t = this.nextElementSibling; t.style.display = t.style.display === 'none' ? 'block' : 'none';" style="cursor:pointer; transition: opacity 0.3s;">${parts[0].trim().replace(/\n/g, '<br>')}</div>` + 
+                    `<div class="msg-translation-text" style="display:none; margin-top: 12px; padding-top: 12px; border-top: 1px solid rgba(128,128,128,0.15); font-size: 0.85em; opacity: 0.6; line-height: 1.6; font-family: var(--font-serif);">${parts[1].trim().replace(/\n/g, '<br>')}</div>`; 
                 } else { contentHtml = parts[0].trim().replace(/\n/g, '<br>'); }
             } else { contentHtml = contentHtml.replace(/\n/g, '<br>'); }
             
