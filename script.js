@@ -1699,6 +1699,9 @@ function updateKeepAliveUI(isOn) {
         const accentColor = role.accentColor || (settings.theme === 'dark' ? '#ffffff' : '#000000');
         $('#chat-view').style.setProperty('--role-accent-color', accentColor);
         
+        const attachmentColor = role.attachmentColor || (settings.theme === 'dark' ? '#ffffff' : '#000000');
+        $('#chat-view').style.setProperty('--attachment-color', attachmentColor);
+        
         const chatInput = $('#chat-input');
         const pText = role.placeholderText && role.placeholderText.trim() !== "" ? role.placeholderText : 'iMessage信息';
         chatInput.placeholder = pText;
@@ -1775,6 +1778,26 @@ function updateKeepAliveUI(isOn) {
             contentHtml = contentHtml.replace(/&lt;div class=&quot;bubble-typing-indicator&quot;&gt;&lt;div&gt;&lt;\/div&gt;&lt;div&gt;&lt;\/div&gt;&lt;div&gt;&lt;\/div&gt;&lt;\/div&gt;/g, '<div class="bubble-typing-indicator"><div></div><div></div><div></div></div>');
             const touchHandlers = `onmousedown="handleTouchStart(event, ${realIndex})" onmouseup="handleTouchEnd()" onmouseleave="handleTouchEnd()" ontouchstart="handleTouchStart(event, ${realIndex})" ontouchend="handleTouchEnd()" ontouchcancel="handleTouchEnd()"`;
 
+            let customBubbleStyle = '';
+            const isGlass = role.bubbleStyle === 'glass';
+            
+            function getGlassStyle(textColor) {
+                const isDarkTheme = document.documentElement.getAttribute('data-theme') === 'dark';
+                const bgColor = isDarkTheme ? `rgba(50, 50, 50, 0.2)` : `rgba(255, 255, 255, 0.02)`;
+                const borderColor = isDarkTheme ? `rgba(255, 255, 255, 0.15)` : `rgba(255, 255, 255, 0.25)`;
+                const shadow = isDarkTheme 
+                    ? `inset 0 1px 0 0 rgba(255, 255, 255, 0.1), inset 0 -2px 6px 0 rgba(255, 255, 255, 0.05), 0 5px 15px -3px rgba(0, 0, 0, 0.3)`
+                    : `inset 0 1px 0 0 rgba(255, 255, 255, 0.5), inset 0 -2px 6px 0 rgba(255, 255, 255, 0.45), 0 5px 15px -3px rgba(0, 0, 0, 0.15)`;
+
+                return `background-color: ${bgColor} !important; ` +
+                       `backdrop-filter: blur(5px) saturate(180%) !important; ` +
+                       `-webkit-backdrop-filter: blur(5px) saturate(180%) !important; ` +
+                       `border: 0.5px solid ${borderColor} !important; ` +
+                       `box-shadow: ${shadow} !important; ` +
+                       `color: ${textColor} !important; ` +
+                       `--tail-color: transparent !important;`;
+            }
+
             if (contentHtml.startsWith('[REAL_CALL:')) {
                 const raw = contentHtml.slice(11, -1);
                 try {
@@ -1812,10 +1835,34 @@ function updateKeepAliveUI(isOn) {
                 const dur = match ? match[1] : '?';
                 const voiceText = match ? match[2] : '';
                 const isExpanded = m.voiceExpanded;
-                const bubbleColor = m.role === 'user' ? 'var(--text-color)' : 'var(--bg-color)';
-                const textColor = m.role === 'user' ? 'var(--bg-color)' : 'var(--text-color)';
-                const border = m.role === 'ai' ? `border: 1px solid var(--border-color);` : '';
-                return `<div class="msg-row bubble-row ${m.role === 'user' ? 'me' : 'ai'}" onclick="handleMsgClick(${realIndex})">${m.role === 'ai' ? aiAvatarTag : ''}<div class="msg-wrapper"><div style="background:${bubbleColor}; color:${textColor}; ${border} padding: var(--bubble-padding); cursor:pointer; min-width:140px; max-width:220px; border-radius: 18px;" onclick="toggleVoiceExpand(${realIndex})" ${touchHandlers}><div style="display:flex; align-items:center; gap:10px;"><div style="width:28px; height:28px; border-radius:50%; background:${m.role === 'user' ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.08)'}; display:flex; align-items:center; justify-content:center; flex-shrink:0;"><svg width="13" height="13" viewBox="0 0 24 24" fill="${textColor}"><path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm-1-9c0-.55.45-1 1-1s1 .45 1 1v6c0 .55-.45 1-1 1s-1-.45-1-1V5zm6 6c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/></svg></div><div style="flex:1; display:flex; align-items:center; gap:2px; height:20px;">${Array.from({length: 12}, (_, i) => `<div style="width:2.5px; border-radius:2px; background:${textColor}; opacity:${0.3 + Math.sin(i * 0.8) * 0.35 + 0.15}; height:${6 + Math.abs(Math.sin(i * 0.9 + 1)) * 12}px;"></div>`).join('')}</div><span style="font-size:10px; opacity:0.65; flex-shrink:0; font-family:var(--font-sans); letter-spacing:0.5px;">${dur}"</span></div>${isExpanded ? `<div style="margin-top:8px; padding-top:8px; border-top:1px solid ${m.role === 'user' ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.1)'}; font-size:11px; line-height:1.5; opacity:0.8; font-family:var(--font-sans);">${voiceText}</div>` : ''}</div><div class="msg-status">${m.time}</div></div>${m.role === 'user' ? userAvatarTag : ''}</div>`;
+                
+                let voiceBubbleStyle = '';
+                let textColor = '';
+                let iconBg = '';
+                
+                if (m.role === 'user') {
+                    textColor = role.userTextColor || '#ffffff';
+                    const userBubbleC = role.userBubbleColor || '#000000';
+                    if (isGlass) {
+                        voiceBubbleStyle = getGlassStyle(textColor);
+                        iconBg = 'rgba(255,255,255,0.2)';
+                    } else {
+                        voiceBubbleStyle = `background-color: ${userBubbleC} !important; color: ${textColor} !important; border: none !important;`;
+                        iconBg = 'rgba(255,255,255,0.2)';
+                    }
+                } else {
+                    textColor = role.aiTextColor || '#ffffff';
+                    const aiBubbleC = role.aiBubbleColor || '#333333';
+                    if (isGlass) {
+                        voiceBubbleStyle = getGlassStyle(textColor);
+                        iconBg = 'rgba(0,0,0,0.15)';
+                    } else {
+                        voiceBubbleStyle = `background-color: ${aiBubbleC} !important; color: ${textColor} !important; border: none !important;`;
+                        iconBg = 'rgba(0,0,0,0.08)';
+                    }
+                }
+
+                return `<div class="msg-row bubble-row ${m.role === 'user' ? 'me' : 'ai'}" onclick="handleMsgClick(${realIndex})">${m.role === 'ai' ? aiAvatarTag : ''}<div class="msg-wrapper"><div style="${voiceBubbleStyle} padding: 8px 12px; cursor:pointer; min-width:110px; max-width:180px; border-radius: 16px;" onclick="toggleVoiceExpand(${realIndex})" ${touchHandlers}><div style="display:flex; align-items:center; gap:8px;"><div style="width:24px; height:24px; border-radius:50%; background:${iconBg}; display:flex; align-items:center; justify-content:center; flex-shrink:0;"><svg width="11" height="11" viewBox="0 0 24 24" fill="${textColor}"><path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm-1-9c0-.55.45-1 1-1s1 .45 1 1v6c0 .55-.45 1-1 1s-1-.45-1-1V5zm6 6c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/></svg></div><div style="flex:1; display:flex; align-items:center; gap:2px; height:16px;">${Array.from({length: 10}, (_, i) => `<div style="width:2px; border-radius:1px; background:${textColor}; opacity:${0.3 + Math.sin(i * 0.8) * 0.35 + 0.15}; height:${4 + Math.abs(Math.sin(i * 0.9 + 1)) * 10}px;"></div>`).join('')}</div><span style="font-size:9px; opacity:0.8; flex-shrink:0; font-family:var(--font-sans); letter-spacing:0.5px; font-weight:600;">${dur}"</span></div>${isExpanded ? `<div style="margin-top:8px; padding-top:8px; border-top:1px solid ${m.role === 'user' ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.1)'}; font-size:11px; line-height:1.5; opacity:0.9; font-family:var(--font-sans);">${voiceText}</div>` : ''}</div><div class="msg-status">${m.time}</div></div>${m.role === 'user' ? userAvatarTag : ''}</div>`;
             }
 
             if (contentHtml.startsWith('[MUSIC_CARD:')) {
@@ -1940,26 +1987,6 @@ function updateKeepAliveUI(isOn) {
             
             contentHtml = contentHtml.replace(/\[VIRTUAL_IMG:(.*?)\]/g, `<div class="virtual-img-box" data-text="$1" onclick="revealVirtualText(this)">【图片被小猫吃掉啦】</div>`);
 
-            let customBubbleStyle = '';
-            const isGlass = role.bubbleStyle === 'glass';
-            
-            function getGlassStyle(textColor) {
-                const isDarkTheme = document.documentElement.getAttribute('data-theme') === 'dark';
-                
-                const bgColor = isDarkTheme ? `rgba(50, 50, 50, 0.2)` : `rgba(255, 255, 255, 0.02)`;
-                const borderColor = isDarkTheme ? `rgba(255, 255, 255, 0.15)` : `rgba(255, 255, 255, 0.25)`;
-                const shadow = isDarkTheme 
-                    ? `inset 0 1px 0 0 rgba(255, 255, 255, 0.1), inset 0 -2px 6px 0 rgba(255, 255, 255, 0.05), 0 5px 15px -3px rgba(0, 0, 0, 0.3)`
-                    : `inset 0 1px 0 0 rgba(255, 255, 255, 0.5), inset 0 -2px 6px 0 rgba(255, 255, 255, 0.45), 0 5px 15px -3px rgba(0, 0, 0, 0.15)`;
-
-                return `background-color: ${bgColor} !important; ` +
-                       `backdrop-filter: blur(5px) saturate(180%) !important; ` +
-                       `-webkit-backdrop-filter: blur(5px) saturate(180%) !important; ` +
-                       `border: 0.5px solid ${borderColor} !important; ` +
-                       `box-shadow: ${shadow} !important; ` +
-                       `color: ${textColor} !important; ` +
-                       `--tail-color: transparent !important;`;
-            }
                     if (m.role === 'ai') {
                 const aiBubbleC = role.aiBubbleColor || '#333333';
                 const aiTextC = role.aiTextColor || '#ffffff';
@@ -4536,6 +4563,7 @@ async function generateTodaySummary(roleId) {
         $('#role-user-text-color').value = isEditing && role.userTextColor ? role.userTextColor : '#ffffff';
         $('#role-bubble-style').value = isEditing && role.bubbleStyle ? role.bubbleStyle : 'flat';
         $('#role-accent-color').value = isEditing && role.accentColor ? role.accentColor : (settings.theme === 'dark' ? '#ffffff' : '#000000');
+        $('#role-attachment-color').value = isEditing && role.attachmentColor ? role.attachmentColor : (settings.theme === 'dark' ? '#ffffff' : '#000000');
         $('#role-tts-voice-id').value = isEditing && role.ttsVoiceId ? role.ttsVoiceId : '';
         $('#role-placeholder-text').value = isEditing && role.placeholderText ? role.placeholderText : 'iMessage信息';
         $('#role-placeholder-color').value = isEditing && role.placeholderColor ? role.placeholderColor : '#bbbbbb';
@@ -4624,6 +4652,7 @@ async function generateTodaySummary(roleId) {
             userTextColor: $('#role-user-text-color').value,
             bubbleStyle: $('#role-bubble-style').value,
             accentColor: $('#role-accent-color').value,
+            attachmentColor: $('#role-attachment-color').value,
             ttsVoiceId: $('#role-tts-voice-id').value.trim(),
             placeholderText: $('#role-placeholder-text').value.trim(),
             placeholderColor: $('#role-placeholder-color').value,

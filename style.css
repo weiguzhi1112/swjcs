@@ -513,18 +513,22 @@ body {
         #attachment-popup { 
             display: none; 
             position: absolute; 
-            bottom: 45px; 
+            bottom: 50px !important; 
             left: 0; 
-            background: var(--glass-bg); 
-            backdrop-filter: blur(25px) saturate(180%);
-            -webkit-backdrop-filter: blur(25px) saturate(180%);
-            border: none;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.2); 
-            flex-direction: column; 
+            background: rgba(255, 255, 255, 0.15) !important; 
+            backdrop-filter: blur(35px) saturate(200%) !important;
+            -webkit-backdrop-filter: blur(35px) saturate(200%) !important;
+            border: 0.5px solid rgba(255, 255, 255, 0.3) !important;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.15) !important; 
+            flex-direction: column !important; 
             z-index: 1000; 
-            width: 180px; 
-            border-radius: 12px;
-            overflow: hidden;
+            width: 160px !important; 
+            border-radius: 14px !important;
+            padding: 6px 0 !important;
+        }
+        [data-theme="dark"] #attachment-popup {
+            background: rgba(0, 0, 0, 0.25) !important;
+            border: 0.5px solid rgba(255, 255, 255, 0.1) !important;
         }
         /* 附件按钮激活状态 */
 .attach-btn.active {
@@ -1112,7 +1116,7 @@ html, body {
 .attach-btn svg {
     width: 16px !important;
     height: 16px !important;
-    stroke: currentColor !important;
+    stroke: var(--attachment-color, var(--text-color)) !important;
     opacity: 0.8;
 }
 .attach-btn span {
@@ -1121,7 +1125,7 @@ html, body {
     font-weight: 600 !important;
     letter-spacing: 1px !important;
     text-transform: uppercase !important; /* 全大写奢侈感 */
-    color: var(--role-accent-color, var(--text-color)) !important;
+    color: var(--attachment-color, var(--text-color)) !important;
     opacity: 0.9;
 }
 
@@ -1772,8 +1776,8 @@ body.is-app .to-page { padding-bottom: calc(70px + env(safe-area-inset-bottom)) 
     .to-summary-row { display: flex; justify-content: space-between; align-items: center; padding: 5px 0; font-size: 11px; color: var(--text-secondary); }
     .to-summary-row.total { font-size: 14px; font-weight: 700; color: var(--text-color); border-top: 1px solid var(--border-color); padding-top: 10px; margin-top: 5px; }
     .to-summary-row.total .price { color: #ff3b30; }
-    .to-pay-btn { margin: 35px 20px 15px 20px; height: 48px; border-radius: 24px; background: var(--text-color); color: var(--bg-color); border: none; font-size: 12px; font-weight: 700; letter-spacing: 1px; cursor: pointer; width: calc(100% - 40px); display: flex; align-items: center; justify-content: center; gap: 6px; }
-    .to-pay-btn:active { opacity: 0.7; }
+    .to-pay-btn { margin: 10px auto 0 auto; height: 40px; border-radius: 20px; background: var(--text-color); color: var(--bg-color); border: none; font-size: 11px; font-weight: 600; letter-spacing: 2px; cursor: pointer; width: 85%; display: flex; align-items: center; justify-content: center; gap: 6px; box-shadow: 0 4px 15px rgba(0,0,0,0.15); transition: transform 0.2s; }
+    .to-pay-btn:active { transform: scale(0.96); opacity: 0.9; }
     .to-success-page { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 30px; text-align: center; height: 100%; }
     .to-success-icon { width: 70px; height: 70px; border-radius: 50%; background: var(--text-color); color: var(--bg-color); display: flex; align-items: center; justify-content: center; font-size: 30px; margin-bottom: 16px; animation: successPop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1); }
     @keyframes successPop { 0% { transform: scale(0); } 100% { transform: scale(1); } }
