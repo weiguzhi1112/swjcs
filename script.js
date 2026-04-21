@@ -2530,77 +2530,722 @@ let currentCallAudioId = null;
     }
     updateUserIPLocation();
 
-    async function toHandleLinkPaste(input) {
-        const val = input.value.trim();
-        if (val.includes('meituan.com') || val.includes('taobao.com') || val.includes('tmall.com') || val.includes('jd.com') || val.includes('ele.me') || val.includes('http')) {
-            
-            const api = getSubApi('takeout');
-            if (!api.url) {
-                alert('请先在【我的 -> 设置】中配置外卖副API，才能智能解析商品链接！');
-                input.value = '';
-                return;
-            }
+const TO_SHOPS = [
+    { id:'s1', name:'深夜拉面研究所', emoji:'🍜', rating:'4.9', sales:'2.3k', time:'28min', minOrder:15, delivery:3, pack:2, badge:'品质优选', tags:['HOT','面食'], menu:[
+        {id:1,name:'豚骨拉面',desc:'浓郁猪骨汤底·溏心蛋·叉烧',price:32,orig:42,sales:'月售856',emoji:'🍜',cat:'推荐'},
+        {id:2,name:'味噌拉面',desc:'北海道味噌·玉米粒·黄油',price:28,orig:38,sales:'月售623',emoji:'🍜',cat:'推荐'},
+        {id:3,name:'担担面',desc:'花生碎·肉末·芝麻酱·微辣',price:22,orig:0,sales:'月售412',emoji:'🥡',cat:'招牌'},
+        {id:4,name:'日式煎饺',desc:'猪肉白菜馅·6只装',price:16,orig:22,sales:'月售1.2k',emoji:'🥟',cat:'小食'},
+        {id:5,name:'溏心蛋',desc:'酱油腌制·流心蛋黄',price:5,orig:0,sales:'月售2.1k',emoji:'🥚',cat:'小食'},
+        {id:6,name:'抹茶拿铁',desc:'宇治抹茶·鲜牛奶',price:18,orig:24,sales:'月售389',emoji:'🍵',cat:'饮品'},
+        {id:7,name:'乌龙茶',desc:'冷泡乌龙·无糖·500ml',price:8,orig:0,sales:'月售567',emoji:'🧋',cat:'饮品'},
+        {id:8,name:'叉烧饭',desc:'蜜汁叉烧·温泉蛋·时蔬',price:26,orig:35,sales:'月售734',emoji:'🍚',cat:'招牌'}
+    ]},
+    { id:'s2', name:'GREEN · 轻食沙拉', emoji:'🥗', rating:'4.7', sales:'1.8k', time:'22min', minOrder:20, delivery:2, pack:1, badge:'减脂推荐', tags:['轻食'], menu:[
+        {id:1,name:'凯撒沙拉',desc:'罗马生菜·帕玛森·面包丁',price:28,orig:38,sales:'月售456',emoji:'🥗',cat:'推荐'},
+        {id:2,name:'牛油果鸡胸沙拉',desc:'牛油果·鸡胸肉·藜麦',price:32,orig:42,sales:'月售389',emoji:'🥑',cat:'推荐'},
+        {id:3,name:'希腊酸奶碗',desc:'酸奶·蓝莓·燕麦·蜂蜜',price:22,orig:0,sales:'月售234',emoji:'🫐',cat:'甜品'},
+        {id:4,name:'鲜榨果汁',desc:'橙子·胡萝卜·姜',price:16,orig:0,sales:'月售567',emoji:'🧃',cat:'饮品'}
+    ]},
+    { id:'s3', name:'MONO COFFEE', emoji:'☕', rating:'4.8', sales:'960', time:'15min', minOrder:10, delivery:2, pack:1, badge:'自烘焙', tags:['精品咖啡'], menu:[
+        {id:1,name:'美式咖啡',desc:'深度烘焙·冰/热可选',price:16,orig:0,sales:'月售890',emoji:'☕',cat:'推荐'},
+        {id:2,name:'拿铁',desc:'浓缩+鲜牛奶·拉花',price:22,orig:28,sales:'月售678',emoji:'☕',cat:'推荐'},
+        {id:3,name:'脏脏咖啡',desc:'巧克力酱·奶油·浓缩',price:26,orig:32,sales:'月售345',emoji:'🍫',cat:'特调'},
+        {id:4,name:'可颂',desc:'法式黄油可颂·现烤',price:12,orig:0,sales:'月售456',emoji:'🥐',cat:'烘焙'}
+    ]},
+    { id:'s4', name:'SMASH BURGER', emoji:'🍔', rating:'4.6', sales:'3.1k', time:'35min', minOrder:25, delivery:4, pack:2, badge:'手工牛肉饼', tags:['HOT','汉堡'], menu:[
+        {id:1,name:'经典双层堡',desc:'双层牛肉饼·芝士·酸黄瓜',price:32,orig:45,sales:'月售1.2k',emoji:'🍔',cat:'推荐'},
+        {id:2,name:'培根芝士堡',desc:'烟熏培根·切达芝士',price:36,orig:48,sales:'月售890',emoji:'🍔',cat:'推荐'},
+        {id:3,name:'薯条',desc:'粗切薯条·海盐',price:12,orig:0,sales:'月售2.3k',emoji:'🍟',cat:'小食'},
+        {id:4,name:'可乐',desc:'冰镇·500ml',price:6,orig:0,sales:'月售3.4k',emoji:'🥤',cat:'饮品'}
+    ]}
+];
 
-            input.value = '正在智能解析商品信息...';
-            input.disabled = true;
+toCart = {};
+toCurrentShopIdx = 0;
+toSelectedPayMethod = 'balance';
+toAddresses = DB.get('toAddresses', [
+    {id:'a1',tag:'公司',addr:'科技园A座 3楼',name:'张三',phone:'138****8888'},
+    {id:'a2',tag:'家',addr:'幸福小区 12栋 801',name:'张三',phone:'138****8888'}
+]);
+toSelectedAddrId = toAddresses.length > 0 ? toAddresses[0].id : '';
+toOrderHistory = DB.get('toOrderHistory', []);
+toCurrentTab = 'home';
+toReceiptReturnPage = 'to-success';
+toPageHistory = ['to-home'];
 
-            const prompt = `你是一个外卖/购物平台的链接解析助手。用户输入了以下链接或文本：\n"${val}"\n请你推测或虚构出这个链接对应的商品信息。
-必须返回严格的JSON格式：
-{
-  "shopName": "推测的店铺名称(如: 淘宝精选/美团外卖)",
-  "itemName": "推测的商品名称(具体一点)",
-  "price": 预估价格(数字),
-  "emoji": "一个代表该商品的emoji"
+function toRenderShopList() {
+    const el = document.getElementById('to-shop-list'); if (!el) return;
+    
+    let shuffledShops = TO_SHOPS.map((s, index) => ({ s, index })).sort(() => Math.random() - 0.5);
+    
+    el.innerHTML = shuffledShops.map(({s, index}) => `<div class="to-shop-card" onclick="toOpenShop(${index})"><div class="to-shop-img">${s.emoji}</div><div class="to-shop-info"><div><div class="to-shop-name">${s.name}</div><div class="to-shop-tags">${s.tags.map(t=>`<span class="to-shop-tag ${t==='HOT'?'hot':''}">${t}</span>`).join('')}</div></div><div class="to-shop-meta"><span class="rating">★ ${s.rating}</span><span>月售${s.sales}</span><span>约${s.time}</span></div><div class="to-shop-price"><span class="yen">¥</span><span class="num">${s.menu[0].price}</span>${s.menu[0].orig?`<span class="orig">¥${s.menu[0].orig}</span>`:''}<span style="font-size:9px;color:var(--text-secondary);margin-left:4px;">起</span></div></div></div>`).join('');
 }
-直接输出JSON，不要加任何其他文字。`;
 
-            try {
-                const endpoint = getChatEndpoint(api.url);
-                const res = await fetch(endpoint, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${api.key}` },
-                    body: JSON.stringify({ model: api.model, messages: [{ role: 'user', content: prompt }], max_tokens: 300, temperature: 0.8 })
-                });
-                const data = await res.json();
-                const result = JSON.parse(extractJSON(data.choices[0].message.content));
-                
-                if (confirm(`解析成功！是否加入购物车？\n\n店铺: ${result.shopName}\n商品: ${result.emoji} ${result.itemName}\n价格: ¥${result.price}`)) {
-                    const mockId = Date.now();
-                    if (!toCart[mockId]) toCart[mockId] = 0;
-                    toCart[mockId] += 1;
-                    
-                    let targetShop = TO_SHOPS.find(s => s.name === result.shopName);
-                    if (!targetShop) {
-                        targetShop = { id: 'ai_shop_' + mockId, name: result.shopName, emoji: '🛍️', rating: '4.9', sales: '999+', time: '30min', minOrder: 0, delivery: 0, pack: 0, badge: '外部导入', tags: ['代购'], menu: [] };
-                        TO_SHOPS.unshift(targetShop);
-                    }
-                    targetShop.menu.push({ id: mockId, name: result.itemName, desc: '外部链接解析商品', price: result.price, orig: 0, sales: '热卖', emoji: result.emoji, cat: '导入商品' });
-                    
-                    toCurrentShopIdx = TO_SHOPS.indexOf(targetShop);
-                    toUpdateCartFloat();
-                    alert('已成功加入购物车！');
-                    toOpenCart();
-                }
-            } catch (e) {
-                alert('解析失败: ' + e.message);
-            } finally {
-                input.value = '';
-                input.disabled = false;
-            }
-        }
+function toOpenShop(idx) {
+    toCurrentShopIdx = idx; toCart = {};
+    const shop = TO_SHOPS[idx];
+    document.getElementById('to-detail-name').innerText = shop.name;
+    document.getElementById('to-detail-meta').innerHTML = `<span>★ ${shop.rating}</span><span>月售${shop.sales}</span><span>约${shop.time}</span><span>起送¥${shop.minOrder}</span>`;
+    document.getElementById('to-detail-badge').innerText = shop.badge;
+    const cats = [...new Set(shop.menu.map(m=>m.cat))];
+    document.getElementById('to-menu-tabs').innerHTML = cats.map((c,i)=>`<button class="to-menu-tab ${i===0?'active':''}" onclick="toFilterMenu('${c}',this)">${c}</button>`).join('');
+    toRenderMenu(); toUpdateCartFloat(); toNavTo('to-detail'); toUpdateFavShopBtn();
+}
+
+function toFilterMenu(cat,el) { document.querySelectorAll('.to-menu-tab').forEach(t=>t.classList.remove('active')); el.classList.add('active'); toRenderMenu(cat); }
+
+function toRenderMenu(filterCat) {
+    const shop = TO_SHOPS[toCurrentShopIdx];
+    const items = filterCat ? shop.menu.filter(m=>m.cat===filterCat) : shop.menu;
+    document.getElementById('to-menu-list').innerHTML = items.map(item => {
+        const qty = toCart[item.id]||0;
+        const isFav = toFavorites.items.some(f=>f.shopId===shop.id&&f.itemId===item.id);
+                return `<div class="to-menu-item"><div class="to-menu-item-img">${item.emoji}</div><div class="to-menu-item-info"><div><div style="display:flex;align-items:center;gap:6px;"><div class="to-menu-item-name">${item.name}</div><button style="background:none;border:none;cursor:pointer;font-size:12px;padding:0;color:${isFav?'#ff3b30':'var(--text-secondary)'};" onclick="event.stopPropagation();toToggleFavItem(${item.id})">${isFav?'♥':'♡'}</button><button style="background:none;border:none;cursor:pointer;font-size:12px;padding:0;color:var(--text-secondary);margin-left:4px;" onclick="event.stopPropagation();toShareItem(${item.id})">↗</button></div><div class="to-menu-item-desc">${item.desc}</div><div class="to-menu-item-sales">${item.sales}</div></div><div class="to-menu-item-bottom"><div style="display:flex;align-items:baseline;gap:2px;"><span style="font-size:9px;color:#ff3b30;font-weight:700;">¥</span><span style="font-size:14px;color:#ff3b30;font-weight:700;">${item.price}</span>${item.orig?`<span style="font-size:9px;color:var(--text-secondary);text-decoration:line-through;margin-left:3px;">¥${item.orig}</span>`:''}</div><div class="to-qty-control">${qty>0?`<button class="to-qty-btn" onclick="event.stopPropagation();toChangeQty(${item.id},-1)">−</button><span class="to-qty-num">${qty}</span>`:''}<button class="to-qty-btn add" onclick="event.stopPropagation();toChangeQty(${item.id},1)">+</button></div></div></div></div>`;
+    }).join('');
+}
+
+function toChangeQty(id,delta) { if(!toCart[id])toCart[id]=0; toCart[id]+=delta; if(toCart[id]<=0)delete toCart[id]; toRenderMenu(); toUpdateCartFloat(); }
+
+function toUpdateCartFloat() {
+    const shop = TO_SHOPS[toCurrentShopIdx]; const floatEl = document.getElementById('to-cart-float');
+    let tq=0,tp=0; Object.keys(toCart).forEach(id=>{const item=shop.menu.find(m=>m.id==id);if(item){tq+=toCart[id];tp+=item.price*toCart[id];}});
+    if(tq>0){floatEl.classList.add('visible');document.getElementById('to-cart-badge').innerText=tq;document.getElementById('to-cart-total-num').innerText=tp;}else{floatEl.classList.remove('visible');}
+}
+
+function toClearCart(){toCart={};toRenderMenu();toUpdateCartFloat();toGoBack('to-cart','to-detail');}
+
+function toOpenCart() {
+    const shop = TO_SHOPS[toCurrentShopIdx]; let tp=0;
+    document.getElementById('to-cart-items').innerHTML = Object.keys(toCart).map(id=>{const item=shop.menu.find(m=>m.id==id);tp+=item.price*toCart[id];return`<div style="display:flex;align-items:center;gap:10px;padding:12px 20px;border-bottom:1px solid var(--gray-light);"><span style="font-size:24px;width:36px;text-align:center;">${item.emoji}</span><div style="flex:1;"><div style="font-size:12px;font-weight:600;">${item.name}</div><div style="font-size:11px;color:#ff3b30;font-weight:600;margin-top:2px;">¥${item.price} × ${toCart[id]}</div></div><div class="to-qty-control"><button class="to-qty-btn" onclick="toChangeQty(${item.id},-1);toOpenCart();">−</button><span class="to-qty-num">${toCart[id]}</span><button class="to-qty-btn add" onclick="toChangeQty(${item.id},1);toOpenCart();">+</button></div></div>`;}).join('');
+    const grand = tp + shop.delivery + shop.pack;
+    document.getElementById('to-cart-summary').innerHTML = `<div class="to-summary-row"><span>商品小计</span><span>¥${tp.toFixed(2)}</span></div><div class="to-summary-row"><span>配送费</span><span>¥${shop.delivery.toFixed(2)}</span></div><div class="to-summary-row"><span>包装费</span><span>¥${shop.pack.toFixed(2)}</span></div><div class="to-summary-row total"><span>合计</span><span class="price">¥${grand.toFixed(2)}</span></div><button class="action-btn primary" style="width:100%;border-radius:20px;padding:12px;margin-top:12px;" onclick="toGoBack('to-cart','to-detail');setTimeout(()=>toOpenOrder(),400);">去结算</button>`;
+    toNavTo('to-cart');
+}
+
+function toGetPaymentMethods() {
+    const methods = [{id:'balance',label:'💰 钱包余额',detail:`¥${fmtMoney((walletData['ME']||{}).balance||0)}`}];
+    const wd = walletData['ME']||{};
+    if(wd.huabei && wd.huabei > 0) methods.push({id:'huabei',label:'🔥 花呗',detail:`可用 ¥${fmtMoney(wd.huabei)}`});
+    (wd.bankCards||[]).forEach((c,i)=>methods.push({id:'bank_'+i,label:`🏦 ${c.bank}(${c.tail})`,detail:`¥${fmtMoney(c.balance)}`}));
+    methods.push({id:'daifu',label:'🙋 找人代付',detail:'发送给通讯录角色'});
+    return methods;
+}
+
+function toRenderPaymentMethods() {
+    const methods = toGetPaymentMethods();
+    document.getElementById('to-payment-methods').innerHTML = methods.map(m=>`<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--gray-light);cursor:pointer;" onclick="toSelectPay('${m.id}')"><div style="width:18px;height:18px;border-radius:50%;border:2px solid ${toSelectedPayMethod===m.id?'var(--text-color)':'var(--border-color)'};display:flex;align-items:center;justify-content:center;flex-shrink:0;"><div style="width:10px;height:10px;border-radius:50%;background:${toSelectedPayMethod===m.id?'var(--text-color)':'transparent'};"></div></div><div style="flex:1;"><div style="font-size:12px;font-weight:600;">${m.label}</div><div style="font-size:9px;color:var(--text-secondary);">${m.detail}</div></div></div>`).join('');
+}
+
+function toSelectPay(id){toSelectedPayMethod=id;toRenderPaymentMethods();}
+
+function toOpenOrder() {
+    const shop = TO_SHOPS[toCurrentShopIdx];
+    const addr = toAddresses.find(a=>a.id===toSelectedAddrId)||toAddresses[0]||{};
+    document.getElementById('to-order-addr-name').innerText = `${addr.tag||'地址'} · ${addr.addr||'请添加地址'}`;
+    document.getElementById('to-order-addr-detail').innerText = `${addr.name||''} ${addr.phone||''}`;
+    
+    const recipientHtml = `
+        <div class="to-order-section">
+            <div class="to-order-section-title">RECIPIENT / 收货人</div>
+            <select id="to-order-recipient" style="width:100%; padding:10px; border:1px solid var(--border-color); background:transparent; color:var(--text-color); font-size:11px; outline:none;">
+                <option value="ME">送给我自己</option>
+                ${roles.map(r => `<option value="${r.id}">送给 ${getDisplayName(r)}</option>`).join('')}
+            </select>
+        </div>
+    `;
+    
+    let tp=0;
+    document.getElementById('to-order-items').innerHTML = recipientHtml + Object.keys(toCart).map(id=>{const item=shop.menu.find(m=>m.id==id);const sub=item.price*toCart[id];tp+=sub;return`<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--gray-light);"><div style="display:flex;align-items:center;gap:6px;"><span style="font-size:18px;">${item.emoji}</span><div><div style="font-size:11px;font-weight:600;">${item.name}</div><div style="font-size:9px;color:var(--text-secondary);">×${toCart[id]}</div></div></div><div style="font-size:12px;font-weight:600;">¥${sub.toFixed(2)}</div></div>`;}).join('');
+    
+    const grand = tp + shop.delivery + shop.pack;
+    const discount = Math.min(5, tp*0.1);
+    const finalTotal = (grand-discount).toFixed(2);
+    document.getElementById('to-order-summary').innerHTML = `<div class="to-summary-row"><span>商品小计</span><span>¥${tp.toFixed(2)}</span></div><div class="to-summary-row"><span>配送费</span><span>¥${shop.delivery.toFixed(2)}</span></div><div class="to-summary-row"><span>包装费</span><span>¥${shop.pack.toFixed(2)}</span></div><div class="to-summary-row"><span style="color:#ff3b30;">优惠</span><span style="color:#ff3b30;">-¥${discount.toFixed(2)}</span></div><div class="to-summary-row total"><span>实付金额</span><span class="price">¥${finalTotal}</span></div>`;
+    document.getElementById('to-pay-total').innerText = finalTotal;
+    toSelectedPayMethod = 'balance';
+    toRenderPaymentMethods();
+    toNavTo('to-order');
+}
+
+function toSelectTime(el){el.parentElement.querySelectorAll('.to-time-chip').forEach(c=>c.classList.remove('active'));el.classList.add('active');}
+
+toPendingDaifuOrder = null;
+function toSubmitOrder() {
+    const shop = TO_SHOPS[toCurrentShopIdx];
+    const finalTotal = parseFloat(document.getElementById('to-pay-total').innerText);
+    
+    if(toSelectedPayMethod==='daifu'){
+        toPendingDaifuOrder = { shop, finalTotal };
+        const sel = $('#daifu-role-select');
+        if(sel) sel.innerHTML = roles.map(r => `<option value="${r.id}">${getDisplayName(r)}</option>`).join('');
+        openModal('modal-daifu-select');
+        return;
     }
 
-    async function toGenerateCategory(categoryName) {
-        const api = getSubApi('takeout');
-        if (!api.url) {
-            toOpenShop(Math.floor(Math.random() * TO_SHOPS.length));
-            return;
+    const wd = walletData['ME']||(walletData['ME']={balance:0,huabei:0,bankCards:[],familyCards:[],bills:[]});
+    let payLabel = '钱包余额';
+    
+    if(toSelectedPayMethod==='balance'){
+        if(wd.balance<finalTotal)return alert('钱包余额不足！请切换支付方式或先去钱包充值');
+        wd.balance-=finalTotal; payLabel='钱包余额';
+    } else if(toSelectedPayMethod==='huabei'){
+        if(!wd.huabei||wd.huabei<finalTotal)return alert('花呗额度不足！');
+        wd.huabei-=finalTotal; payLabel='花呗';
+    } else if(toSelectedPayMethod.startsWith('bank_')){
+        const idx=parseInt(toSelectedPayMethod.split('_')[1]);
+        if(!wd.bankCards[idx]||wd.bankCards[idx].balance<finalTotal)return alert('银行卡余额不足！');
+        wd.bankCards[idx].balance-=finalTotal; payLabel=`${wd.bankCards[idx].bank}(${wd.bankCards[idx].tail})`;
+    }
+    
+    const now = new Date();
+    const nowStr = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')} ${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')}`;
+    if(!wd.bills)wd.bills=[];
+    wd.bills.unshift({time:nowStr,location:'线上交易',merchant:shop.name,amount:-finalTotal,method:payLabel});
+    DB.set('walletData',walletData);
+    
+    const orderId = 'TO'+Date.now().toString().slice(-8);
+    let tp=0;
+    const itemList = Object.keys(toCart).map(id=>{const item=shop.menu.find(m=>m.id==id);const sub=item.price*toCart[id];tp+=sub;return{name:item.name,emoji:item.emoji,qty:toCart[id],price:item.price,subtotal:sub};});
+    const addr = toAddresses.find(a=>a.id===toSelectedAddrId)||toAddresses[0]||{};
+    
+    toOrderHistory.unshift({
+        id:orderId, shop:shop.name, emoji:shop.emoji, shopId:shop.id,
+        items:itemList, itemsText:itemList.map(i=>i.name+'×'+i.qty).join('、'),
+        subtotal:tp, delivery:shop.delivery, pack:shop.pack,
+        discount:Math.min(5,tp*0.1), total:finalTotal,
+        payMethod:payLabel, address:`${addr.tag} · ${addr.addr}`,
+        contact:`${addr.name} ${addr.phone}`,
+        time:nowStr, status:'pending'
+    });
+    DB.set('toOrderHistory',toOrderHistory);
+
+    const recipientId = document.getElementById('to-order-recipient').value;
+    if (recipientId !== 'ME') {
+        const targetRole = roles.find(r => r.id === recipientId);
+        const activeMask = masks.find(m => m.id === targetRole.activeMaskId) || masks.find(m => m.id === 'default') || masks[0];
+        const maskName = activeMask ? activeMask.name : (settings.userName || 'ME');
+        
+        const giftPayload = { 
+            shopName: shop.name, 
+            itemName: itemList[0].name, 
+            price: finalTotal, 
+            emoji: shop.emoji, 
+            status: '已送达',
+            senderName: maskName,
+            receiverName: targetRole.realName,
+            orderId: orderId
+        };
+        const msgContent = `[GIFT_TO_AI:${encodeURIComponent(JSON.stringify(giftPayload))}]`;
+        if(!chats[recipientId]) chats[recipientId] = [];
+        chats[recipientId].push({ role: 'user', content: msgContent, time: now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }), rawTime: Date.now(), status: 'SENT', mode: 'online' });
+        DB.set('chats', chats);
+        alert(`成功为 ${targetRole.realName} 下单！快去聊天界面看看TA的反应吧。`);
+    }
+    
+    document.getElementById('to-success-id').innerText = orderId;
+    document.getElementById('to-order-badge').style.display = 'flex';
+    toCart = {};
+    toNavTo('to-success');
+    toStartOrderTracking(orderId);
+}
+
+let itemToShare = null;
+
+function toShareItem(itemId) {
+    const shop = TO_SHOPS[toCurrentShopIdx];
+    itemToShare = shop.menu.find(m => m.id === itemId);
+    if (!itemToShare) return;
+    const sel = $('#share-item-role-select');
+    if(sel) sel.innerHTML = roles.map(r => `<option value="${r.id}">${getDisplayName(r)}</option>`).join('');
+    openModal('modal-share-item');
+}
+
+function confirmShareItem() {
+    const roleId = $('#share-item-role-select').value;
+    if(!roleId || !itemToShare) return;
+    const shop = TO_SHOPS[toCurrentShopIdx];
+    
+    const payload = { 
+        itemName: itemToShare.name, 
+        price: itemToShare.price, 
+        shopName: shop.name, 
+        emoji: itemToShare.emoji 
+    };
+    const msgContent = `[SHARE_ITEM:${encodeURIComponent(JSON.stringify(payload))}]`;
+
+    if(!chats[roleId]) chats[roleId] = [];
+    const now = new Date();
+    chats[roleId].push({ role: 'user', content: msgContent, time: now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }), rawTime: now.getTime(), status: 'SENT', mode: 'online' });
+    DB.set('chats', chats);
+
+    closeModal('modal-share-item');
+    closeApp('takeout');
+    openChat(roleId);
+    renderMessages(); 
+    triggerAI();
+}
+
+function confirmDaifu() {
+    const roleId = $('#daifu-role-select').value;
+    if(!roleId || !toPendingDaifuOrder) return;
+    
+    const { shop, finalTotal } = toPendingDaifuOrder;
+    
+    const orderId = 'TO' + Date.now().toString().slice(-8);
+    let tp=0;
+    const itemList = Object.keys(toCart).map(id=>{const item=shop.menu.find(m=>m.id==id);const sub=item.price*toCart[id];tp+=sub;return{name:item.name,emoji:item.emoji,qty:toCart[id],price:item.price,subtotal:sub};});
+    const addr = toAddresses.find(a=>a.id===toSelectedAddrId)||toAddresses[0]||{};
+    
+    toOrderHistory.unshift({
+        id:orderId, shop:shop.name, emoji:shop.emoji, shopId:shop.id,
+        items:itemList, itemsText:itemList.map(i=>i.name+'×'+i.qty).join('、'),
+        subtotal:tp, delivery:shop.delivery, pack:shop.pack,
+        discount:Math.min(5,tp*0.1), total:finalTotal,
+        payMethod: '好友代付', address:`${addr.tag} · ${addr.addr}`,
+        contact:`${addr.name} ${addr.phone}`,
+        time: new Date().toLocaleString('zh-CN'), status:'pending_pay' 
+    });
+    DB.set('toOrderHistory',toOrderHistory);
+    toCart = {}; 
+
+    const payload = { 
+        shopName: shop.name, 
+        total: finalTotal, 
+        emoji: shop.emoji,
+        orderId: orderId,
+        itemsText: itemList.map(i=>i.name).join('、')
+    };
+    const msgContent = `[PAY_REQUEST:${encodeURIComponent(JSON.stringify(payload))}]`;
+
+    if(!chats[roleId]) chats[roleId] = [];
+    const now = new Date();
+    chats[roleId].push({ role: 'user', content: msgContent, time: now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }), rawTime: now.getTime(), status: 'SENT', mode: 'online' });
+    DB.set('chats', chats);
+
+    closeModal('modal-daifu-select');
+    closeApp('takeout');
+    openChat(roleId);
+    renderMessages();
+    triggerAI();
+}
+
+function toViewReceipt(orderId) {
+    const order = toOrderHistory.find(o=>o.id===orderId);
+    if(!order)return alert('订单不存在');
+    const el = document.getElementById('to-receipt-content');
+    el.innerHTML = `
+        <div style="background:var(--bg-color);border:1px dashed var(--border-color);padding:20px;font-family:monospace,var(--font-sans);">
+            <div style="text-align:center;border-bottom:1px dashed var(--border-color);padding-bottom:12px;margin-bottom:12px;">
+                <div style="font-size:18px;font-weight:700;letter-spacing:2px;">${order.emoji} ${order.shop}</div>
+                <div style="font-size:8px;color:var(--text-secondary);margin-top:4px;letter-spacing:1px;">ELECTRONIC RECEIPT / 电子小票</div>
+            </div>
+            <div style="font-size:9px;color:var(--text-secondary);margin-bottom:10px;display:flex;justify-content:space-between;">
+                <span>单号: ${order.id}</span><span>${order.time}</span>
+            </div>
+            <div style="border-bottom:1px dashed var(--border-color);padding-bottom:10px;margin-bottom:10px;">
+                ${order.items.map(i=>`<div style="display:flex;justify-content:space-between;padding:3px 0;font-size:11px;"><span>${i.emoji} ${i.name} ×${i.qty}</span><span>¥${i.subtotal.toFixed(2)}</span></div>`).join('')}
+            </div>
+            <div style="font-size:10px;color:var(--text-secondary);margin-bottom:8px;">
+                <div style="display:flex;justify-content:space-between;padding:2px 0;"><span>商品小计</span><span>¥${order.subtotal.toFixed(2)}</span></div>
+                <div style="display:flex;justify-content:space-between;padding:2px 0;"><span>配送费</span><span>¥${order.delivery.toFixed(2)}</span></div>
+                <div style="display:flex;justify-content:space-between;padding:2px 0;"><span>包装费</span><span>¥${order.pack.toFixed(2)}</span></div>
+                <div style="display:flex;justify-content:space-between;padding:2px 0;color:#ff3b30;"><span>优惠</span><span>-¥${order.discount.toFixed(2)}</span></div>
+            </div>
+            <div style="border-top:1px dashed var(--border-color);padding-top:10px;display:flex;justify-content:space-between;font-size:14px;font-weight:700;">
+                <span>实付金额</span><span style="color:#ff3b30;">¥${order.total.toFixed(2)}</span>
+            </div>
+            <div style="margin-top:12px;padding-top:10px;border-top:1px dashed var(--border-color);font-size:9px;color:var(--text-secondary);">
+                <div style="display:flex;justify-content:space-between;padding:2px 0;"><span>支付方式</span><span>${order.payMethod}</span></div>
+                <div style="display:flex;justify-content:space-between;padding:2px 0;"><span>配送地址</span><span>${order.address}</span></div>
+                <div style="display:flex;justify-content:space-between;padding:2px 0;"><span>联系人</span><span>${order.contact}</span></div>
+                <div style="display:flex;justify-content:space-between;padding:2px 0;"><span>状态</span><span style="color:${order.status==='pending'?'#ff9500':'#34c759'};">${order.status==='pending'?'配送中':'已完成'}</span></div>
+            </div>
+            <div style="text-align:center;margin-top:15px;padding-top:10px;border-top:1px dashed var(--border-color);">
+                <div style="display:flex;justify-content:center;gap:1px;height:20px;align-items:flex-end;">${Array.from({length:20},(_,i)=>`<div style="width:2px;background:var(--text-color);opacity:0.3;height:${6+Math.abs(Math.sin(i*0.8+1))*14}px;"></div>`).join('')}</div>
+                <div style="font-size:7px;color:var(--text-secondary);margin-top:4px;letter-spacing:2px;">THANK YOU FOR YOUR ORDER</div>
+            </div>
+        </div>`;
+    toReceiptReturnPage = document.querySelector('.to-page.active')?.id || 'to-success';
+    toNavTo('to-receipt');
+}
+
+function toCloseReceipt(){toGoBack('to-receipt',toReceiptReturnPage);}
+
+function toViewOrderDetail(orderId) {
+    const order = toOrderHistory.find(o=>o.id===orderId);
+    if(!order)return;
+    const el = document.getElementById('to-order-detail-content');
+    
+    const steps = order.statusSteps || [
+        {s:'订单已提交',t:order.time,a:true},
+        {s:'商家接单',t:'等待中...',a:false},
+        {s:'骑手取餐',t:'—',a:false},
+        {s:'送达',t:'—',a:false}
+    ];
+    
+    const statusLabel = order.status === 'done' ? '已完成' : (order.status === 'delivered' ? '待确认收货' : '进行中');
+    const statusColor = order.status === 'done' ? '#155724' : (order.status === 'delivered' ? '#0c5460' : '#856404');
+    const statusBg = order.status === 'done' ? '#d4edda' : (order.status === 'delivered' ? '#d1ecf1' : '#fff3cd');
+    
+    el.innerHTML = `
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:15px;padding-bottom:15px;border-bottom:1px solid var(--gray-light);">
+            <span style="font-size:32px;">${order.emoji}</span>
+            <div style="flex:1;"><div style="font-size:16px;font-weight:600;">${order.shop}</div><div style="font-size:9px;color:var(--text-secondary);margin-top:2px;">订单号: ${order.id}</div></div>
+            <div style="font-size:9px;font-weight:600;padding:3px 8px;border-radius:8px;background:${statusBg};color:${statusColor};">${statusLabel}</div>
+        </div>
+        <div style="margin-bottom:15px;">
+            <div style="font-size:9px;font-weight:700;letter-spacing:2px;color:var(--text-secondary);margin-bottom:8px;">DELIVERY STATUS</div>
+            <div class="to-timeline">${steps.map(s=>`<div class="to-timeline-item"><div class="to-timeline-dot ${s.a?'active':''}"></div><div><div class="to-timeline-text">${s.s}</div><div class="to-timeline-time">${s.t}</div></div></div>`).join('')}</div>
+        </div>
+        <div style="margin-bottom:15px;">
+            <div style="font-size:9px;font-weight:700;letter-spacing:2px;color:var(--text-secondary);margin-bottom:8px;">ORDER ITEMS</div>
+            ${order.items.map(i=>`<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--gray-light);font-size:11px;"><span>${i.emoji} ${i.name} ×${i.qty}</span><span>¥${i.subtotal.toFixed(2)}</span></div>`).join('')}
+        </div>
+        <div style="margin-bottom:15px;">
+            <div style="font-size:9px;font-weight:700;letter-spacing:2px;color:var(--text-secondary);margin-bottom:8px;">PAYMENT</div>
+            <div class="to-summary-row"><span>商品小计</span><span>¥${order.subtotal.toFixed(2)}</span></div>
+            <div class="to-summary-row"><span>配送费</span><span>¥${order.delivery.toFixed(2)}</span></div>
+            <div class="to-summary-row"><span>包装费</span><span>¥${order.pack.toFixed(2)}</span></div>
+            <div class="to-summary-row"><span style="color:#ff3b30;">优惠</span><span style="color:#ff3b30;">-¥${order.discount.toFixed(2)}</span></div>
+            <div class="to-summary-row total"><span>实付</span><span class="price">¥${parseFloat(order.total).toFixed(2)}</span></div>
+            <div class="to-summary-row"><span>支付方式</span><span>${order.payMethod}</span></div>
+        </div>
+        <div style="margin-bottom:15px;">
+            <div style="font-size:9px;font-weight:700;letter-spacing:2px;color:var(--text-secondary);margin-bottom:8px;">DELIVERY</div>
+            <div style="font-size:11px;">${order.address}</div>
+            <div style="font-size:10px;color:var(--text-secondary);margin-top:2px;">${order.contact}</div>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+            <button class="action-btn" style="flex:1;border-radius:12px;min-width:45%;" onclick="toViewReceipt('${order.id}')">VIEW RECEIPT<span>查看小票</span></button>
+            ${order.status==='delivered'?`<button class="action-btn primary" style="flex:1;border-radius:12px;min-width:45%;" onclick="toCompleteOrder('${order.id}');toViewOrderDetail('${order.id}');">确认收货</button>`:''}
+            ${order.status==='done'?`<button class="action-btn primary" style="flex:1;border-radius:12px;min-width:45%;" onclick="toOpenShop(0)">再来一单</button>`:''}
+        </div>`;
+    toNavTo('to-order-detail');
+}
+
+function toGoHome() {
+    document.querySelectorAll('.to-page').forEach(p=>{p.classList.remove('active','base','slide-left');});
+    document.getElementById('to-home').classList.add('base');
+    document.getElementById('to-bottom-nav').style.display = 'flex';
+    toCurrentTab = 'home';
+    toPageHistory = ['to-home'];
+    document.querySelectorAll('.to-nav-item').forEach(n=>n.classList.remove('active'));
+    document.querySelectorAll('.to-nav-item')[0].classList.add('active');
+}
+
+function toNavTo(toId) {
+    document.querySelectorAll('.to-page').forEach(p=>{p.classList.remove('active','base','slide-left');});
+    document.getElementById(toId).classList.add('active');
+    document.getElementById('to-bottom-nav').style.display='flex';
+    if(toPageHistory[toPageHistory.length-1] !== toId) toPageHistory.push(toId);
+}
+
+function toGoBack(fromId, toId) {
+    if (!toId) {
+        toPageHistory.pop(); 
+        toId = toPageHistory[toPageHistory.length - 1] || 'to-home';
+    } else {
+        while(toPageHistory.length > 1 && toPageHistory[toPageHistory.length-1] !== toId) {
+            toPageHistory.pop();
         }
+    }
+    document.querySelectorAll('.to-page').forEach(p=>{p.classList.remove('active','base','slide-left');});
+    const to = document.getElementById(toId);
+    if(toId==='to-home'){to.classList.add('base');}
+    else{to.classList.add('active');}
+    document.getElementById('to-bottom-nav').style.display='flex';
+}
 
-        const resultsEl = document.getElementById('to-shop-list');
-        resultsEl.innerHTML = `<div style="text-align:center;padding:40px;color:var(--text-secondary);font-size:10px;"> AI 正在为您生成【${categoryName}】分类的商家...</div>`;
+function toGoBackAuto() {
+    toPageHistory.pop();
+    const target = toPageHistory[toPageHistory.length - 1] || 'to-home';
+    document.querySelectorAll('.to-page').forEach(p=>{p.classList.remove('active','base','slide-left');});
+    const to = document.getElementById(target);
+    if(target==='to-home'){to.classList.add('base');}
+    else{to.classList.add('active');}
+    document.getElementById('to-bottom-nav').style.display='flex';
+}
 
-        const prompt = `你是一个外卖平台的数据生成器。用户点击了首页的「${categoryName}」分类。请生成3个与此分类相关的外卖商家和菜品数据。
+function toSwitchTab(el, tab) {
+    document.querySelectorAll('.to-nav-item').forEach(n=>n.classList.remove('active'));
+    el.classList.add('active');
+    toCurrentTab = tab;
+    if(tab==='home'){toGoHome();}
+    else if(tab==='orders'){
+        toRenderOrders();
+        document.querySelectorAll('.to-page').forEach(p=>p.classList.remove('active','base','slide-left'));
+        document.getElementById('to-orders-page').classList.add('active');
+        document.getElementById('to-bottom-nav').style.display='flex';
+        toPageHistory = ['to-home','to-orders-page'];
+    }
+    else if(tab==='profile'){
+        toRenderProfile();
+        document.querySelectorAll('.to-page').forEach(p=>p.classList.remove('active','base','slide-left'));
+        document.getElementById('to-profile-page').classList.add('active');
+        document.getElementById('to-bottom-nav').style.display='flex';
+        toPageHistory = ['to-home','to-profile-page'];
+    }
+        else if(tab==='discover'){
+        toRenderFavorites();toRenderSearchResults();
+        document.querySelectorAll('.to-page').forEach(p=>p.classList.remove('active','base','slide-left'));
+        document.getElementById('to-discover-page').classList.add('active');
+        document.getElementById('to-bottom-nav').style.display='flex';
+        toPageHistory=['to-home','to-discover-page'];
+    }
+}
+
+function toRenderOrders() {
+    const el = document.getElementById('to-orders-list');
+    if(toOrderHistory.length===0){el.innerHTML='<div style="text-align:center;color:var(--text-secondary);padding:40px;font-size:10px;letter-spacing:2px;">暂无订单</div>';return;}
+    
+    const statusMap = {
+        'pending': {label:'进行中', cls:'pending', color:'#856404', bg:'#fff3cd'},
+        'delivered': {label:'待确认', cls:'pending', color:'#0c5460', bg:'#d1ecf1'},
+        'done': {label:'已完成', cls:'done', color:'#155724', bg:'#d4edda'}
+    };
+    
+    el.innerHTML = toOrderHistory.map(o => {
+        const st = statusMap[o.status] || statusMap.pending;
+        let progressText = '';
+        if (o.statusSteps) {
+            const lastActive = [...o.statusSteps].reverse().find(s => s.a);
+            if (lastActive) progressText = lastActive.s;
+        }
+        const btnText = o.status === 'done' ? '再来一单' : (o.status === 'delivered' ? '确认收货' : progressText || '查看详情');
+        
+        return `<div class="to-order-card" onclick="toViewOrderDetail('${o.id}')">
+            <div class="to-order-card-header">
+                <div class="to-order-card-shop">${o.emoji} ${o.shop}</div>
+                <div style="font-size:9px;font-weight:600;padding:2px 8px;border-radius:8px;background:${st.bg};color:${st.color};">${st.label}</div>
+            </div>
+            <div class="to-order-card-items">${o.itemsText}</div>
+            ${progressText && o.status !== 'done' ? `<div style="font-size:9px;color:var(--text-secondary);margin:4px 0;display:flex;align-items:center;gap:4px;"><span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:#ff9500;animation:toBlink 1s infinite;"></span>${progressText}</div>` : ''}
+            <div class="to-order-card-bottom">
+                <div class="to-order-card-total">¥${parseFloat(o.total).toFixed(2)}</div>
+                <div class="to-order-card-time">${o.time}</div>
+                <button class="to-order-card-btn" onclick="event.stopPropagation();${o.status==='delivered'?`toCompleteOrder('${o.id}')`:o.status==='done'?`toOpenShop(0)`:`toViewOrderDetail('${o.id}')`}">${btnText}</button>
+            </div>
+        </div>`;
+    }).join('');
+}
+
+function toCompleteOrder(id){const o=toOrderHistory.find(x=>x.id===id);if(o){o.status='done';o.statusSteps=[{s:'订单已提交',t:o.time,a:true},{s:'商家已接单',t:o.acceptTime||'',a:true},{s:'骑手已取餐',t:o.pickupTime||'',a:true},{s:'已送达',t:new Date().toLocaleString('zh-CN'),a:true}];DB.set('toOrderHistory',toOrderHistory);toRenderOrders();}}
+
+function toStartOrderTracking(orderId) {
+    const order = toOrderHistory.find(o => o.id === orderId);
+    if (!order || order.status === 'done') return;
+    
+    order.statusSteps = [
+        {s:'订单已提交', t:order.time, a:true},
+        {s:'商家接单中', t:'等待中...', a:false},
+        {s:'骑手取餐中', t:'—', a:false},
+        {s:'配送中', t:'—', a:false}
+    ];
+    order.status = 'pending';
+    DB.set('toOrderHistory', toOrderHistory);
+    
+    setTimeout(() => {
+        const o = toOrderHistory.find(x => x.id === orderId);
+        if (!o || o.status === 'done') return;
+        o.acceptTime = new Date().toLocaleString('zh-CN');
+        o.statusSteps[1] = {s:'商家已接单', t:o.acceptTime, a:true};
+        o.statusSteps[2] = {s:'骑手取餐中', t:'等待中...', a:false};
+        DB.set('toOrderHistory', toOrderHistory);
+        toRenderOrders();
+        showSystemNotification(null, '🍜 ' + o.shop, '商家已接单，正在准备您的餐品', DEFAULT_AVATAR);
+        
+        setTimeout(() => {
+            const o2 = toOrderHistory.find(x => x.id === orderId);
+            if (!o2 || o2.status === 'done') return;
+            o2.pickupTime = new Date().toLocaleString('zh-CN');
+            o2.statusSteps[2] = {s:'骑手已取餐', t:o2.pickupTime, a:true};
+            o2.statusSteps[3] = {s:'配送中', t:'预计10分钟送达', a:false};
+            DB.set('toOrderHistory', toOrderHistory);
+            toRenderOrders();
+            showSystemNotification(null, '🛵 ' + o2.shop, '骑手已取餐，正在配送中', DEFAULT_AVATAR);
+            
+            setTimeout(() => {
+                const o3 = toOrderHistory.find(x => x.id === orderId);
+                if (!o3 || o3.status === 'done') return;
+                o3.deliverTime = new Date().toLocaleString('zh-CN');
+                o3.statusSteps[3] = {s:'已送达', t:o3.deliverTime, a:true};
+                o3.status = 'delivered';
+                DB.set('toOrderHistory', toOrderHistory);
+                toRenderOrders();
+                showSystemNotification(null, '✅ ' + o3.shop, '您的外卖已送达，请及时取餐！', DEFAULT_AVATAR);
+            }, 30000 + Math.random() * 30000);
+        }, 20000 + Math.random() * 20000);
+    }, 15000 + Math.random() * 15000);
+}
+
+function toGetMemberLevel() {
+    let totalSpent = 0;
+    toOrderHistory.forEach(o => { totalSpent += parseFloat(o.total) || 0; });
+    
+    const levels = [
+        { name: '普通会员', min: 0, icon: '🥉', color: '#888', next: 200 },
+        { name: '白银会员', min: 200, icon: '🥈', color: '#aaa', next: 500 },
+        { name: '黄金会员', min: 500, icon: '🥇', color: '#f59e0b', next: 1000 },
+        { name: '铂金会员', min: 1000, icon: '💎', color: '#60a5fa', next: 2000 },
+        { name: '黑钻会员', min: 2000, icon: '🖤', color: '#1a1a1a', next: 5000 },
+        { name: '至尊会员', min: 5000, icon: '👑', color: '#dc2626', next: 99999 }
+    ];
+    
+    let current = levels[0];
+    for (let i = levels.length - 1; i >= 0; i--) {
+        if (totalSpent >= levels[i].min) { current = levels[i]; break; }
+    }
+    
+    const nextLevel = levels[Math.min(levels.indexOf(current) + 1, levels.length - 1)];
+    const progress = current.next > current.min ? Math.min(100, ((totalSpent - current.min) / (current.next - current.min)) * 100) : 100;
+    
+    return { ...current, totalSpent, progress, nextName: nextLevel.name, nextMin: current.next };
+}
+
+function toRenderProfile(){
+    document.getElementById('to-profile-name-text').innerText=settings.userName||'ME';
+    const member = toGetMemberLevel();
+    const subEl = document.querySelector('.to-profile-sub');
+    if(subEl) subEl.innerHTML = `${member.icon} ${member.name} · 累计消费 ¥${member.totalSpent.toFixed(0)}`;
+    
+    const cardEl = document.querySelector('.to-profile-card');
+    if(cardEl) {
+        cardEl.style.background = member.totalSpent >= 2000 ? 'linear-gradient(135deg, #1a1a1a, #333)' : (member.totalSpent >= 1000 ? 'linear-gradient(135deg, #1e3a5f, #2d5a87)' : (member.totalSpent >= 500 ? 'linear-gradient(135deg, #78550a, #b8860b)' : 'var(--gray-light)'));
+        cardEl.style.color = member.totalSpent >= 500 ? '#fff' : 'var(--text-color)';
+    }
+    
+    let progressEl = document.getElementById('to-member-progress');
+    if(!progressEl) {
+        const profileSection = document.querySelector('.to-profile-section');
+        if(profileSection) {
+            const progressHtml = `<div id="to-member-progress" style="padding:0 0 15px;"><div style="display:flex;justify-content:space-between;font-size:9px;color:var(--text-secondary);margin-bottom:4px;"><span>${member.name}</span><span>下一级: ${member.nextName} (¥${member.nextMin})</span></div><div style="width:100%;height:4px;background:var(--gray-light);border-radius:2px;overflow:hidden;"><div style="width:${member.progress}%;height:100%;background:var(--text-color);border-radius:2px;transition:width 0.5s;"></div></div></div>`;
+            cardEl.insertAdjacentHTML('afterend', progressHtml);
+        }
+    } else {
+        progressEl.innerHTML = `<div style="display:flex;justify-content:space-between;font-size:9px;color:var(--text-secondary);margin-bottom:4px;"><span>${member.name}</span><span>下一级: ${member.nextName} (¥${member.nextMin})</span></div><div style="width:100%;height:4px;background:var(--gray-light);border-radius:2px;overflow:hidden;"><div style="width:${member.progress}%;height:100%;background:var(--text-color);border-radius:2px;transition:width 0.5s;"></div></div>`;
+    }
+}
+
+function toRenderAddresses() {
+    const el = document.getElementById('to-addr-list'); if(!el) return;
+    el.innerHTML = toAddresses.map(a=>`<div class="to-addr-card ${a.id===toSelectedAddrId?'selected':''}" onclick="toSelectAddr('${a.id}')"><div class="to-addr-icon">📍</div><div class="to-addr-info"><div class="to-addr-tag">${a.tag}</div><div class="to-addr-detail">${a.addr} · ${a.name} ${a.phone}</div></div><div class="to-addr-actions"><button class="del" onclick="event.stopPropagation();toDeleteAddr('${a.id}')">DEL</button></div></div>`).join('')+'<button class="action-btn primary" style="width:100%;border-radius:12px;margin-top:10px;" onclick="toAddAddress()">+ 新增地址</button>';
+}
+
+function toSelectAddr(id) {
+    toSelectedAddrId = id;
+    const addr = toAddresses.find(a => a.id === id);
+    if (addr) {
+        const homeName = document.getElementById('to-current-addr-name');
+        if (homeName) homeName.innerText = addr.tag;
+        const homeDetail = document.getElementById('to-current-addr-detail');
+        if (homeDetail) homeDetail.innerText = '· ' + addr.addr;
+        
+        const orderName = document.getElementById('to-order-addr-name');
+        if (orderName) orderName.innerText = `${addr.tag || '地址'} · ${addr.addr || '请添加地址'}`;
+        const orderDetail = document.getElementById('to-order-addr-detail');
+        if (orderDetail) orderDetail.innerText = `${addr.name || ''} ${addr.phone || ''}`;
+    }
+    toRenderAddresses();
+    
+    if (toPageHistory.includes('to-order')) {
+        setTimeout(() => toGoBackAuto(), 250);
+    }
+}
+function toDeleteAddr(id){if(!confirm('删除该地址？'))return;toAddresses=toAddresses.filter(a=>a.id!==id);if(toSelectedAddrId===id&&toAddresses.length>0)toSelectedAddrId=toAddresses[0].id;DB.set('toAddresses',toAddresses);toRenderAddresses();}
+function toAddAddress(){openModal('modal-to-address');}
+function toSaveAddress(){const tag=$('#to-addr-input-tag').value.trim();const addr=$('#to-addr-input-addr').value.trim();const name=$('#to-addr-input-name').value.trim();const phone=$('#to-addr-input-phone').value.trim();if(!tag||!addr)return alert('请填写标签和地址');toAddresses.push({id:'a_'+Date.now(),tag,addr,name:name||'用户',phone:phone||''});DB.set('toAddresses',toAddresses);closeModal('modal-to-address');$('#to-addr-input-tag').value='';$('#to-addr-input-addr').value='';$('#to-addr-input-name').value='';$('#to-addr-input-phone').value='';toRenderAddresses();}
+
+function toToggleFavShop() {
+    const shop = TO_SHOPS[toCurrentShopIdx];
+    const idx = toFavorites.shops.findIndex(s=>s.id===shop.id);
+    if(idx>-1){toFavorites.shops.splice(idx,1);}
+    else{toFavorites.shops.push({id:shop.id,name:shop.name,emoji:shop.emoji,rating:shop.rating});}
+    DB.set('toFavorites',toFavorites);
+    toUpdateFavShopBtn();
+}
+
+function toUpdateFavShopBtn() {
+    const shop = TO_SHOPS[toCurrentShopIdx];
+    const btn = document.getElementById('to-fav-shop-btn');
+    if(!btn)return;
+    const isFav = toFavorites.shops.some(s=>s.id===shop.id);
+    btn.innerHTML = isFav?'♥':'♡';
+    btn.style.color = isFav?'#ff3b30':'#fff';
+}
+
+function toToggleFavItem(itemId) {
+    const shop = TO_SHOPS[toCurrentShopIdx];
+    const item = shop.menu.find(m=>m.id===itemId);
+    if(!item)return;
+    const idx = toFavorites.items.findIndex(f=>f.shopId===shop.id&&f.itemId===item.id);
+    if(idx>-1){toFavorites.items.splice(idx,1);}
+    else{toFavorites.items.push({shopId:shop.id,shopName:shop.name,itemId:item.id,name:item.name,emoji:item.emoji,price:item.price,desc:item.desc});}
+    DB.set('toFavorites',toFavorites);
+    toRenderMenu();
+}
+
+function toClearFavorites(type) {
+    if(!confirm('确定清空？'))return;
+    if(type==='shop')toFavorites.shops=[];
+    else toFavorites.items=[];
+    DB.set('toFavorites',toFavorites);
+    toRenderFavorites();
+}
+
+function toRenderFavorites() {
+    const shopsEl = document.getElementById('to-fav-shops');
+    const itemsEl = document.getElementById('to-fav-items');
+    if(!shopsEl||!itemsEl)return;
+    
+    if(toFavorites.shops.length===0){
+        shopsEl.innerHTML='<div style="text-align:center;color:var(--text-secondary);font-size:10px;padding:15px;">暂无收藏商家</div>';
+    } else {
+        shopsEl.innerHTML=toFavorites.shops.map(s=>{
+            const shopIdx=TO_SHOPS.findIndex(x=>x.id===s.id);
+            return `<div class="to-shop-card" style="margin-bottom:8px;" onclick="${shopIdx>-1?`toOpenShop(${shopIdx})`:''}"><div class="to-shop-img">${s.emoji}</div><div class="to-shop-info"><div class="to-shop-name">${s.name}</div><div class="to-shop-meta"><span class="rating">★ ${s.rating}</span></div></div><button style="background:none;border:none;color:#ff3b30;font-size:14px;cursor:pointer;flex-shrink:0;padding:0 5px;" onclick="event.stopPropagation();toFavorites.shops=toFavorites.shops.filter(x=>x.id!=='${s.id}');DB.set('toFavorites',toFavorites);toRenderFavorites();">♥</button></div>`;
+        }).join('');
+    }
+    
+    if(toFavorites.items.length===0){
+        itemsEl.innerHTML='<div style="text-align:center;color:var(--text-secondary);font-size:10px;padding:15px;">暂无收藏菜品</div>';
+    } else {
+        itemsEl.innerHTML=toFavorites.items.map(i=>`<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--gray-light);"><span style="font-size:22px;">${i.emoji}</span><div style="flex:1;"><div style="font-size:12px;font-weight:600;">${i.name}</div><div style="font-size:9px;color:var(--text-secondary);">${i.shopName} · ${i.desc}</div></div><div style="font-size:12px;color:#ff3b30;font-weight:700;">¥${i.price}</div><button style="background:none;border:none;color:#ff3b30;font-size:14px;cursor:pointer;padding:0 5px;" onclick="toFavorites.items=toFavorites.items.filter(x=>!(x.shopId==='${i.shopId}'&&x.itemId===${i.itemId}));DB.set('toFavorites',toFavorites);toRenderFavorites();">♥</button></div>`).join('');
+    }
+}
+
+async function toDoSearch() {
+    const input1 = document.getElementById('to-search-input');
+    const input2 = document.getElementById('to-discover-search');
+    const query = (input1&&input1.value.trim()) || (input2&&input2.value.trim());
+    if(!query)return alert('请输入搜索关键词');
+    
+    toSwitchTab(document.querySelectorAll('.to-nav-item')[1],'discover');
+    if(input2)input2.value=query;
+    
+    const resultsEl = document.getElementById('to-search-results');
+    resultsEl.innerHTML='<div style="text-align:center;padding:20px;color:var(--text-secondary);font-size:10px;"> AI 正在搜索中 请稍候「'+query+'」...</div>';
+    
+    if(!apiConfig.url){
+        let found = [];
+        TO_SHOPS.forEach((s,si)=>{
+            if(s.name.includes(query)){found.push({type:'shop',shopIdx:si,shop:s});}
+            s.menu.forEach(m=>{
+                if(m.name.includes(query)||m.desc.includes(query)){found.push({type:'item',shopIdx:si,shop:s,item:m});}
+            });
+        });
+        if(found.length>0){
+            resultsEl.innerHTML=found.map(f=>{
+                if(f.type==='shop')return`<div class="to-shop-card" style="margin-bottom:8px;" onclick="toOpenShop(${f.shopIdx})"><div class="to-shop-img">${f.shop.emoji}</div><div class="to-shop-info"><div class="to-shop-name">${f.shop.name}</div><div class="to-shop-meta"><span class="rating">★ ${f.shop.rating}</span><span>约${f.shop.time}</span></div></div></div>`;
+                return`<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--gray-light);cursor:pointer;" onclick="toOpenShop(${f.shopIdx})"><span style="font-size:22px;">${f.item.emoji}</span><div style="flex:1;"><div style="font-size:12px;font-weight:600;">${f.item.name}</div><div style="font-size:9px;color:var(--text-secondary);">${f.shop.name} · ${f.item.desc}</div></div><div style="font-size:12px;color:#ff3b30;font-weight:700;">¥${f.item.price}</div></div>`;
+            }).join('');
+        } else {
+            resultsEl.innerHTML='<div style="text-align:center;padding:20px;color:var(--text-secondary);font-size:10px;">未找到相关结果<br>请配置 API 以启用 AI 智能搜索</div>';
+        }
+        return;
+    }
+    
+    const prompt = `你是一个外卖平台的数据生成器。用户搜索了「${query}」。请生成5-9个与此关键词相关的外卖商家和菜品数据。
 必须返回严格的JSON格式：
 {
   "shops": [
@@ -2620,32 +3265,49 @@ let currentCallAudioId = null;
 }
 直接输出JSON，不要加任何其他文字。`;
 
-        try {
-            const endpoint = getChatEndpoint(api.url);
-            const res = await fetch(endpoint, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${api.key}` },
-                body: JSON.stringify({ model: api.model, messages: [{ role: 'user', content: prompt }], max_tokens: 1500, temperature: 0.85 })
+    try {
+        const endpoint = getChatEndpoint(apiConfig.url);
+        const res = await fetch(endpoint,{method:'POST',headers:{'Content-Type':'application/json','Authorization':`Bearer ${apiConfig.key}`},body:JSON.stringify({model:apiConfig.model,messages:[{role:'user',content:prompt}],max_tokens:1500,temperature:0.85})});
+        const data = await res.json();
+        const result = JSON.parse(extractJSON(data.choices[0].message.content));
+        
+        if(result.shops&&result.shops.length>0){
+            result.shops.forEach(s=>{
+                s.id = 'ai_'+Date.now()+'_'+Math.floor(Math.random()*1000);
+                s.delivery = 3; s.pack = 2; s.minOrder = 15;
+                if(!s.menu)s.menu=[];
+                s.menu.forEach((m,i)=>{m.id=i+1;m.cat='推荐';m.orig=0;if(!m.sales)m.sales='新品';});
+                if(!TO_SHOPS.find(x=>x.name===s.name)){TO_SHOPS.push(s);}
             });
-            const data = await res.json();
-            const result = JSON.parse(extractJSON(data.choices[0].message.content));
             
-            if (result.shops && result.shops.length > 0) {
-                result.shops.forEach(s => {
-                    s.id = 'ai_cat_' + Date.now() + '_' + Math.floor(Math.random() * 1000);
-                    s.delivery = Math.floor(Math.random() * 5); 
-                    s.pack = 1; 
-                    s.minOrder = 15;
-                    if (!s.menu) s.menu = [];
-                    s.menu.forEach((m, i) => { m.id = Date.now() + i; m.cat = '推荐'; m.orig = 0; if (!m.sales) m.sales = '新品'; });
-                    TO_SHOPS.unshift(s); 
-                });
-                toRenderShopList(); 
-            }
-        } catch (e) {
-            resultsEl.innerHTML = `<div style="text-align:center;padding:20px;color:var(--text-secondary);font-size:10px;">生成失败: ${e.message}</div>`;
+            toSearchResults = result.shops;
+            DB.set('toSearchResults',toSearchResults);
+            toRenderSearchResults();
+            toRenderShopList(); 
+        } else {
+            resultsEl.innerHTML='<div style="text-align:center;padding:20px;color:var(--text-secondary);font-size:10px;">AI 未返回有效结果</div>';
         }
+    } catch(e){
+        resultsEl.innerHTML='<div style="text-align:center;padding:20px;color:var(--text-secondary);font-size:10px;">搜索失败: '+e.message+'</div>';
     }
+    if(input1)input1.value='';
+}
+
+function toRenderSearchResults() {
+    const el = document.getElementById('to-search-results');
+    if(!el)return;
+    if(toSearchResults.length===0){
+        el.innerHTML='<div style="text-align:center;padding:20px;color:var(--text-secondary);font-size:10px;">搜索美食试试吧</div>';
+        return;
+    }
+    el.innerHTML=toSearchResults.map(s=>{
+        const shopIdx=TO_SHOPS.findIndex(x=>x.name===s.name);
+        return`<div class="to-shop-card" style="margin-bottom:8px;" onclick="${shopIdx>-1?`toOpenShop(${shopIdx})`:''}"><div class="to-shop-img">${s.emoji}</div><div class="to-shop-info"><div class="to-shop-name">${s.name}</div><div class="to-shop-tags">${(s.tags||[]).map(t=>`<span class="to-shop-tag">${t}</span>`).join('')}</div><div class="to-shop-meta"><span class="rating">★ ${s.rating}</span><span>月售${s.sales}</span><span>约${s.time}</span></div></div></div>`;
+    }).join('');
+}
+
+function toInitApp(){toRenderShopList();toRenderAddresses();
+toRenderFavorites();toRenderSearchResults();}
 
         async function triggerAI(isReroll = false) {
         if (!currentChatRoleId || window.isAiResponding) return;
