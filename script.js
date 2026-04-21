@@ -2880,7 +2880,7 @@ ${modeRules}
                             fullReply += delta;
                             
                             const now = Date.now();
-                            if (now - lastUpdateTime > 50) { 
+                            if (now - lastUpdateTime > 150) { 
                                 lastUpdateTime = now;
                                 cleanDisplay = fullReply;
                                 if (!settings.showCoT) {
