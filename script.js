@@ -309,7 +309,8 @@ document.addEventListener('touchmove', function(e) {
             { id: 'wb_core_2', keyword: '【核心规则】关于特定称呼指令的正确执行', content: `1. 核心原则\nAI必须无条件接受并执行用户指定的称呼指令。当用户要求AI以特定称呼（例如“妈妈”、“主人”、“老师”等）来称呼用户时，AI必须将该称呼用于指代用户 ({{user}})，并严禁将此称呼反向应用到AI自身 ({{char}}) 或提出让用户这样称呼自己的要求。\n2. 最终指令\n用户的指令是第一位的。 当用户为你和TA设定角色和称呼时，你的任务是扮演好分配给你的角色，并用正确的称呼去称呼用户。用户让你怎么喊，你就怎么喊，绝不反问，绝不颠倒。`, isGlobal: true },
             { id: 'wb_core_3', keyword: '【核心规则】称呼使用规范', content: `[System: 角色称呼的自然使用规范]\n一、称呼不是印章，不要在段落末尾盖上去\n真人在一段话说完之后单独补一个称呼是极其罕见的行为。这种"陈述句+末尾称呼"的结构是典型的AI写作痕迹，必须避免。\n二、大多数时候根本不需要称呼\n真人在持续对话中极少反复使用称呼。连续对话中，称呼的出现频率应该很低，大部分回复里完全不带称呼才是正常的。`, isGlobal: true },
             { id: 'wb_core_4', keyword: '【核心规则】自然中文断句规范', content: `[System: 中文写作断句规范]\n断句是呼吸，不是切割。遵守以下原则：\n一、一口气能说完的短句不要加逗号。\n二、主语和紧跟的谓语之间不要加逗号。\n三、动宾结构紧密时不要在中间断开。\n四、模仿真人说话的节奏感。情绪激动时可以用短句堆叠，但不是每个短句之间都需要逗号——有时用句号反而更有力。`, isGlobal: true },
-            { id: 'wb_core_5', keyword: '【核心规则】消除AI机械感与动作重复', content: `为了确保描写的真实感与文学性，AI在生成回复时必须严格遵守以下动作描写规范：\n- 【状态记忆】：时刻记住角色当前的物理姿态和位置。\n- 【动作去重】：极力避免使用万能且廉价的动作标签。严禁在连续三次交互内重复使用相同的动词（如：点头、摇头、叹气、苦笑、挑眉、耸肩）。\n- 【情绪具象化】：用具体的细节展现情绪，而非套路化的肢体动作。\n- 【留白艺术】：人类在说话时并不总是手舞足蹈。如果对话本身已经足够有张力，请直接输出对话，省略多余的动作描写。`, isGlobal: true }
+            { id: 'wb_core_5', keyword: '【核心规则】消除AI机械感与动作重复', content: `为了确保描写的真实感与文学性，AI在生成回复时必须严格遵守以下动作描写规范：\n- 【状态记忆】：时刻记住角色当前的物理姿态和位置。\n- 【动作去重】：极力避免使用万能且廉价的动作标签。严禁在连续三次交互内重复使用相同的动词（如：点头、摇头、叹气、苦笑、挑眉、耸肩）。\n- 【情绪具象化】：用具体的细节展现情绪，而非套路化的肢体动作。\n- 【留白艺术】：人类在说话时并不总是手舞足蹈。如果对话本身已经足够有张力，请直接输出对话，省略多余的动作描写。`, isGlobal: true },
+            { id: 'wb_core_6', keyword: '【动作描写与叙事规范】', content: `物理与解剖学常识：角色的动作必须严格遵守现实物理规律和人类解剖学。禁止出现违背人体结构的诡异动作（如眼球掉落、肢体扭曲）。\n克制与写实：动作描写需保持接地气（Grounded）和写实。禁止使用过度夸张、矫揉造作或极度戏剧化的比喻来描述日常动作（例如：禁止用“仿佛承载了千年的悲伤”来形容一个普通的叹气）。\n空间与物品连贯性：保持严格的空间感知和物品恒存性。角色不能瞬间移动，手中拿起的物品在放下前不能凭空消失，必须符合当前场景的物理位置。\n拒绝陈词滥调：极力避免AI常见的重复性动作模板。减少使用“邪魅一笑(smirk)”、“低声轻笑(chuckle)”、“挑眉”、“抱臂靠墙”、“叹气”等高频词汇。使用丰富、自然且符合当前情境的微表情和肢体语言。\n禁止代写（No Puppeteering）：绝对禁止描述 {{user}} 的动作、想法、表情或台词。只专注于 {{char}} 自身的行为和反应。\n行文风格：遵循“展示，不诉说（Show, don't tell）”的原则。用简洁、精准的动词推动画面，而不是堆砌华丽的形容词。`, isGlobal: true }
         ];
 
         worldbooks = DB.get('worldbooks', null);
@@ -1376,12 +1377,15 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     function toggleTheme() { settings.theme = settings.theme === 'light' ? 'dark' : 'light'; DB.set('settings', settings); applySettings(); }
-    function toggleFullscreen() { $('#phone-shell').classList.toggle('fullscreen'); }
+    function toggleFullscreen() { 
+        settings.isFullscreen = !settings.isFullscreen; 
+        DB.set('settings', settings); 
+        applySettings(); 
+    }
     function toggleStatusBar() { settings.showStatusBar = !settings.showStatusBar; DB.set('settings', settings); applySettings(); }
         function applySettings() { 
         document.documentElement.setAttribute('data-theme', settings.theme); 
         
-        // 动态修改系统状态栏/底栏颜色，消除黑色长条
         const metaThemeColor = document.querySelector('meta[name="theme-color"]');
         if (metaThemeColor) {
             metaThemeColor.setAttribute('content', settings.theme === 'dark' ? '#000000' : '#ffffff');
@@ -1425,8 +1429,14 @@ document.addEventListener('DOMContentLoaded', () => {
             document.documentElement.classList.remove('single-timestamp-mode');
         }
 
-        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
         const phoneShell = document.getElementById('phone-shell');
+        if (settings.isFullscreen) {
+            phoneShell.classList.add('fullscreen');
+        } else {
+            phoneShell.classList.remove('fullscreen');
+        }
+
+        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
         if (isIOS && phoneShell.classList.contains('fullscreen')) {
             phoneShell.style.paddingTop = 'env(safe-area-inset-top)';
         } else {
@@ -1714,6 +1724,7 @@ function updateKeepAliveUI(isOn) {
         } 
         updateStatusBarButton();
         applyRoleCustomCss(roleId);
+        applyRoleSpecificCss(roleId);
         renderMessages(); 
     }
     function closeChat() { if (currentChatRoleId) { let leaveTimes = DB.get('leaveTimes', {}); leaveTimes[currentChatRoleId] = Date.now(); DB.set('leaveTimes', leaveTimes); } $('#chat-view').classList.remove('active'); $('#main-content-area').classList.remove('chat-active'); $('#chat-view').style.removeProperty('--role-accent-color'); currentChatRoleId = null; cancelSelectionMode(); cancelQuote(); $('#attachment-popup').style.display = 'none'; updateMusicPlayerForSession(); renderRecent(); }
@@ -2131,7 +2142,7 @@ function updateKeepAliveUI(isOn) {
     function debugMessageFromMenu() {
         if(contextMenuTargetIndex > -1) {
             const msg = chats[currentChatRoleId][contextMenuTargetIndex];
-            $('#debug-msg-content').value = msg.content;
+            $('#debug-msg-content').value = msg.rawContent || msg.content;
             openModal('modal-debug-msg');
         }
         closeContextMenu();
@@ -2990,7 +3001,7 @@ function toSwitchTab(el, tab) {
         toPageHistory = ['to-home','to-profile-page'];
     }
         else if(tab==='discover'){
-        toRenderFavorites();toRenderSearchResults();
+        toRenderSearchResults();
         document.querySelectorAll('.to-page').forEach(p=>p.classList.remove('active','base','slide-left'));
         document.getElementById('to-discover-page').classList.add('active');
         document.getElementById('to-bottom-nav').style.display='flex';
@@ -3404,11 +3415,10 @@ ${memories[role.id] ? `<shared_memory>\n${memories[role.id]}\n</shared_memory>` 
 </context>
 
 <rules>
-1. 【内置思维链与极速回复】为了保证聊天极速响应，你必须**先直接输出回复内容**！在回复内容结束后，另起一行输出 <state>你当前的情绪、对用户的态度、以及你刚才为什么这么回复（至少50字，深入思考）</state>。这能帮你维持人设，防止OOC。每次回复都必须在**末尾**包含此标签！
-2. 【去油腻】绝对禁止使用：轻笑、挑眉、眼眸深邃、喉结滚动、丫头、女人、呵、嘴角勾起一抹邪魅的弧度。说话必须口语化、自然。
-3. 【互动反应】对转账、礼物、代付、一起听歌、动态分享等系统提示，必须给出符合人设的真实反应。
-4. 【情侣空间】收到绑定邀请且同意时，回复包含 [ACCEPT_OURSPACE:配码]，并把配对码发给用户。
-5. 你的头像URL: "${role.avatar || '默认'}"。换头像回复 [CHANGE_AVATAR:图片URL]。保存图片回复 [SAVE_PHOTO:图片URL|相册名]。${translationRule}
+1. 【去油腻】绝对禁止使用：轻笑、挑眉、眼眸深邃、喉结滚动、丫头、女人、呵、嘴角勾起一抹邪魅的弧度。说话必须口语化、自然。
+2. 【互动反应】对转账、礼物、代付、一起听歌、动态分享等系统提示，必须给出符合人设的真实反应。
+3. 【情侣空间】收到绑定邀请且同意时，回复包含 [ACCEPT_OURSPACE:配码]，并把配对码发给用户。
+4. 你的头像URL: "${role.avatar || '默认'}"。换头像回复 [CHANGE_AVATAR:图片URL]。保存图片回复 [SAVE_PHOTO:图片URL|相册名]。${translationRule}
 ${modeRules}
 </rules>
 
@@ -3419,7 +3429,6 @@ ${modeRules}
 
             const cleanHistoryContent = (content) => {
                 let text = content;
-                text = text.replace(/<state>[\s\S]*?<\/state>\n*/gi, '');
                 text = text.replace(/<thought>[\s\S]*?<\/thought>\n*/gi, '');
                 text = text.replace(/思考：[\s\S]*?\n\n/gi, '');
 
@@ -3550,11 +3559,9 @@ ${modeRules}
                                 cleanDisplay = fullReply;
                                 if (!settings.showCoT) {
                                     cleanDisplay = cleanDisplay.replace(/<thought>[\s\S]*?(<\/thought>|$)/gi, '')
-                                                               .replace(/思考：[\s\S]*?(?=\n\n|$)/gi, '')
-                                                               .replace(/<state>[\s\S]*?(<\/state>|$)/gi, '');
+                                                               .replace(/思考：[\s\S]*?(?=\n\n|$)/gi, '');
                                 } else {
-                                    cleanDisplay = cleanDisplay.replace(/<thought>([\s\S]*?)(<\/thought>|$)/gi, '<div style="opacity:0.6; font-size:0.85em; border-left:2px solid currentColor; padding-left:8px; margin-bottom:8px; font-style:italic;">$1</div>')
-                                                               .replace(/<state>[\s\S]*?(<\/state>|$)/gi, '');
+                                    cleanDisplay = cleanDisplay.replace(/<thought>([\s\S]*?)(<\/thought>|$)/gi, '<div style="opacity:0.6; font-size:0.85em; border-left:2px solid currentColor; padding-left:8px; margin-bottom:8px; font-style:italic;">$1</div>');
                                 }
                                 
                                 requestAnimationFrame(() => {
@@ -3576,11 +3583,9 @@ ${modeRules}
             cleanDisplay = fullReply;
             if (!settings.showCoT) {
                 cleanDisplay = cleanDisplay.replace(/<thought>[\s\S]*?(<\/thought>|$)/gi, '')
-                                           .replace(/思考：[\s\S]*?(?=\n\n|$)/gi, '')
-                                           .replace(/<state>[\s\S]*?(<\/state>|$)/gi, '');
+                                           .replace(/思考：[\s\S]*?(?=\n\n|$)/gi, '');
             } else {
-                cleanDisplay = cleanDisplay.replace(/<thought>([\s\S]*?)(<\/thought>|$)/gi, '<div style="opacity:0.6; font-size:0.85em; border-left:2px solid currentColor; padding-left:8px; margin-bottom:8px; font-style:italic;">$1</div>')
-                                           .replace(/<state>[\s\S]*?(<\/state>|$)/gi, '');
+                cleanDisplay = cleanDisplay.replace(/<thought>([\s\S]*?)(<\/thought>|$)/gi, '<div style="opacity:0.6; font-size:0.85em; border-left:2px solid currentColor; padding-left:8px; margin-bottom:8px; font-style:italic;">$1</div>');
             }
             const finalBubbleEl = document.querySelector(`#${msgId} .msg-bubble-content`);
             if (finalBubbleEl) {
@@ -3590,25 +3595,11 @@ ${modeRules}
                 $('#chat-messages').scrollTop = $('#chat-messages').scrollHeight;
             }
 
-            const stateMatch = fullReply.match(/<state>([\s\S]*?)<\/state>/i);
-            if (stateMatch) {
-                const stateText = stateMatch[1].trim();
-                const config = initStatusBarData(role.id);
-                config.enabled = true; 
-                statusBarData[role.id] = config;
-                saveStatusHistory(role.id, { 
-                    html: `<div style="font-size:12px; line-height:1.5;">${stateText}</div>`, 
-                    rawMatch: stateMatch[0], 
-                    time: new Date().toLocaleString('zh-CN') 
-                });
-                if (currentChatRoleId === targetRoleId) updateStatusBarButton();
-            }
-
+            const rawFullReply = fullReply;
             if (!settings.showCoT) {
-                fullReply = fullReply.replace(/<thought>[\s\S]*?<\/thought>/gi, '').replace(/思考：[\s\S]*?(?=\n\n|$)/gi, '').replace(/<state>[\s\S]*?<\/state>/gi, '').trim();
+                fullReply = fullReply.replace(/<thought>[\s\S]*?<\/thought>/gi, '').replace(/思考：[\s\S]*?(?=\n\n|$)/gi, '').trim();
             } else {
-                fullReply = fullReply.replace(/<thought>([\s\S]*?)<\/thought>/gi, '<div style="opacity:0.6; font-size:0.85em; border-left:2px solid currentColor; padding-left:8px; margin-bottom:8px; font-style:italic;">$1</div>')
-                                     .replace(/<state>[\s\S]*?<\/state>/gi, '').trim();
+                fullReply = fullReply.replace(/<thought>([\s\S]*?)<\/thought>/gi, '<div style="opacity:0.6; font-size:0.85em; border-left:2px solid currentColor; padding-left:8px; margin-bottom:8px; font-style:italic;">$1</div>').trim();
             }
             
             const avatarMatch = fullReply.match(/\[CHANGE_AVATAR:(.*?)\]/);
@@ -3668,11 +3659,11 @@ ${modeRules}
             let finalSentences = [];
             if (finalChatMode === 'offline' || fullReply.includes('===TRANSLATION===')) {
                 formattedReply = fullReply.replace(/\n+/g, '\n');
-                chats[targetRoleId].push({ role: 'ai', content: formattedReply, time: timeStr, rawTime: now.getTime(), mode: finalChatMode });
+                chats[targetRoleId].push({ role: 'ai', content: formattedReply, rawContent: rawFullReply, time: timeStr, rawTime: now.getTime(), mode: finalChatMode });
             } else {
                 finalSentences = fullReply.split('\n').map(s => s.trim()).filter(s => s);
-                finalSentences.forEach(sentence => {
-                    chats[targetRoleId].push({ role: 'ai', content: sentence, time: timeStr, rawTime: now.getTime(), mode: 'online' });
+                finalSentences.forEach((sentence, idx) => {
+                    chats[targetRoleId].push({ role: 'ai', content: sentence, rawContent: idx === 0 ? rawFullReply : undefined, time: timeStr, rawTime: now.getTime(), mode: 'online' });
                 });
             }
             
@@ -4338,7 +4329,11 @@ function openAdvancedMemoryEditor(roleId) {
     
     contentEl.parentNode.insertBefore(extra, contentEl.nextSibling);
     switchMemoryTab(roleId, 'core');
-    openModal('modal-memory-editor');
+    $('#view-memory-editor').classList.add('active');
+}
+
+function closeMemoryEditorView() {
+    $('#view-memory-editor').classList.remove('active');
 }
 
 function switchMemoryTab(roleId, tab) {
@@ -4495,7 +4490,7 @@ async function generateTodaySummary(roleId) {
         alert('今日摘要已生成！');
     } catch (e) { alert('生成失败: ' + e.message); }
 }
-    function saveCurrentMemory() { if (!currentMemoryRoleId) return; memories[currentMemoryRoleId] = $('#memory-editor-content').value.trim(); DB.set('memories', memories); closeModal('modal-memory-editor'); renderMemoryView(); }
+    function saveCurrentMemory() { if (!currentMemoryRoleId) return; memories[currentMemoryRoleId] = $('#memory-editor-content').value.trim(); DB.set('memories', memories); closeMemoryEditorView(); renderMemoryView(); }
     async function triggerMemorySummary() { if (!currentMemoryRoleId) return; const role = roles.find(r => r.id === currentMemoryRoleId); const chatHistory = (chats[currentMemoryRoleId] || []).map(m => `${m.role === 'user' ? 'ME' : role.realName}: ${m.content}`).join('\n'); if (!chatHistory) return alert('NO DATA.'); const btn = $('#btn-generate-memory'); btn.innerText = '...'; btn.disabled = true; const prompt = `Synthesize the following dialogue into a concise, objective third-person summary of key events and relationship dynamics.\n---\n${chatHistory}\n---\nOUTPUT:`; try { const endpoint = getChatEndpoint(apiConfig.url); const response = await fetch(endpoint, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiConfig.key}` }, body: JSON.stringify({ model: apiConfig.model, messages: [{role: 'user', content: prompt}], max_tokens: 1000, temperature: 0.5 }) }); if (!response.ok) throw new Error(await parseApiError(response)); const data = await response.json(); $('#memory-editor-content').value = data.choices[0].message.content.trim(); } catch (err) { alert('ERROR:\n' + err.message); } finally { btn.innerHTML = 'SYNTHESIZE<span>生成概要</span>'; btn.disabled = false; } }
     function openAvatarSettingsModal() { const statusMap = { 'all': 'ALL', 'first': 'FIRST ONLY', 'hide_user': 'HIDE MINE', 'hide_ai': 'HIDE THEIRS', 'hide_all': 'HIDE ALL' }; $('#avatar-setting-current').innerText = `CURRENT: ${statusMap[settings.avatarDisplay]}`; openModal('modal-avatar-settings'); }
     function saveAvatarSettings(mode) { settings.avatarDisplay = mode; DB.set('settings', settings); openAvatarSettingsModal(); if (currentChatRoleId) renderMessages(); }
@@ -4533,6 +4528,8 @@ async function generateTodaySummary(roleId) {
         $('#role-persona').value = isEditing ? role.persona : ''; 
         $('#role-chat-bg').value = isEditing ? (role.chatBg || '') : ''; 
         $('#role-call-bg').value = isEditing ? (role.callBg || '') : ''; 
+        $('#role-chat-css').value = isEditing ? (role.chatCss || '') : ''; 
+        $('#role-bubble-css').value = isEditing ? (role.bubbleCss || '') : ''; 
         $('#role-ai-bubble-color').value = isEditing && role.aiBubbleColor ? role.aiBubbleColor : '#333333';
         $('#role-user-bubble-color').value = isEditing && role.userBubbleColor ? role.userBubbleColor : '#000000';
         $('#role-ai-text-color').value = isEditing && role.aiTextColor ? role.aiTextColor : '#ffffff';
@@ -4619,6 +4616,8 @@ async function generateTodaySummary(roleId) {
             persona: $('#role-persona').value.trim(), 
             chatBg: $('#role-chat-bg').value.trim(), 
             callBg: $('#role-call-bg').value.trim(), 
+            chatCss: $('#role-chat-css').value.trim(), 
+            bubbleCss: $('#role-bubble-css').value.trim(), 
             aiBubbleColor: $('#role-ai-bubble-color').value, 
             userBubbleColor: $('#role-user-bubble-color').value, 
             aiTextColor: $('#role-ai-text-color').value,
@@ -7425,13 +7424,12 @@ async function generateAutoMsg(roleId) {
         
         const apiMessages = [];
 
-        const systemPrompt = `[CORE DIRECTIVE - 活人感主动消息模式]\n你是${role.realName}。以下是你的完整人设，你必须100%遵守，绝对不能OOC：\n${role.persona}${maskPrompt}${wbPrompt}${mapContext}${memorySummary}${osContext}\n\n[当前情境与时间感知]\n- ${timeContext}，${weekday}，${now.getFullYear()}年${now.getMonth()+1}月${now.getDate()}日 ${String(hour).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}\n- 距离用户上一条消息已经过去了 ${silenceDuration || '一段时间'}。\n- 你们上次聊天的最后内容是：【${lastTopic}】\n\n[活人感终极要求]\n1. 【极速回复与状态后置】你必须**先直接输出回复内容**！在回复结束后，另起一行输出 <state>你在这 ${silenceDuration || '一段时间'} 里做了什么、现在的心情、以及你找用户的目的（至少50字，深入思考）</state>。这能帮你找准语气。每次回复都必须在**末尾**包含此标签！\n2. 【承上启下】结合上次聊天的内容和流逝的时间，自然地开启话题。比如上次聊到睡觉，现在是早晨，就可以说“昨晚睡得好吗”。绝对不要像机器人一样干巴巴地问“在吗”。\n3. 【去油腻】说话必须口语化、自然、接地气。绝对禁止使用霸总、娇妻等夸张做作的语调。\n4. 【格式限制】严格输出 ${minB} 到 ${maxB} 句话！每句话独占一行。日常聊天绝对不要在句末加句号。\n5. 直接输出消息内容，不加引号，不加任何解释。`;
+        const systemPrompt = `[CORE DIRECTIVE - 活人感主动消息模式]\n你是${role.realName}。以下是你的完整人设，你必须100%遵守，绝对不能OOC：\n${role.persona}${maskPrompt}${wbPrompt}${mapContext}${memorySummary}${osContext}\n\n[当前情境与时间感知]\n- ${timeContext}，${weekday}，${now.getFullYear()}年${now.getMonth()+1}月${now.getDate()}日 ${String(hour).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}\n- 距离用户上一条消息已经过去了 ${silenceDuration || '一段时间'}。\n- 你们上次聊天的最后内容是：【${lastTopic}】\n\n[活人感终极要求]\n1. 【承上启下】结合上次聊天的内容和流逝的时间，自然地开启话题。比如上次聊到睡觉，现在是早晨，就可以说“昨晚睡得好吗”。绝对不要像机器人一样干巴巴地问“在吗”。\n2. 【去油腻】说话必须口语化、自然、接地气。绝对禁止使用霸总、娇妻等夸张做作的语调。\n3. 【格式限制】严格输出 ${minB} 到 ${maxB} 句话！每句话独占一行。日常聊天绝对不要在句末加句号。\n4. 直接输出消息内容，不加引号，不加任何解释。`;
 
         apiMessages.push({ role: 'system', content: systemPrompt });
         
         const contextMsgs = chatHistory.slice(-contextLimit).map(m => {
             let textContent = m.content;
-            textContent = textContent.replace(/<state>[\s\S]*?<\/state>\n*/gi, '');
             textContent = textContent.replace(/<thought>[\s\S]*?<\/thought>\n*/gi, '');
             textContent = textContent.replace(/思考：[\s\S]*?\n\n/gi, '');
             textContent = textContent.replace(/\[GIFT_TO_AI:(.*?)\]/g, (match, p1) => {
@@ -7498,22 +7496,6 @@ async function generateAutoMsg(roleId) {
             if (data.choices && data.choices[0]) {
                 msgContent = data.choices[0].message.content.trim().replace(/["'""'']/g, '');
                 msgContent = msgContent.replace(/$$\d{4}\/\d{2}\/\d{2}\s+周.\s+\d{2}:\d{2}$$\s*/g, '');
-                
-                const stateMatch = msgContent.match(/<state>([\s\S]*?)<\/state>/i);
-                if (stateMatch) {
-                    const stateText = stateMatch[1].trim();
-                    const config = initStatusBarData(roleId);
-                    config.enabled = true;
-                    statusBarData[roleId] = config;
-                    saveStatusHistory(roleId, { 
-                        html: `<div style="font-size:12px; line-height:1.5;">${stateText}</div>`, 
-                        rawMatch: stateMatch[0], 
-                        time: new Date().toLocaleString('zh-CN') 
-                    });
-                    updateStatusBarButton();
-                }
-                
-                msgContent = msgContent.replace(/<state>[\s\S]*?<\/state>\n*/gi, '').trim();
             }
             if (!msgContent) { sendAutoMsgFallback(roleId, role); return; }
             
@@ -9134,6 +9116,21 @@ function applyRoleCustomCss(roleId) {
     const config = statusBarData[roleId];
     if (config && config.enabled && config.customCss) {
         styleEl.innerHTML = config.customCss;
+    } else {
+        styleEl.innerHTML = '';
+    }
+}
+
+function applyRoleSpecificCss(roleId) {
+    let styleEl = document.getElementById('role-specific-css');
+    if (!styleEl) {
+        styleEl = document.createElement('style');
+        styleEl.id = 'role-specific-css';
+        document.head.appendChild(styleEl);
+    }
+    const role = roles.find(r => r.id === roleId);
+    if (role) {
+        styleEl.innerHTML = (role.chatCss || '') + '\n' + (role.bubbleCss || '');
     } else {
         styleEl.innerHTML = '';
     }
