@@ -349,7 +349,7 @@ document.addEventListener('touchmove', function(e) {
         ]);
     reincCurrent = { mode: 'user', roleId: null, aiItem: null };
 
-    reincChats = DB.get('reincChats', []); 
+    reincChats = []; 
 cipherState = DB.get('cipherState', {score:0,created:0,solved:0,collection:[], history:[]});
         
         forumPosts = DB.get('forumPosts', []);
@@ -2061,7 +2061,7 @@ function updateKeepAliveUI(isOn) {
                 const img = new Image();
                 img.onload = () => {
                     let quality = settings.imageQuality !== undefined ? settings.imageQuality : 0.8;
-                    if (quality >= 1.0 && file.size < 5 * 1024 * 1024) {
+                    if (quality >= 1.0) {
                         sendRealImage(resultData);
                         return;
                     }
@@ -8826,7 +8826,7 @@ function reincNav(pageId) {
 
 function reincStartChat(roleId) {
     reincCurrent.roleId = roleId;
-        reincChats = DB.get('reincChats_' + roleId, []); 
+    reincChats = DB.get('reincChats_' + roleId, []); 
     reincNav('reinc-chat');
     
     if (reincChats.length === 0) {
@@ -8854,7 +8854,7 @@ function reincSwitchMode(mode) {
 
 function reincPushMsg(role, content) {
     reincChats.push({ role: role, content: content, time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }) });
-DB.set('reincChats_' + reincCurrent.roleId, reincChats); 
+    DB.set('reincChats_' + reincCurrent.roleId, reincChats); 
     reincRenderChat();
 }
 
@@ -10470,7 +10470,11 @@ function onAiAvatarDblClick() {
         if(ourSpaceData.annis.length===0) { list.innerHTML = '<div style="text-align:center;color:var(--text-secondary);font-size:10px;padding:10px;">暂无纪念日</div>'; return; }
         const now = new Date();
         list.innerHTML = ourSpaceData.annis.map((a, i) => {
-            let target = new Date(a.date);
+            let safeDateStr = a.date;
+            if (safeDateStr && !safeDateStr.includes('T')) {
+                safeDateStr = safeDateStr.replace(/-/g, '/') + ' 00:00:00';
+            }
+            let target = new Date(safeDateStr);
             target.setFullYear(now.getFullYear());
             if(target < now) target.setFullYear(now.getFullYear() + 1);
             const days = Math.ceil((target - now) / (1000 * 60 * 60 * 24));
@@ -11233,7 +11237,7 @@ function renderVirtualMap() {
     }
 
     const filteredLocs = virtualLocations.map((loc, index) => ({ loc, index }))
-        .filter(item => !query || item.loc.name.toLowerCase().includes(query) || item.loc.desc.toLowerCase().includes(query));
+        .filter(item => !query || (item.loc.name && item.loc.name.toLowerCase().includes(query)) || (item.loc.desc && item.loc.desc.toLowerCase().includes(query)));
 
     if (filteredLocs.length === 0) {
         listEl.innerHTML = '<div style="text-align:center; color:var(--text-secondary); padding: 20px; font-size: 10px;">未找到匹配的地点</div>';
