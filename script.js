@@ -2601,11 +2601,21 @@ let currentCallAudioId = null;
         }
     }
 
+    window.editingImageUrls = [];
     function editMessageFromMenu() { 
         if(contextMenuTargetIndex > -1) { 
             editingMsgIndex = contextMenuTargetIndex; 
             const msg = chats[currentChatRoleId][editingMsgIndex];
-            $('#edit-msg-content').value = msg.content; 
+            
+            // 优化：将长长的图片 URL 替换为 [图片1] 占位符，方便编辑
+            window.editingImageUrls = [];
+            let textToEdit = msg.content;
+            textToEdit = textToEdit.replace(/<img src="(.*?)" class="chat-inline-img">/g, (match, url) => {
+                window.editingImageUrls.push(url);
+                return `[图片${window.editingImageUrls.length}]`;
+            });
+            
+            $('#edit-msg-content').value = textToEdit; 
             
             if (msg.rawTime) {
                 const d = new Date(msg.rawTime);
@@ -2625,6 +2635,13 @@ let currentCallAudioId = null;
         const newTimeStr = $('#edit-msg-timestamp').value;
         
         if(newText) { 
+            // 优化：将 [图片1] 还原回真实的图片 URL
+            if (window.editingImageUrls && window.editingImageUrls.length > 0) {
+                window.editingImageUrls.forEach((url, i) => {
+                    newText = newText.replace(`[图片${i+1}]`, `<img src="${url}" class="chat-inline-img">`);
+                });
+            }
+
             // 拦截手动输入的转账格式并转换为卡片
             const transferMatch = newText.match(/\[(?:[^\]]*?)转账[:：]?\s*[¥￥]?\s*(\d+(\.\d+)?)\]/);
             if (transferMatch) {
@@ -3517,9 +3534,9 @@ toRenderFavorites();toRenderSearchResults();}
             const maxB = settings.bubbleCountMax || 5;
             let modeRules = '';
             if (finalChatMode === 'online') {
-                modeRules = `【线上聊天模式强制规则】\n- 保持简短、自然的网聊风格。\n- 必须严格输出 ${minB} 到 ${maxB} 句话（行）。如果设置了最少${minB}条，你绝对不能少于${minB}条！\n- 每句话必须独占一行（按回车换行），系统会根据换行自动切分为多个气泡。\n- 句末绝对不要加句号。`;
+                modeRules = `【线上聊天模式强制规则】\n- 保持简短、自然的网聊风格。\n- 必须严格输出 ${minB} 到 ${maxB} 句话（行）。如果设置了最少${minB}条，你绝对不能少于${minB}条！\n- 每句话必须独占一行（按回车换行），系统会根据换行自动切分为多个气泡。\n- 句末绝对不要加句号。\n- 【格式红线】：绝对禁止使用星号、括号包裹动作描写（如 *笑*、(叹气)），只能输出纯文字对话！`;
             } else {
-                modeRules = `【线下叙事模式强制规则】\n- 严格控制总字数在 ${settings.memoirMaxLength || 400} 字左右。\n- 必须严格按照以下三段式结构输出，绝对不能把对话和旁白揉在同一段里：\n第一段：纯粹的环境描写或心理描写（绝对不含任何对话）\n第二段："双引号包裹的对话文本"（必须独占一段）\n第三段：纯粹的环境描写或心理描写（绝对不含任何对话）`;
+                modeRules = `【线下叙事模式强制规则】\n- 严格控制总字数在 ${settings.memoirMaxLength || 400} 字左右。\n- 必须严格按照以下三段式结构输出，绝对不能把对话和旁白揉在同一段里：\n第一段：纯粹的环境描写或心理描写（绝对不含任何对话）\n第二段："双引号包裹的对话文本"（必须独占一段）\n第三段：纯粹的环境描写或心理描写（绝对不含任何对话）\n- 【格式红线】：对话必须用双引号 "" 包裹，且必须单独成段！禁止在对话段落中夹杂动作！`;
             }
 
             let translationRule = '';
