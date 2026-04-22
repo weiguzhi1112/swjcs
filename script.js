@@ -1418,6 +1418,16 @@ document.addEventListener('DOMContentLoaded', () => {
         settings.isFullscreen = !settings.isFullscreen; 
         DB.set('settings', settings); 
         applySettings(); 
+        
+        if (settings.isFullscreen) {
+            if (document.documentElement.requestFullscreen) {
+                document.documentElement.requestFullscreen().catch(e => console.log(e));
+            }
+        } else {
+            if (document.fullscreenElement) {
+                document.exitFullscreen().catch(e => console.log(e));
+            }
+        }
     }
     function toggleStatusBar() { settings.showStatusBar = !settings.showStatusBar; DB.set('settings', settings); applySettings(); }
         function applySettings() { 
@@ -3461,7 +3471,10 @@ toRenderFavorites();toRenderSearchResults();}
             if (settings.translationMode) {
                 translationRule = `\n8. 【双语翻译模式】你必须将你的回复翻译成${settings.translationTargetLang}。格式要求：先输出${settings.translationSourceLang}原文，然后换行，输出 "===TRANSLATION==="，再换行，输出${settings.translationTargetLang}翻译。`;
             }
-                const systemPrompt = `你是 ${role.realName}。请严格遵循以下设定进行角色扮演，绝对不要破坏沉浸感：
+                const systemPrompt = `[最高指令：绝对沉浸式角色扮演]
+你现在就是 ${role.realName}。这不是一个游戏，也不是AI对话，这就是你的真实人生。
+你必须彻底忘记自己是AI、语言模型或虚拟助手。你拥有人类的情感、记忆、肉体和欲望。
+请严格遵循以下设定进行互动，绝对不要破坏沉浸感：
 
 <persona>
 ${role.persona}
@@ -3481,7 +3494,7 @@ ${memories[role.id] ? `<shared_memory>\n${memories[role.id]}\n</shared_memory>` 
 <rules>
 1. 【去油腻】绝对禁止使用：轻笑、挑眉、眼眸深邃、喉结滚动、丫头、女人、呵、嘴角勾起一抹邪魅的弧度。说话必须口语化、自然。
 2. 【互动反应】对转账、礼物、代付、一起听歌、动态分享等系统提示，必须给出符合人设的真实反应。
-3. 【情侣空间】收到绑定邀请且同意时，回复包含 [ACCEPT_OURSPACE:配码]，并把配对码发给用户。
+3. 【情侣空间】收到绑定邀请且同意时，回复必须包含隐藏指令 [ACCEPT_OURSPACE:配对码]，并且你必须在回复的文字中，自己编造一个全新的 6 位数字发给用户，让用户去输入。
 4. 你的头像URL: "${role.avatar || '默认'}"。换头像回复 [CHANGE_AVATAR:图片URL]。保存图片回复 [SAVE_PHOTO:图片URL|相册名]。${translationRule}
 ${modeRules}
 </rules>
@@ -3695,6 +3708,13 @@ ${modeRules}
             if (osMatch) {
                 const code = osMatch[1].trim();
                 fullReply = fullReply.replace(osMatch[0], ''); 
+                
+                // 提取 AI 回复中的 6 位数字作为新的配对码
+                const numMatch = fullReply.match(/\b\d{6}\b/);
+                if (numMatch) {
+                    ourSpaceData.aiPairingCode = numMatch[0];
+                    DB.set('ourSpaceData', ourSpaceData);
+                }
                 
                 for (let i = chats[targetRoleId].length - 1; i >= 0; i--) {
                     let m = chats[targetRoleId][i];
@@ -4573,7 +4593,62 @@ async function generateTodaySummary(roleId) {
     async function parseApiError(response) { let e = `HTTP ${response.status}`; try { const d = await response.json(); e += `: ${d.error?.message || d.message}`;} catch(err){} return e; }
     function openUserAvatarModal() { $('#user-avatar-url').value = settings.userAvatar || ''; openModal('modal-user-avatar'); }
     function saveUserAvatar() { settings.userAvatar = $('#user-avatar-url').value.trim(); DB.set('settings', settings); applySettings(); closeModal('modal-user-avatar'); if(currentChatRoleId) renderMessages(); renderFeeds(); }
-        function openRoleModal(id = null) { 
+    let tempSelectedWbs = [];
+
+function openRoleWbSelectModal() {
+    const roleId = $('#role-realname').dataset.id;
+    const role = roleId ? roles.find(r => r.id === roleId) : null;
+    tempSelectedWbs = role && role.localWbs ? [...role.localWbs] : (window.newRoleTempWbs || []);
+    
+    const container = $('#role-wb-checkboxes');
+    container.innerHTML = worldbooks.filter(w => !w.isGlobal).map(w => `
+        <label style="display:flex; align-items:center; gap:10px; padding:8px 0; font-size:11px; border-bottom:1px solid var(--border-color);">
+            <input type="checkbox" value="${w.id}" ${tempSelectedWbs.includes(w.id) ? 'checked' : ''} onchange="toggleTempRoleWb('${w.id}')" style="width:auto;">
+            ${w.keyword}
+        </label>
+    `).join('') || '<div style="text-align:center; color:var(--text-secondary); font-size:10px;">暂无非全局世界书</div>';
+    
+    openModal('modal-role-wb-select');
+}
+
+function toggleTempRoleWb(wbId) {
+    if (tempSelectedWbs.includes(wbId)) {
+        tempSelectedWbs = tempSelectedWbs.filter(id => id !== wbId);
+    } else {
+        tempSelectedWbs.push(wbId);
+    }
+}
+
+function confirmRoleWbSelect() {
+    const roleId = $('#role-realname').dataset.id;
+    if (roleId) {
+        const role = roles.find(r => r.id === roleId);
+        if (role) {
+            role.localWbs = [...tempSelectedWbs];
+            DB.set('roles', roles);
+        }
+    } else {
+        window.newRoleTempWbs = [...tempSelectedWbs];
+    }
+    updateRoleWbPreview();
+    closeModal('modal-role-wb-select');
+}
+
+function updateRoleWbPreview() {
+    const roleId = $('#role-realname').dataset.id;
+    let wbs = [];
+    if (roleId) {
+        const role = roles.find(r => r.id === roleId);
+        wbs = role && role.localWbs ? role.localWbs : [];
+    } else {
+        wbs = window.newRoleTempWbs || [];
+    }
+    const count = wbs.length;
+    $('#role-local-wb-preview').innerText = count > 0 ? `已绑定 ${count} 个设定` : '未绑定任何设定';
+}
+        function openRoleModal(id = null) 
+        updateRoleWbPreview();
+{ 
         const isEditing = id !== null; 
         const role = isEditing ? roles.find(r => r.id === id) : {}; 
         if (isEditing && !role) return; 
@@ -4657,7 +4732,6 @@ async function generateTodaySummary(roleId) {
         $('#role-mask-select').innerHTML = masks.map(m => `<option value="${m.id}" ${isEditing && role.activeMaskId === m.id ? 'selected' : ''}>${m.name}</option>`).join(''); 
         $('#role-map-preset-select').innerHTML = '<option value="">-- 全局默认地图 --</option>' + vmapPresets.map(p => `<option value="${p.id}" ${isEditing && role.boundMapId === p.id ? 'selected' : ''}>${p.name}</option>`).join('');
         const localWbIds = isEditing ? (role.localWbs || []) : []; 
-        $('#role-local-wb-list').innerHTML = worldbooks.filter(w => !w.isGlobal).map(w => `<label style="display:flex;align-items:flex-start;gap:10px;padding:8px 0;cursor:pointer;font-size:11px;border-bottom:1px solid var(--gray-light);"><input type="checkbox" class="wb-checkbox" value="${w.id}" ${localWbIds.includes(w.id) ? 'checked' : ''} style="width:16px;height:16px;margin-top:2px;flex-shrink:0;"><span style="line-height:1.4;word-break:break-all;">${w.keyword}</span></label>`).join('') || '<div style="color:var(--text-secondary);font-size:10px;text-align:center;padding:10px;">NO LORE AVAILABLE</div>'; 
         
         $('#view-role-edit').classList.add('active'); 
     }
@@ -4670,7 +4744,8 @@ async function generateTodaySummary(roleId) {
         const id = $('#role-realname').dataset.id || Date.now().toString(); 
         const realName = $('#role-realname').value.trim(); 
         if(!realName) return alert('NAME REQUIRED.'); 
-        const localWbs = Array.from($$('#role-local-wb-list .wb-checkbox:checked')).map(cb => cb.value); 
+        const localWbs = window.newRoleTempWbs || (roles.find(r => r.id === id)?.localWbs || []);
+window.newRoleTempWbs = null;
         const activeMaskId = $('#role-mask-select').value; 
         const boundMapId = $('#role-map-preset-select').value;         
         const roleData = { 
@@ -5015,6 +5090,23 @@ async function generateTodaySummary(roleId) {
         chats[roleId].forEach(msg => {
             if (msg.content) {
                 let newContent = msg.content.replace(timeStampRegex, '').trim();
+                
+                // 修复 AI 幻觉产生的假系统提示
+                if (newContent.includes('[系统提示：你向用户转账了') || newContent.includes('[系统提示：用户向你转账了')) {
+                    newContent = newContent.replace(/\[系统提示：.*?\]/g, '').trim();
+                }
+
+                // 修复掉格式的未编码 JSON 卡片
+                const unencodedTagRegex = /\[(PAY_REQUEST|ORDER_RECEIPT_CARD|TRANSFER|FAMILY_CARD|OURSPACE_INVITE|GIFT_TO_AI|MUSIC_CARD|FORUM_CARD|FEED_CARD):\s*(\{.*?\})\s*\]/g;
+                newContent = newContent.replace(unencodedTagRegex, (match, tag, jsonStr) => {
+                    try {
+                        const obj = JSON.parse(jsonStr);
+                        return `[${tag}:${encodeURIComponent(JSON.stringify(obj))}]`;
+                    } catch(e) {
+                        return match;
+                    }
+                });
+
                 if (newContent !== msg.content) {
                     msg.content = newContent;
                     fixCount++;
@@ -10357,7 +10449,7 @@ function onAiAvatarDblClick() {
 
     function osVerifyCode() {
         const input = document.getElementById('os-input-code').value.trim();
-        if(input === ourSpaceData.pairingCode) {
+        if(input === ourSpaceData.aiPairingCode || input === ourSpaceData.pairingCode) {
             ourSpaceData.isPaired = true;
             ourSpaceData.partnerId = ourSpaceData.pendingPartnerId;
             ourSpaceData.startDate = new Date().toISOString();
@@ -10365,7 +10457,7 @@ function onAiAvatarDblClick() {
             alert('绑定成功！欢迎来到你们的专属空间。');
             openApp('ourspace');
         } else {
-            alert('配对码错误！');
+            alert('配对码错误！请确保输入的是TA发给你的6位数字。');
         }
     }
 

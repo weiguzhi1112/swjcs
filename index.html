@@ -76,7 +76,7 @@
     <div class="dim-overlay"></div>
     <div class="brand-container">
         <div class="logo-box">
-            <h1 class="logo-text">ASTRAL</h1>
+            <h1 class="logo-text">VesperLock</h1>
         </div>
         <div class="tagline">L'ART DE LA SIMPLICITÉ</div>
     </div>
@@ -1483,7 +1483,13 @@
         </div>
         
         <div class="setting-group" style="border:none; padding:0;"><label>ACTIVE PERSONA / 面具</label><select id="role-mask-select" style="width: 100%; padding: 10px 12px; border: 1px solid var(--border-color); background: transparent; color: var(--text-color); font-family: var(--font-sans); font-size: 11px; outline: none;"></select></div>
-        <div class="setting-group" style="border:none; padding:0;"><label>BOUND LORE / 世界书</label><div id="role-local-wb-list" style="max-height: 180px; overflow-y: auto; border: 1px solid var(--border-color); padding: 8px; border-radius: 8px; background: var(--bg-color); overscroll-behavior: contain; -webkit-overflow-scrolling: touch;"></div></div>
+        
+        <div class="setting-group" style="border:none; padding:0;">
+            <label>BOUND LORE / 绑定世界书</label>
+            <button class="action-btn" onclick="openRoleWbSelectModal()" style="width:100%;">SELECT LORE <span>选择世界书</span></button>
+            <div id="role-local-wb-preview" style="font-size: 10px; color: var(--text-secondary); margin-top: 5px; text-align: center;"></div>
+        </div>
+
         <div class="setting-group" style="border:none; padding:0;"><label>BOUND MAP / 绑定专属地图</label><select id="role-map-preset-select" style="width: 100%; padding: 10px 12px; border: 1px solid var(--border-color); background: transparent; color: var(--text-color); font-family: var(--font-sans); font-size: 11px; outline: none;"></select></div>
         <div id="role-opening-group" class="setting-group" style="border:none; padding:0; margin-top:4px;"><label>OPENING LINE / 开场白</label><textarea id="role-opening" placeholder="角色第一次对话时自动发送的开场白..." style="width: 100%; height:60px; resize:vertical; padding: 10px 12px; border: 1px solid var(--border-color); background: transparent; color: var(--text-color); font-family: var(--font-sans); font-size: 11px; outline: none;"></textarea></div>
         
@@ -2336,6 +2342,20 @@
         <div class="modal-btns">
             <button class="btn-cancel" onclick="closeModal('modal-wallet-bg')">CANCEL<span>取消</span></button>
             <button class="btn-confirm" onclick="confirmWalletBg()">SAVE<span>保存</span></button>
+        </div>
+    </div>
+</div>
+<!-- 角色详情：世界书多选弹窗 -->
+<div class="modal-overlay" id="modal-role-wb-select">
+    <div class="modal">
+        <h3>Select Lore <span>绑定世界书设定</span></h3>
+        <div class="setting-group" style="border:none; padding:0;">
+            <div id="role-wb-checkboxes" style="max-height: 250px; overflow-y: auto; border: 1px solid var(--border-color); padding: 10px; background: var(--gray-light);">
+                <!-- 动态生成 -->
+            </div>
+        </div>
+        <div class="modal-btns">
+            <button class="btn-confirm" onclick="confirmRoleWbSelect()" style="width: 100%;">DONE<span>完成</span></button>
         </div>
     </div>
 </div>
