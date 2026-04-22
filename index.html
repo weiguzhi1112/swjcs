@@ -23,13 +23,65 @@
 <div id="phone-shell">
 <!-- 自动登录连星动画遮罩 -->
 <div id="auto-login-overlay">
-    <div class="constellation-wrapper">
-        <div class="star-dot dot-1"></div>
-        <div class="star-line line-1"></div>
-        <div class="star-dot dot-2"></div>
-        <div class="star-line line-2"></div>
-        <div class="star-dot dot-3"></div>
+    <div class="noise"></div>
+    
+    <div class="watermark">A</div>
+    <div class="deco-text tl">SYSTEM / 01<br>INITIATING SEQUENCE</div>
+    <div class="deco-text tr">COORD: 48°52'5"N 2°19'59"E<br>PARIS, FRANCE</div>
+    <div class="deco-text bl">V. 2026.4</div>
+    <div class="editorial-block">
+        The constellation represents not just stars, but the invisible threads of elegance that connect our heritage to the future. A study in absolute minimalism and structural perfection.
     </div>
+
+    <svg class="svg-layer" viewBox="0 0 1000 1000" preserveAspectRatio="xMidYMid slice">
+        <line class="grid" x1="0" y1="300" x2="1000" y2="300" />
+        <line class="grid" x1="0" y1="700" x2="1000" y2="700" />
+        <line class="grid" x1="300" y1="0" x2="300" y2="1000" />
+        <line class="grid" x1="700" y1="0" x2="700" y2="1000" />
+
+        <circle class="orbit orbit-1" cx="500" cy="500" r="350" />
+        <circle class="orbit orbit-2" cx="500" cy="500" r="250" />
+
+        <path class="link-line ll-1" d="M 200 400 L 400 250" />
+        <path class="link-line ll-2" d="M 400 250 L 650 450" />
+        <path class="link-line ll-3" d="M 650 450 L 500 750" />
+        <path class="link-line ll-4" d="M 500 750 L 850 600" />
+
+        <g class="n1" style="transform-origin: 200px 400px;">
+            <circle class="star-ring" cx="200" cy="400" r="0" />
+            <circle class="star-core" cx="200" cy="400" r="2" />
+            <text class="star-label" x="210" y="395">S-01</text>
+        </g>
+        <g class="n2" style="transform-origin: 400px 250px;">
+            <circle class="star-ring" cx="400" cy="250" r="0" />
+            <circle class="star-core" cx="400" cy="250" r="3" />
+            <text class="star-label" x="410" y="245">S-02 / PRIME</text>
+        </g>
+        <g class="n3" style="transform-origin: 650px 450px;">
+            <circle class="star-ring" cx="650" cy="450" r="0" />
+            <circle class="star-core" cx="650" cy="450" r="2" />
+            <text class="star-label" x="660" y="445">S-03</text>
+        </g>
+        <g class="n4" style="transform-origin: 500px 750px;">
+            <circle class="star-ring" cx="500" cy="750" r="0" />
+            <circle class="star-core" cx="500" cy="750" r="2.5" />
+            <text class="star-label" x="510" y="745">S-04</text>
+        </g>
+        <g class="n1" style="transform-origin: 850px 600px;">
+            <circle class="star-core" cx="850" cy="600" r="1.5" />
+            <text class="star-label" x="860" y="595">S-05</text>
+        </g>
+    </svg>
+
+    <div class="dim-overlay"></div>
+    <div class="brand-container">
+        <div class="logo-box">
+            <h1 class="logo-text">ASTRAL</h1>
+        </div>
+        <div class="tagline">L'ART DE LA SIMPLICITÉ</div>
+    </div>
+
+    <button id="skip-splash-btn" onclick="skipAutoLoginAnimation()">SKIP</button>
 </div>
 <div id="global-typing-indicator" style="display:none; position:absolute; top:calc(env(safe-area-inset-top) + 10px); left:50%; transform:translateX(-50%) translateY(-10px); background:var(--text-color); color:var(--bg-color); padding:6px 16px; border-radius:20px; font-size:10px; font-weight:bold; z-index:10000; box-shadow:0 4px 15px rgba(0,0,0,0.2); align-items:center; gap:8px; transition: opacity 0.3s, transform 0.3s; pointer-events:none;">
     <span id="global-typing-name">AI</span> 正在输入<span style="animation: blink 1.4s infinite both;">...</span>
@@ -1431,7 +1483,7 @@
         </div>
         
         <div class="setting-group" style="border:none; padding:0;"><label>ACTIVE PERSONA / 面具</label><select id="role-mask-select" style="width: 100%; padding: 10px 12px; border: 1px solid var(--border-color); background: transparent; color: var(--text-color); font-family: var(--font-sans); font-size: 11px; outline: none;"></select></div>
-        <div class="setting-group" style="border:none; padding:0;"><label>BOUND LORE / 世界书</label><div id="role-local-wb-list" style="max-height: 100px; overflow-y: auto; border: 1px solid var(--border-color); padding: 5px;"></div></div>
+        <div class="setting-group" style="border:none; padding:0;"><label>BOUND LORE / 世界书</label><div id="role-local-wb-list" style="max-height: 180px; overflow-y: auto; border: 1px solid var(--border-color); padding: 8px; border-radius: 8px; background: var(--bg-color); overscroll-behavior: contain; -webkit-overflow-scrolling: touch;"></div></div>
         <div class="setting-group" style="border:none; padding:0;"><label>BOUND MAP / 绑定专属地图</label><select id="role-map-preset-select" style="width: 100%; padding: 10px 12px; border: 1px solid var(--border-color); background: transparent; color: var(--text-color); font-family: var(--font-sans); font-size: 11px; outline: none;"></select></div>
         <div id="role-opening-group" class="setting-group" style="border:none; padding:0; margin-top:4px;"><label>OPENING LINE / 开场白</label><textarea id="role-opening" placeholder="角色第一次对话时自动发送的开场白..." style="width: 100%; height:60px; resize:vertical; padding: 10px 12px; border: 1px solid var(--border-color); background: transparent; color: var(--text-color); font-family: var(--font-sans); font-size: 11px; outline: none;"></textarea></div>
         

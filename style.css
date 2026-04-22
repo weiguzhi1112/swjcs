@@ -1960,79 +1960,103 @@ body.is-app .to-page { padding-bottom: calc(70px + env(safe-area-inset-bottom)) 
     .os-selection-bar { display: none; position: absolute; bottom: 0; left: 0; width: 100%; height: 70px; background: var(--bg-color); border-top: 1px solid var(--border-color); z-index: 105; justify-content: space-around; align-items: center; padding-bottom: 10px; }
     .os-photo-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
     .os-photo-item { width: 100%; aspect-ratio: 1; border-radius: 12px; object-fit: cover; background: var(--gray-light); cursor: pointer; position: relative; }
-/* --- 自动登录连星动画 (Luxury Constellation) --- */
+/* --- 自动登录连星动画 --- */
 #auto-login-overlay {
     position: absolute; top: 0; left: 0; right: 0; bottom: 0;
-    background-color: #050505; /* 极黑背景 */
-    z-index: 10001; /* 层级最高，覆盖一切 */
-    display: none; /* 默认隐藏，由 JS 控制显示 */
-    justify-content: center;
-    align-items: center;
+    background-color: #050505;
+    z-index: 10001;
+    display: none;
+    overflow: hidden;
+    color: #ffffff;
+    font-family: var(--font-sans);
     transition: transform 1.2s cubic-bezier(0.25, 1, 0.5, 1), opacity 0.8s ease;
 }
-#auto-login-overlay.active { display: flex; }
-#auto-login-overlay.fade-out {
-    transform: scale(1.15);
-    opacity: 0;
-    pointer-events: none;
+#auto-login-overlay.active { display: block; }
+#auto-login-overlay.fade-out { transform: scale(1.15); opacity: 0; pointer-events: none; }
+
+#skip-splash-btn {
+    position: absolute; top: calc(env(safe-area-inset-top) + 20px); right: 20px;
+    background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2);
+    color: rgba(255,255,255,0.6); padding: 6px 12px; border-radius: 20px;
+    font-size: 9px; letter-spacing: 2px; cursor: pointer; z-index: 100;
+    backdrop-filter: blur(10px); transition: all 0.3s;
+}
+#skip-splash-btn:active { background: rgba(255,255,255,0.3); color: #fff; }
+
+#auto-login-overlay .noise {
+    position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+    background: url('data:image/svg+xml;utf8,%3Csvg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"%3E%3Cfilter id="noiseFilter"%3E%3CfeTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="3" stitchTiles="stitch"/%3E%3C/filter%3E%3Crect width="100%25" height="100%25" filter="url(%23noiseFilter)" opacity="0.05"/%3E%3C/svg%3E');
+    z-index: 0; pointer-events: none;
 }
 
-.constellation-wrapper {
-    position: relative;
-    width: 120px;
-    height: 120px;
-    transform: rotate(-15deg); /* 稍微倾斜，增加高级几何感 */
+.deco-text {
+    position: absolute; font-size: 9px; font-weight: 200; letter-spacing: 4px;
+    color: rgba(255, 255, 255, 0.5); text-transform: uppercase;
+    opacity: 0; animation: splashFadeIn 2s 0.5s ease-out forwards; z-index: 5;
+}
+.deco-text.tl { top: calc(env(safe-area-inset-top) + 40px); left: 20px; }
+.deco-text.tr { top: calc(env(safe-area-inset-top) + 80px); right: 20px; text-align: right; }
+.deco-text.bl { bottom: calc(env(safe-area-inset-bottom) + 40px); left: 20px; }
+
+.editorial-block {
+    position: absolute; bottom: calc(env(safe-area-inset-bottom) + 40px); right: 20px; width: 160px;
+    font-size: 8px; line-height: 1.6; color: rgba(255, 255, 255, 0.3);
+    text-align: justify; opacity: 0;
+    animation: splashSlideUpFade 2s 1.5s cubic-bezier(0.2, 1, 0.3, 1) forwards; z-index: 5;
 }
 
-.star-dot {
-    position: absolute;
-    width: 4px; height: 4px;
-    background: #ffffff;
-    border-radius: 50%;
-    box-shadow: 0 0 12px 2px rgba(255,255,255,0.9);
-    opacity: 0;
-}
-/* 三颗星星依次亮起 */
-.dot-1 { top: 20%; left: 20%; animation: starFadeIn 0.6s ease forwards 0.2s; }
-.dot-2 { top: 80%; left: 50%; animation: starFadeIn 0.6s ease forwards 0.9s; }
-.dot-3 { top: 30%; left: 90%; animation: starFadeIn 0.6s ease forwards 1.6s; }
-
-.star-line {
-    position: absolute;
-    background: linear-gradient(90deg, rgba(255,255,255,0.9), rgba(255,255,255,0.1));
-    height: 1px;
-    transform-origin: left center;
-    opacity: 0;
-}
-/* 精确计算的几何连线动画 */
-.line-1 {
-    top: 26px; left: 26px;
-    width: 0;
-    transform: rotate(63.4deg);
-    animation: drawLine1 0.7s cubic-bezier(0.4, 0, 0.2, 1) forwards 0.5s;
-}
-.line-2 {
-    top: 98px; left: 62px;
-    width: 0;
-    transform: rotate(-51.3deg);
-    animation: drawLine2 0.7s cubic-bezier(0.4, 0, 0.2, 1) forwards 1.2s;
+.watermark {
+    position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+    font-family: var(--font-serif); font-size: 80vh; font-style: italic;
+    color: rgba(255, 255, 255, 0.02); z-index: 1;
+    opacity: 0; animation: splashFadeIn 4s 1s forwards; pointer-events: none;
 }
 
-@keyframes starFadeIn {
-    0% { opacity: 0; transform: scale(0); }
-    50% { opacity: 1; transform: scale(1.8); box-shadow: 0 0 20px 5px rgba(255,255,255,1); }
-    100% { opacity: 0.85; transform: scale(1); }
-}
-@keyframes drawLine1 {
-    0% { width: 0; opacity: 0; }
-    10% { opacity: 1; }
-    100% { width: 80.5px; opacity: 0.5; }
-}
-@keyframes drawLine2 {
-    0% { width: 0; opacity: 0; }
-    10% { opacity: 1; }
-    100% { width: 76.8px; opacity: 0.5; }
-}
+.svg-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 2; pointer-events: none; }
+.grid { stroke: rgba(255, 255, 255, 0.06); stroke-width: 0.5; }
+.orbit { fill: none; stroke: rgba(255, 255, 255, 0.15); stroke-width: 0.5; stroke-dasharray: 4 8; transform-origin: center; opacity: 0; }
+.orbit-1 { animation: splashFadeInOrbit 3s 2s forwards, splashRotateSlow 40s linear infinite; }
+.orbit-2 { animation: splashFadeInOrbit 3s 2.5s forwards, splashRotateSlowRev 60s linear infinite; }
+
+.link-line { fill: none; stroke: rgba(255, 255, 255, 0.4); stroke-width: 0.5; stroke-dasharray: 1000; stroke-dashoffset: 1000; }
+.ll-1 { animation: splashDrawLine 2s 4.0s cubic-bezier(0.7, 0, 0.3, 1) forwards; }
+.ll-2 { animation: splashDrawLine 2s 4.5s cubic-bezier(0.7, 0, 0.3, 1) forwards; }
+.ll-3 { animation: splashDrawLine 2s 5.0s cubic-bezier(0.7, 0, 0.3, 1) forwards; }
+.ll-4 { animation: splashDrawLine 2s 5.5s cubic-bezier(0.7, 0, 0.3, 1) forwards; }
+
+.star-core { fill: #fff; opacity: 0; }
+.star-ring { fill: none; stroke: rgba(255,255,255,0.3); stroke-width: 0.5; opacity: 0; }
+.star-label { font-family: var(--font-sans); font-size: 6px; fill: rgba(255,255,255,0.5); opacity: 0; }
+
+.n1 .star-core { animation: splashPopStar 1s 3.8s forwards; }
+.n1 .star-ring { animation: splashExpandRing 2s 3.8s ease-out forwards; }
+.n1 .star-label { animation: splashFadeIn 1s 4.2s forwards; }
+.n2 .star-core { animation: splashPopStar 1s 4.3s forwards; }
+.n2 .star-ring { animation: splashExpandRing 2s 4.3s ease-out forwards; }
+.n2 .star-label { animation: splashFadeIn 1s 4.7s forwards; }
+.n3 .star-core { animation: splashPopStar 1s 4.8s forwards; }
+.n3 .star-ring { animation: splashExpandRing 2s 4.8s ease-out forwards; }
+.n3 .star-label { animation: splashFadeIn 1s 5.2s forwards; }
+.n4 .star-core { animation: splashPopStar 1s 5.3s forwards; }
+.n4 .star-ring { animation: splashExpandRing 2s 5.3s ease-out forwards; }
+.n4 .star-label { animation: splashFadeIn 1s 5.7s forwards; }
+
+.brand-container { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 10; text-align: center; pointer-events: none; }
+.logo-box { overflow: hidden; padding: 10px; }
+.logo-text { font-family: var(--font-serif); font-size: 42px; font-weight: 400; letter-spacing: 16px; margin-right: -16px; color: #fff; transform: translateY(120%); animation: splashRevealLogo 2.5s 8s cubic-bezier(0.8, 0, 0.1, 1) forwards; }
+.tagline { font-size: 8px; letter-spacing: 8px; font-weight: 300; margin-top: 10px; color: rgba(255, 255, 255, 0.6); opacity: 0; animation: splashFadeIn 2s 9.5s forwards; }
+
+.dim-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: radial-gradient(circle at center, transparent 20%, #050505 80%); opacity: 0; z-index: 3; pointer-events: none; animation: splashFadeIn 3s 8s forwards; }
+
+@keyframes splashFadeIn { to { opacity: 1; } }
+@keyframes splashSlideUpFade { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes splashFadeInOrbit { to { opacity: 1; } }
+@keyframes splashRotateSlow { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+@keyframes splashRotateSlowRev { from { transform: rotate(360deg); } to { transform: rotate(0deg); } }
+@keyframes splashDrawLine { to { stroke-dashoffset: 0; } }
+@keyframes splashPopStar { 0% { opacity: 0; transform: scale(0); } 50% { opacity: 1; transform: scale(1.5); } 100% { opacity: 1; transform: scale(1); } }
+@keyframes splashExpandRing { 0% { opacity: 1; r: 0; } 100% { opacity: 0; r: 30; } }
+@keyframes splashRevealLogo { to { transform: translateY(0); } }
 /* =========================================
    气泡内“正在输入”动画
    ========================================= */

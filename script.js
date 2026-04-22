@@ -735,6 +735,8 @@ async function checkDiscordCallback() {
         if (s) s.textContent = _did;
     });
 
+    let splashTimeout1, splashTimeout2;
+
     function playAutoLoginAnimation() {
         const overlay = document.getElementById('auto-login-overlay');
         if (!overlay) {
@@ -749,7 +751,7 @@ async function checkDiscordCallback() {
 
         overlay.classList.add('active');
 
-        setTimeout(() => {
+        splashTimeout1 = setTimeout(() => {
             overlay.classList.add('fade-out');
             
             setTimeout(() => {
@@ -770,13 +772,46 @@ async function checkDiscordCallback() {
                 }
             }, 400);
 
-            setTimeout(() => {
+            splashTimeout2 = setTimeout(() => {
                 overlay.style.display = 'none';
                 overlay.classList.remove('active', 'fade-out');
             }, 1200);
 
-        }, 2600);
+        }, 12000);
     }
+
+    window.skipAutoLoginAnimation = function() {
+        const overlay = document.getElementById('auto-login-overlay');
+        if (!overlay) return;
+        
+        clearTimeout(splashTimeout1);
+        clearTimeout(splashTimeout2);
+        
+        overlay.classList.add('fade-out');
+        
+        setTimeout(() => {
+            const desktopView = document.getElementById('view-desktop');
+            if (desktopView) {
+                desktopView.style.opacity = '1';
+                desktopView.style.pointerEvents = 'auto';
+            }
+            const pagination = document.getElementById('desktop-pagination');
+            if (pagination) {
+                pagination.style.opacity = '1';
+                pagination.style.pointerEvents = 'none';
+            }
+            const dock = document.getElementById('desktop-dock');
+            if (dock) {
+                dock.style.opacity = '1';
+                dock.style.pointerEvents = 'auto';
+            }
+        }, 400);
+
+        setTimeout(() => {
+            overlay.style.display = 'none';
+            overlay.classList.remove('active', 'fade-out');
+        }, 1200);
+    };
 
     updateTime(); 
     setTimeout(() => {
@@ -1249,58 +1284,60 @@ document.addEventListener('DOMContentLoaded', () => {
         document.querySelectorAll('.view-container').forEach(v => v.classList.remove('active'));
         if (currentChatRoleId) closeChat();
 
-        if (appId === 'messages') renderRecent();
-        if (appId === 'contacts') renderContacts();
-        if (appId === 'appearance') renderAppearanceApp();
-        if (appId === 'beauty') {
-            if (typeof openBeautyApp === 'function') {
-                openBeautyApp();
-            }
-        }
-        if (appId === 'feed') renderFeeds();
-        if (appId === 'music') renderMusicApp();
-        if (appId === 'calendar') renderCalendar();
-        if (appId === 'profile') {
-            setTimeout(refreshStorageVisual, 100);
-            if (window.storageRefreshInterval) clearInterval(window.storageRefreshInterval);
-            window.storageRefreshInterval = setInterval(refreshStorageVisual, 3000);
-        }
-        if (appId === 'forum') renderForum();
-        if (appId === 'cipher') {
-            cipherRenderMenu();
-            cipherBuildKb();
-        }
-        if (appId === 'reincarnation') {
-            reincNav('reinc-menu');
-        }
-        if (appId === 'takeout') {
-            if (typeof toInitApp === 'function') toInitApp();
-            if (typeof toGoHome === 'function') toGoHome();
-        }
-        if (appId === 'map') {
-            initMapApp();
-        }
-        if (appId === 'grimoire') {
-            renderGrimoireRoles();
-        }
-        if (appId === 'wallet') {
-            renderWalletApp();
-        }
-        if (appId === 'ourspace') {
-            const pairingView = document.getElementById('os-pairing-view');
-            const mainView = document.getElementById('os-main-view');
-            if (ourSpaceData.isPaired) {
-                if (pairingView) pairingView.style.display = 'none';
-                if (mainView) mainView.style.display = 'flex';
-                initOurSpace();
-            } else {
-                if (pairingView) pairingView.style.display = 'flex';
-                if (mainView) mainView.style.display = 'none';
-                renderOsPairingView();
-            }
-        }
-
         appView.classList.add('active');
+
+        setTimeout(() => {
+            if (appId === 'messages') renderRecent();
+            if (appId === 'contacts') renderContacts();
+            if (appId === 'appearance') renderAppearanceApp();
+            if (appId === 'beauty') {
+                if (typeof openBeautyApp === 'function') {
+                    openBeautyApp();
+                }
+            }
+            if (appId === 'feed') renderFeeds();
+            if (appId === 'music') renderMusicApp();
+            if (appId === 'calendar') renderCalendar();
+            if (appId === 'profile') {
+                setTimeout(refreshStorageVisual, 100);
+                if (window.storageRefreshInterval) clearInterval(window.storageRefreshInterval);
+                window.storageRefreshInterval = setInterval(refreshStorageVisual, 3000);
+            }
+            if (appId === 'forum') renderForum();
+            if (appId === 'cipher') {
+                cipherRenderMenu();
+                cipherBuildKb();
+            }
+            if (appId === 'reincarnation') {
+                reincNav('reinc-menu');
+            }
+            if (appId === 'takeout') {
+                if (typeof toInitApp === 'function') toInitApp();
+                if (typeof toGoHome === 'function') toGoHome();
+            }
+            if (appId === 'map') {
+                initMapApp();
+            }
+            if (appId === 'grimoire') {
+                renderGrimoireRoles();
+            }
+            if (appId === 'wallet') {
+                renderWalletApp();
+            }
+            if (appId === 'ourspace') {
+                const pairingView = document.getElementById('os-pairing-view');
+                const mainView = document.getElementById('os-main-view');
+                if (ourSpaceData.isPaired) {
+                    if (pairingView) pairingView.style.display = 'none';
+                    if (mainView) mainView.style.display = 'flex';
+                    initOurSpace();
+                } else {
+                    if (pairingView) pairingView.style.display = 'flex';
+                    if (mainView) mainView.style.display = 'none';
+                    renderOsPairingView();
+                }
+            }
+        }, 50);
 
         const desktop = $('#view-desktop');
         if (desktop) {
@@ -4620,7 +4657,7 @@ async function generateTodaySummary(roleId) {
         $('#role-mask-select').innerHTML = masks.map(m => `<option value="${m.id}" ${isEditing && role.activeMaskId === m.id ? 'selected' : ''}>${m.name}</option>`).join(''); 
         $('#role-map-preset-select').innerHTML = '<option value="">-- 全局默认地图 --</option>' + vmapPresets.map(p => `<option value="${p.id}" ${isEditing && role.boundMapId === p.id ? 'selected' : ''}>${p.name}</option>`).join('');
         const localWbIds = isEditing ? (role.localWbs || []) : []; 
-        $('#role-local-wb-list').innerHTML = worldbooks.filter(w => !w.isGlobal).map(w => `<div><label style="display:flex;align-items:center;gap:10px;padding:5px 0;cursor:pointer;font-size:10px;text-transform:uppercase;"><input type="checkbox" class="wb-checkbox" value="${w.id}" ${localWbIds.includes(w.id) ? 'checked' : ''} style="width:auto;height:auto;"><span>${w.keyword}</span></label></div>`).join('') || '<span style="color:var(--text-secondary);font-size:10px;">NO LORE AVAILABLE</span>'; 
+        $('#role-local-wb-list').innerHTML = worldbooks.filter(w => !w.isGlobal).map(w => `<label style="display:flex;align-items:flex-start;gap:10px;padding:8px 0;cursor:pointer;font-size:11px;border-bottom:1px solid var(--gray-light);"><input type="checkbox" class="wb-checkbox" value="${w.id}" ${localWbIds.includes(w.id) ? 'checked' : ''} style="width:16px;height:16px;margin-top:2px;flex-shrink:0;"><span style="line-height:1.4;word-break:break-all;">${w.keyword}</span></label>`).join('') || '<div style="color:var(--text-secondary);font-size:10px;text-align:center;padding:10px;">NO LORE AVAILABLE</div>'; 
         
         $('#view-role-edit').classList.add('active'); 
     }
@@ -4972,8 +5009,18 @@ async function generateTodaySummary(roleId) {
     function importData(event) { const file = event.target.files[0]; if(!file) return; const reader = new FileReader(); reader.onload = function(e) { try { const data = JSON.parse(e.target.result); if(confirm('覆盖所有数据？')) { Object.keys(data).forEach(key => DB.set(key, data[key])); location.reload(); } } catch(err) { alert('CORRUPT FILE.'); } }; reader.readAsText(file); }
     function fixSystemBugs() {
     let fixCount = 0;
+    const timeStampRegex = /\[\d{1,2}月\d{1,2}日\s\d{2}:\d{2}\]\s*/g;
+    
     Object.keys(chats).forEach(roleId => {
         chats[roleId].forEach(msg => {
+            if (msg.content) {
+                let newContent = msg.content.replace(timeStampRegex, '').trim();
+                if (newContent !== msg.content) {
+                    msg.content = newContent;
+                    fixCount++;
+                }
+            }
+
             if (msg.content.includes('[PAY_REQUEST:') || msg.content.includes('[ORDER_RECEIPT_CARD:') || msg.content.includes('[TRANSFER:') || msg.content.includes('[FAMILY_CARD:') || msg.content.includes('[OURSPACE_INVITE:')) {
                 try {
                     const tagMatch = msg.content.match(/\[(PAY_REQUEST|ORDER_RECEIPT_CARD|TRANSFER|FAMILY_CARD|OURSPACE_INVITE):(.*?)\]/);
