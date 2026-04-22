@@ -986,6 +986,13 @@ function processPendingBgMessages() {
         if (phoneShell) {
             phoneShell.classList.toggle('keyboard-open', isKeyboardOpen);
         }
+        // 修复毒瘤：键盘弹出时，强制聊天记录滚动到最底部，防止遮挡
+        const chatMessages = document.getElementById('chat-messages');
+        if (isKeyboardOpen && chatMessages) {
+            setTimeout(() => {
+                chatMessages.scrollTop = chatMessages.scrollHeight;
+            }, 100);
+        }
     }); 
 } else { 
     document.addEventListener('focusin', (e) => { 
@@ -2614,10 +2621,30 @@ let currentCallAudioId = null;
         closeContextMenu(); 
     }
         function saveEditedMessage() { 
-        const newText = $('#edit-msg-content').value.trim(); 
+        let newText = $('#edit-msg-content').value.trim(); 
         const newTimeStr = $('#edit-msg-timestamp').value;
         
         if(newText) { 
+            // 拦截手动输入的转账格式并转换为卡片
+            const transferMatch = newText.match(/\[(?:[^\]]*?)转账[:：]?\s*[¥￥]?\s*(\d+(\.\d+)?)\]/);
+            if (transferMatch) {
+                const amount = parseFloat(transferMatch[1]);
+                const msgRole = chats[currentChatRoleId][editingMsgIndex].role;
+                const roleObj = roles.find(r => r.id === currentChatRoleId);
+                const senderName = msgRole === 'ai' ? getDisplayName(roleObj) : (settings.userName || 'ME');
+                const senderAvatar = msgRole === 'ai' ? (roleObj.avatar || DEFAULT_AVATAR) : (settings.userAvatar || DEFAULT_AVATAR);
+                
+                const payload = { 
+                    id: 'TX_MANUAL_' + Date.now(), 
+                    amount: amount, 
+                    senderName: senderName, 
+                    senderAvatar: senderAvatar,
+                    status: '待接收',
+                    time: Date.now()
+                };
+                newText = newText.replace(transferMatch[0], `[TRANSFER:${encodeURIComponent(JSON.stringify(payload))}]`);
+            }
+
             chats[currentChatRoleId][editingMsgIndex].content = newText; 
             
             if (newTimeStr) {
@@ -3512,7 +3539,7 @@ ${role.persona}
 ${activeMask.content}
 </user_persona>
 
-${(globalWbs || localWbs) ? `<world_lore>\n${globalWbs}\n${localWbs}\n</world_lore>` : ''}
+${(globalWbs || localWbs) ? `<world_lore>\n【重要世界观与规则，必须严格遵守】\n${globalWbs}\n${localWbs}\n</world_lore>` : ''}
 ${memories[role.id] ? `<shared_memory>\n${memories[role.id]}\n</shared_memory>` : ''}
 
 <context>
@@ -3523,7 +3550,9 @@ ${memories[role.id] ? `<shared_memory>\n${memories[role.id]}\n</shared_memory>` 
 1. 【去油腻】绝对禁止使用：轻笑、挑眉、眼眸深邃、喉结滚动、丫头、女人、呵、嘴角勾起一抹邪魅的弧度。说话必须口语化、自然。
 2. 【互动反应】对转账、礼物、代付、一起听歌、动态分享等系统提示，必须给出符合人设的真实反应。
 3. 【情侣空间】收到绑定邀请且同意时，回复必须包含隐藏指令 [ACCEPT_OURSPACE:配对码]，并且你必须在回复的文字中，自己编造一个全新的 6 位数字发给用户，让用户去输入。
-4. 你的头像URL: "${role.avatar || '默认'}"。换头像回复 [CHANGE_AVATAR:图片URL]。保存图片回复 [SAVE_PHOTO:图片URL|相册名]。${translationRule}
+4. 你的头像URL: "${role.avatar || '默认'}"。换头像回复 [CHANGE_AVATAR:图片URL]。保存图片回复 [SAVE_PHOTO:图片URL|相册名]。
+5. 【票根生成】当你们约定去看电影、演唱会、展览或旅行时，你必须在回复中包含隐藏指令生成票根：[TICKET:{"type":"movie/concert/travel/exhibit","title":"活动名称","subtitle":"副标题","label1":"地点","value1":"具体地点","label2":"座位/时间","value2":"具体信息","label3":"时间","value3":"具体时间"}]
+6. 【主动转账】当你想给用户转账时，在回复中包含：[转账 ¥金额]${translationRule}
 ${modeRules}
 </rules>
 
@@ -3782,6 +3811,28 @@ ${modeRules}
                     rawTime: now.getTime() + 1, 
                     mode: 'online' 
                 });
+            }
+
+            // 拦截 AI 生成的票根指令 (修复 AI 混合文字导致票根变乱码的毒瘤)
+            const ticketMatch = fullReply.match(/\[TICKET:\s*(\{.*?\})\s*\]/s);
+            if (ticketMatch) {
+                try {
+                    const ticketJsonStr = ticketMatch[1];
+                    // 验证 JSON 是否合法，防止 AI 乱造导致白屏
+                    JSON.parse(ticketJsonStr); 
+                    fullReply = fullReply.replace(ticketMatch[0], ''); // 从正文中移除指令
+                    
+                    const msgContent = `[TICKET:${encodeURIComponent(ticketJsonStr)}]`;
+                    chats[targetRoleId].push({ 
+                        role: 'ai', 
+                        content: msgContent, 
+                        time: timeStr, 
+                        rawTime: now.getTime() + 2, 
+                        mode: 'online' 
+                    });
+                } catch (e) {
+                    console.warn("AI 生成的票根 JSON 格式有误", e);
+                }
             }
             
             const pIndex = chats[targetRoleId].findIndex(m => m.id === msgId);
