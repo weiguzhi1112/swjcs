@@ -1914,7 +1914,8 @@ function updateKeepAliveUI(isOn) {
 
             if (contentHtml.startsWith('[MUSIC_CARD:')) {
                 const invite = parseMusicCardContent(contentHtml) || {};
-                return `<div class="msg-row card-row me ${isSelectionMode ? 'selection-mode' : ''}" onclick="handleMsgClick(${realIndex})" ${touchHandlers}>${checkboxHtml}<div class="msg-wrapper"><div class="music-card" onclick="if(isSelectionMode || document.getElementById('context-menu-overlay').style.display === 'flex') return; openMusicInviteModal(${realIndex})"><div class="music-card-cover" style="background-image:url(${invite.picUrl || ''})"></div><div class="music-card-info"><div class="music-card-title">${invite.name || '未知歌曲'}</div><div class="music-card-artist">${invite.artist || '未知歌手'}</div><div class="music-card-tag">${invite.status || '一起听邀请'}</div></div></div><div class="msg-status">${m.time}</div></div>${userAvatarTag}</div>`;
+                const isMe = m.role === 'user';
+                return `<div class="msg-row card-row ${isMe ? 'me' : 'ai'} ${isSelectionMode ? 'selection-mode' : ''}" onclick="handleMsgClick(${realIndex})" ${touchHandlers}>${checkboxHtml}${isMe ? '' : aiAvatarTag}<div class="msg-wrapper"><div class="music-card" onclick="if(isSelectionMode || document.getElementById('context-menu-overlay').style.display === 'flex') return; openMusicInviteModal(${realIndex})"><div class="music-card-cover" style="background-image:url(${invite.picUrl || ''})"></div><div class="music-card-info"><div class="music-card-title">${invite.name || '未知歌曲'}</div><div class="music-card-artist">${invite.artist || '未知歌手'}</div><div class="music-card-tag">${invite.status || '一起听邀请'}</div></div></div><div class="msg-status">${m.time}</div></div>${isMe ? userAvatarTag : ''}</div>`;
             }
 
             if (contentHtml.startsWith('[TICKET:')) {
@@ -2227,6 +2228,32 @@ function updateKeepAliveUI(isOn) {
     let callStartTimeout = null; 
     let callSeconds = 0;
     let currentCallAudio = null;
+
+    function showCallDetail(msgIndex) {
+        if (!currentChatRoleId) return;
+        const msg = chats[currentChatRoleId][msgIndex];
+        if (!msg) return;
+        const raw = msg.content.slice(11, -1);
+        try {
+            const callData = JSON.parse(decodeURIComponent(raw).replace(/&quot;/g, '"'));
+            const detailEl = document.getElementById('call-detail-text');
+            if (detailEl) {
+                detailEl.innerHTML = callData.text ? callData.text.replace(/\n/g, '<br>') : '无对话记录';
+            }
+            const playBtn = document.getElementById('btn-play-call-detail');
+            if (playBtn) {
+                if (callData.audioId) {
+                    playBtn.style.display = 'block';
+                    playBtn.onclick = () => playCachedAudio(callData.audioId);
+                } else {
+                    playBtn.style.display = 'none';
+                }
+            }
+            openModal('modal-call-detail');
+        } catch(e) {
+            alert("无法解析通话记录详情");
+        }
+    }
 
     function openCallHistoryModal() {
         if (!currentChatRoleId) return;
@@ -3731,6 +3758,31 @@ ${modeRules}
             }
 
             fullReply = fullReply.trim();
+
+            const transferMatch = fullReply.match(/\[转账\s*[¥￥]?\s*(\d+(\.\d+)?)\]/);
+            if (transferMatch) {
+                const amount = parseFloat(transferMatch[1]);
+                fullReply = fullReply.replace(transferMatch[0], '');
+                
+                const txId = 'TX_AI_' + Date.now();
+                const payload = { 
+                    id: txId, 
+                    amount: amount, 
+                    senderName: getDisplayName(role), 
+                    senderAvatar: role.avatar || DEFAULT_AVATAR,
+                    status: '待接收',
+                    time: now.getTime()
+                };
+                const msgContent = `[TRANSFER:${encodeURIComponent(JSON.stringify(payload))}]`;
+                
+                chats[targetRoleId].push({ 
+                    role: 'ai', 
+                    content: msgContent, 
+                    time: timeStr, 
+                    rawTime: now.getTime() + 1, 
+                    mode: 'online' 
+                });
+            }
             
             const pIndex = chats[targetRoleId].findIndex(m => m.id === msgId);
             if (pIndex > -1) {
@@ -4594,7 +4646,6 @@ async function generateTodaySummary(roleId) {
     function openUserAvatarModal() { $('#user-avatar-url').value = settings.userAvatar || ''; openModal('modal-user-avatar'); }
     function saveUserAvatar() { settings.userAvatar = $('#user-avatar-url').value.trim(); DB.set('settings', settings); applySettings(); closeModal('modal-user-avatar'); if(currentChatRoleId) renderMessages(); renderFeeds(); }
     let tempSelectedWbs = [];
-
 function openRoleWbSelectModal() {
     const roleId = $('#role-realname').dataset.id;
     const role = roleId ? roles.find(r => r.id === roleId) : null;
@@ -4604,7 +4655,7 @@ function openRoleWbSelectModal() {
     container.innerHTML = worldbooks.filter(w => !w.isGlobal).map(w => `
         <label style="display:flex; align-items:center; gap:10px; padding:8px 0; font-size:12px; border-bottom:1px solid var(--border-color); color: var(--text-color); text-transform: none; letter-spacing: normal;">
             <input type="checkbox" value="${w.id}" ${tempSelectedWbs.includes(w.id) ? 'checked' : ''} onchange="toggleTempRoleWb('${w.id}')" style="width:auto;">
-            ${w.keyword}
+            ${w.title || w.keyword || '未命名设定'}
         </label>
     `).join('') || '<div style="text-align:center; color:var(--text-secondary); font-size:10px;">暂无非全局世界书</div>';
     
@@ -5975,14 +6026,15 @@ window.newRoleTempWbs = null;
             cancelForumSelection();
         }
     }
-                    function renderForum() {
+    
+                        function renderForum() {
         const wbContainer = $('#forum-wb-checkboxes');
         if (wbContainer) {
             const selectedWbs = settings.forumSelectedWbIds || [];
             wbContainer.innerHTML = worldbooks.map(w => `
                 <label style="display:flex; align-items:center; gap:10px; padding:8px 0; font-size:11px; border-bottom:1px solid var(--gray-light);">
                     <input type="checkbox" value="${w.id}" ${selectedWbs.includes(w.id) ? 'checked' : ''} onchange="toggleForumWb('${w.id}')" style="width:auto;">
-                    ${w.keyword}
+                    ${w.title || w.keyword || '未命名设定'}
                 </label>
             `).join('');
         }
@@ -6301,7 +6353,7 @@ function toggleForumLike(id) {
         let extraLorePrompt = "";
         if (selectedWbIds.length > 0) {
             const selectedWbs = worldbooks.filter(w => selectedWbIds.includes(w.id));
-            const wbTexts = selectedWbs.map(w => `设定名称：${w.keyword}\n设定内容：${w.content}`).join('\n\n');
+            const wbTexts = selectedWbs.map(w => `设定名称：${w.title || w.keyword || '未命名设定'}\n设定内容：${w.content}`).join('\n\n');
             extraLorePrompt = `\n\n【特别注意：本次生成的帖子必须严格基于以下世界书设定】：\n${wbTexts}\n请务必让生成的帖子内容符合这些设定的背景！`;
         }
         
@@ -6320,7 +6372,7 @@ function toggleForumLike(id) {
         let extraLorePrompt = "";
         if (selectedWbIds.length > 0) {
             const selectedWbs = worldbooks.filter(w => selectedWbIds.includes(w.id));
-            const wbTexts = selectedWbs.map(w => `设定名称：${w.keyword}\n设定内容：${w.content}`).join('\n\n');
+            const wbTexts = selectedWbs.map(w => `设定名称：${w.title || w.keyword || '未命名设定'}\n设定内容：${w.content}`).join('\n\n');
             extraLorePrompt = `\n\n【特别注意：本次生成的帖子必须严格基于以下世界书设定】：\n${wbTexts}\n请务必让生成的帖子内容符合这些设定的背景！`;
         }
         
@@ -7261,7 +7313,22 @@ ${extraLorePrompt}
         DB.set('listenTogetherSession', listenTogetherSession);
         
         if(!chats[roleId]) chats[roleId] = []; 
-        chats[roleId].push({ role: 'system', content: `你邀请了对方一起听《${track.name}》，对方已加入。`, time: now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }), rawTime }); 
+        
+        const payload = { 
+            version: 2, 
+            trackId: track.id, 
+            name: track.name, 
+            artist: track.artist, 
+            picUrl: track.picUrl, 
+            contactRoleId: roleId, 
+            inviteId: listenTogetherSession.inviteId, 
+            status: '对方已加入', 
+            createdAt: rawTime, 
+            updatedAt: rawTime 
+        };
+        const msgContent = `[MUSIC_CARD:${encodeURIComponent(JSON.stringify(payload))}]`;
+        chats[roleId].push({ role: 'user', content: msgContent, time: now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }), rawTime: rawTime, status: 'SENT', mode: 'online' }); 
+        
         DB.set('chats', chats); 
         
         updateMusicPlayerForSession();
@@ -8296,7 +8363,7 @@ function renderTranslationStatus() {
         let extraLorePrompt = "";
         if (selectedWbIds.length > 0) {
             const selectedWbs = worldbooks.filter(w => selectedWbIds.includes(w.id));
-            const wbTexts = selectedWbs.map(w => `设定名称：${w.keyword}\n设定内容：${w.content}`).join('\n\n');
+            const wbTexts = selectedWbs.map(w => `设定名称：${w.title || w.keyword || '未命名设定'}\n设定内容：${w.content}`).join('\n\n');
             extraLorePrompt = `\n【当前论坛的世界书设定（发帖必须符合此背景）】：\n${wbTexts}\n`;
         }
 
