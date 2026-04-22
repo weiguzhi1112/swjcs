@@ -10449,6 +10449,7 @@ function onAiAvatarDblClick() {
 
     function osVerifyCode() {
         const input = document.getElementById('os-input-code').value.trim();
+        // 检查输入是否匹配 AI 生成的配对码，或者匹配用户自己生成的配对码（用于测试或特殊情况）
         if(input === ourSpaceData.aiPairingCode || input === ourSpaceData.pairingCode) {
             ourSpaceData.isPaired = true;
             ourSpaceData.partnerId = ourSpaceData.pendingPartnerId;
