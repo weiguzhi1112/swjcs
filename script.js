@@ -4646,9 +4646,8 @@ function updateRoleWbPreview() {
     const count = wbs.length;
     $('#role-local-wb-preview').innerText = count > 0 ? `已绑定 ${count} 个设定` : '未绑定任何设定';
 }
-        function openRoleModal(id = null) 
+        function openRoleModal(id = null) { 
         updateRoleWbPreview();
-{ 
         const isEditing = id !== null; 
         const role = isEditing ? roles.find(r => r.id === id) : {}; 
         if (isEditing && !role) return; 
