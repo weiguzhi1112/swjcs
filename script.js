@@ -2513,7 +2513,25 @@ let currentCallAudioId = null;
         $('#real-call-input').value = '';
 
         try {
-            const prompt = `[CORE DIRECTIVE]\n你是${role.realName}。${role.persona}\n用户正在和你打语音电话，对你说：“${text}”\n请回复用户。要求：\n1. 必须包含你直接说出口的话（必须用双引号 "" 或 “” 包裹）。\n2. 可以包含少量的动作旁白（写在引号外面）。\n3. 语气自然，像真人在打电话。`;
+            // 提取共同记忆
+            let fullMemory = memories[role.id] || '';
+            if (advancedMemories[role.id]) {
+                const adv = advancedMemories[role.id];
+                if (adv.coreMemories && adv.coreMemories.length > 0) {
+                    fullMemory += '\n' + adv.coreMemories.slice(-3).map(m => m.content).join('\n');
+                }
+            }
+            const memorySummary = fullMemory ? `\n[你们的共同记忆]\n${fullMemory.substring(0, 500)}` : '';
+            
+            // 提取最近的聊天记录
+            const recentChats = (chats[role.id] || []).slice(-1000).map(m => `${m.role === 'user' ? 'ME' : role.realName}: ${m.content.replace(/<[^>]*>/g, '')}`).join('\n');
+            const chatContext = recentChats ? `\n[最近的聊天记录]\n${recentChats}` : '';
+            
+            // 提取本次通话的上下文
+            const callContext = currentCallText ? `\n[本次通话记录]\n${currentCallText}` : '';
+
+            // 将所有上下文整合进 Prompt
+            const prompt = `[CORE DIRECTIVE]\n你是${role.realName}。${role.persona}${memorySummary}${chatContext}${callContext}\n\n用户正在和你打语音电话，对你说：“${text}”\n请回复用户。要求：\n1. 必须包含你直接说出口的话（必须用双引号 "" 或 “” 包裹）。\n2. 可以包含少量的动作旁白（写在引号外面）。\n3. 语气自然，像真人在打电话，结合上下文连贯对话。`;
             
             const endpoint = getChatEndpoint(apiConfig.url);
             const chatRes = await fetch(endpoint, {
