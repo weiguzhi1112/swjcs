@@ -1848,7 +1848,7 @@ function updateKeepAliveUI(isOn) {
             if (contentHtml.startsWith('[REAL_CALL:')) {
                 const raw = contentHtml.slice(11, -1);
                 try {
-                    const callData = JSON.parse(decodeURIComponent(raw));
+                    const callData = JSON.parse(decodeURIComponent(raw).replace(/&quot;/g, '"'));
                     const bubbleColor = m.role === 'user' ? 'var(--text-color)' : 'var(--bg-color)';
                     const textColor = m.role === 'user' ? 'var(--bg-color)' : 'var(--text-color)';
                     const border = m.role === 'ai' ? `border: 1px solid var(--border-color);` : '';
@@ -1924,10 +1924,11 @@ function updateKeepAliveUI(isOn) {
                     return `<div class="msg-row card-row ${m.role === 'user' ? 'me' : 'ai'} ${isSelectionMode ? 'selection-mode' : ''}" style="max-width:100%;" onclick="handleMsgClick(${realIndex})" ${touchHandlers}>${checkboxHtml}${m.role === 'ai' ? aiAvatarTag : ''}<div class="msg-wrapper" style="max-width:90%; pointer-events: ${isSelectionMode ? 'none' : 'auto'};">${ticketHtml}<div class="msg-status">${m.time}</div></div>${m.role === 'user' ? userAvatarTag : ''}</div>`;
                 }
             }
-                        if (contentHtml.startsWith('[FORUM_CARD:')) {
+            
+            if (contentHtml.startsWith('[FORUM_CARD:')) {
                 try {
                     const raw = m.content.slice(12, -1);
-                    const card = JSON.parse(decodeURIComponent(raw));
+                    const card = JSON.parse(decodeURIComponent(raw).replace(/&quot;/g, '"'));
                     const isMe = m.role === 'user';
                     return `<div class="msg-row card-row ${isMe ? 'me' : 'ai'} ${isSelectionMode ? 'selection-mode' : ''}" onclick="handleMsgClick(${realIndex})" ${touchHandlers}>${checkboxHtml}${isMe ? '' : aiAvatarTag}<div class="msg-wrapper"><div class="share-card" onclick="if(isSelectionMode) return; closeChat(); openApp('forum')"><div class="share-card-badge">论坛帖子</div><div class="share-card-title">${escapeHTML(card.title || '未命名帖子')}</div><div class="share-card-desc">${escapeHTML((card.author || '匿名') + ' · ' + (card.category || 'THREAD'))}</div><div class="share-card-preview">${escapeHTML(card.content || '')}</div></div><div class="msg-status">${m.time}</div></div>${isMe ? userAvatarTag : ''}</div>`;
                 } catch(e) {}
@@ -1936,7 +1937,7 @@ function updateKeepAliveUI(isOn) {
             if (contentHtml.startsWith('[FEED_CARD:')) {
                 try {
                     const raw = m.content.slice(11, -1);
-                    const card = JSON.parse(decodeURIComponent(raw));
+                    const card = JSON.parse(decodeURIComponent(raw).replace(/&quot;/g, '"'));
                     const isMe = m.role === 'user';
                     return `<div class="msg-row card-row ${isMe ? 'me' : 'ai'} ${isSelectionMode ? 'selection-mode' : ''}" onclick="handleMsgClick(${realIndex})" ${touchHandlers}>${checkboxHtml}${isMe ? '' : aiAvatarTag}<div class="msg-wrapper"><div class="share-card" onclick="if(isSelectionMode) return; closeChat(); openApp('feed')"><div class="share-card-badge">动态分享</div><div class="share-card-title">${escapeHTML(card.author || 'ME')}</div><div class="share-card-desc">朋友圈 / Feed</div><div class="share-card-preview">${escapeHTML(card.content || '')}</div></div><div class="msg-status">${m.time}</div></div>${isMe ? userAvatarTag : ''}</div>`;
                 } catch(e) {}
@@ -1945,7 +1946,7 @@ function updateKeepAliveUI(isOn) {
             if (contentHtml.startsWith('[GIFT_TO_AI:')) {
                 const raw = contentHtml.slice(12, -1);
                 try {
-                    const card = JSON.parse(decodeURIComponent(raw));
+                    const card = JSON.parse(decodeURIComponent(raw).replace(/&quot;/g, '"'));
                     return `<div class="msg-row card-row me ${isSelectionMode ? 'selection-mode' : ''}" onclick="handleMsgClick(${realIndex})" ${touchHandlers}>${checkboxHtml}<div class="msg-wrapper"><div class="daifu-card" style="border-color:#ff8da1;" onclick="if(isSelectionMode) return; openOrderReceiptDetail(${realIndex})"><div class="daifu-icon">${card.emoji || '🎁'}</div><div class="daifu-info"><div class="daifu-title" style="color:#ff8da1;">${card.senderName} 已为 ${card.receiverName} 下单商品</div><div class="daifu-desc">${card.shopName} · ${card.itemName}</div><div class="daifu-bottom"><div class="daifu-price">¥ ${parseFloat(card.price).toFixed(2)}</div><div class="daifu-tag" style="background:#ff8da1;">${card.status}</div></div></div></div><div class="msg-status">${m.time}</div></div>${userAvatarTag}</div>`;
                 } catch(e) { return `<div class="msg-row me">解析错误</div>`; }
             } 
@@ -1953,7 +1954,7 @@ function updateKeepAliveUI(isOn) {
             if (contentHtml.startsWith('[OURSPACE_INVITE:')) {
                 const raw = contentHtml.slice(17, -1);
                 try {
-                    const card = JSON.parse(decodeURIComponent(raw));
+                    const card = JSON.parse(decodeURIComponent(raw).replace(/&quot;/g, '"'));
                     const isMe = m.role === 'user';
                     const ticketData = {
                         type: 'love',
@@ -1986,7 +1987,7 @@ function updateKeepAliveUI(isOn) {
                 
                 const raw = contentHtml.slice(tagLength, -1);
                 try {
-                    const card = JSON.parse(decodeURIComponent(raw));
+                    const card = JSON.parse(decodeURIComponent(raw).replace(/&quot;/g, '"'));
                     const isMe = m.role === 'user';
                     
                     let titleText = '';
@@ -3333,8 +3334,8 @@ async function toDoSearch() {
         return;
     }
     
-    const prompt = `你是一个外卖平台的数据生成器。用户搜索了「${query}」。请生成5-9个与此关键词相关的外卖商家和菜品数据。
-必须返回严格的JSON格式：
+            const prompt = `你是一个外卖平台的数据生成器。用户搜索了「${query}」。请生成5-9个与此关键词相关的外卖商家和菜品数据。
+必须返回严格的JSON格式，且必须是一个包含在对象中的数组：
 {
   "shops": [
     {
@@ -3709,8 +3710,7 @@ ${modeRules}
                 const code = osMatch[1].trim();
                 fullReply = fullReply.replace(osMatch[0], ''); 
                 
-                // 提取 AI 回复中的 6 位数字作为新的配对码
-                const numMatch = fullReply.match(/\b\d{6}\b/);
+                const numMatch = fullReply.match(/\d{6}/);
                 if (numMatch) {
                     ourSpaceData.aiPairingCode = numMatch[0];
                     DB.set('ourSpaceData', ourSpaceData);
@@ -3721,7 +3721,7 @@ ${modeRules}
                     if (m.role === 'user' && m.content.includes('[OURSPACE_INVITE:')) {
                         try {
                             let raw = m.content.match(/\[OURSPACE_INVITE:(.*?)\]/)[1];
-                            let card = JSON.parse(decodeURIComponent(raw));
+                            let card = JSON.parse(decodeURIComponent(raw).replace(/&quot;/g, '"'));
                             card.status = '对方已同意';
                             m.content = `[OURSPACE_INVITE:${encodeURIComponent(JSON.stringify(card))}]`;
                         } catch(e) {}
@@ -4602,7 +4602,7 @@ function openRoleWbSelectModal() {
     
     const container = $('#role-wb-checkboxes');
     container.innerHTML = worldbooks.filter(w => !w.isGlobal).map(w => `
-        <label style="display:flex; align-items:center; gap:10px; padding:8px 0; font-size:11px; border-bottom:1px solid var(--border-color);">
+        <label style="display:flex; align-items:center; gap:10px; padding:8px 0; font-size:12px; border-bottom:1px solid var(--border-color); color: var(--text-color); text-transform: none; letter-spacing: normal;">
             <input type="checkbox" value="${w.id}" ${tempSelectedWbs.includes(w.id) ? 'checked' : ''} onchange="toggleTempRoleWb('${w.id}')" style="width:auto;">
             ${w.keyword}
         </label>
@@ -6466,7 +6466,7 @@ ${extraLorePrompt}
 3. 语言风格：符合暗网黑话（如：寸止、出货、主/奴、肉便器、开发、打卡等）。
 4. 如果帖子包含图片展示，必须在正文中使用 [VIRTUAL_IMG:这里写图片的详细文字描述] 的格式。
 
-必须返回严格的 JSON 格式，格式如下：
+必须返回严格的 JSON 格式，且必须是一个包含在对象中的数组，格式如下：
 {
   "posts": [
     {
@@ -10438,7 +10438,7 @@ function onAiAvatarDblClick() {
         if(!chats[roleId]) chats[roleId] = [];
         const now = new Date();
         const payload = { code: code, status: "等待对方回复配对码" };
-        chats[roleId].push({ role: 'user', content: `[OURSPACE_INVITE:${JSON.stringify(payload)}]`, time: now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }), rawTime: now.getTime(), status: 'SENT', mode: 'online' });
+        chats[roleId].push({ role: 'user', content: `[OURSPACE_INVITE:${encodeURIComponent(JSON.stringify(payload))}]`, time: now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }), rawTime: now.getTime(), status: 'SENT', mode: 'online' });
         DB.set('chats', chats);
         
         alert('邀请已发送！请去聊天界面询问TA的配对码。');
@@ -10449,7 +10449,6 @@ function onAiAvatarDblClick() {
 
     function osVerifyCode() {
         const input = document.getElementById('os-input-code').value.trim();
-        // 检查输入是否匹配 AI 生成的配对码，或者匹配用户自己生成的配对码（用于测试或特殊情况）
         if(input === ourSpaceData.aiPairingCode || input === ourSpaceData.pairingCode) {
             ourSpaceData.isPaired = true;
             ourSpaceData.partnerId = ourSpaceData.pendingPartnerId;
