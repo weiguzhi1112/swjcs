@@ -5185,7 +5185,25 @@ window.newRoleTempWbs = null;
     function openMaskModal(id = null) { editingMaskId = id; if (id) { const m = masks.find(x => x.id === id); $('#mask-modal-title').innerText = 'CONFIG PERSONA'; $('#mask-name').value = m.name; $('#mask-content').value = m.content; $('#btn-del-mask').style.display = m.id !== 'default' ? 'block' : 'none'; } else { $('#mask-modal-title').innerText = 'NEW PERSONA'; $('#mask-name').value = ''; $('#mask-content').value = ''; $('#btn-del-mask').style.display = 'none'; } openModal('modal-mask'); }
     function saveMask() { const name = $('#mask-name').value.trim(), content = $('#mask-content').value.trim(); if(!name || !content) return alert('REQUIRED FIELDS EMPTY.'); if (editingMaskId) { const idx = masks.findIndex(x => x.id === editingMaskId); masks[idx] = { ...masks[idx], name, content }; } else { masks.push({ id: Date.now().toString(36) + Math.random().toString(36).substring(2, 8), name, content }); } DB.set('masks', masks); closeModal('modal-mask'); renderMasks(); }
     function deleteMask() { if (editingMaskId === 'default' || !confirm('删除面具？')) return; roles.forEach(r => { if (r.activeMaskId === editingMaskId) r.activeMaskId = 'default'; }); DB.set('roles', roles); masks = masks.filter(x => x.id !== editingMaskId); DB.set('masks', masks); closeModal('modal-mask'); renderMasks(); }
-    function openBeautyModal() { $('#beauty-bg').value = settings.bgImage; $('#beauty-font').value = settings.fontSize; $('#val-font').innerText = settings.fontSize; $('#beauty-pad').value = parseInt(settings.bubblePadding); $('#val-pad').innerText = parseInt(settings.bubblePadding); $('#beauty-avatar').value = settings.avatarSize || 28; $('#val-avatar').innerText = settings.avatarSize || 28; $('#beauty-avatar-radius').value = settings.avatarRadius || 0; $('#val-avatar-radius').innerText = settings.avatarRadius || 0; $('#beauty-heart').checked = settings.showHeart; $('#beauty-hide-borders').checked = settings.hideIconBorders || false; $('#beauty-hide-names').checked = settings.hideAppNames || false; $('#beauty-island').checked = settings.showDynamicIsland !== false; $('#beauty-sound-url').value = settings.notificationSound || ''; openModal('modal-beauty'); }
+    function openBeautyModal() { 
+        setTimeout(() => {
+            $('#beauty-bg').value = settings.bgImage; 
+            $('#beauty-font').value = settings.fontSize; 
+            $('#val-font').innerText = settings.fontSize; 
+            $('#beauty-pad').value = parseInt(settings.bubblePadding); 
+            $('#val-pad').innerText = parseInt(settings.bubblePadding); 
+            $('#beauty-avatar').value = settings.avatarSize || 28; 
+            $('#val-avatar').innerText = settings.avatarSize || 28; 
+            $('#beauty-avatar-radius').value = settings.avatarRadius || 0; 
+            $('#val-avatar-radius').innerText = settings.avatarRadius || 0; 
+            $('#beauty-heart').checked = settings.showHeart; 
+            $('#beauty-hide-borders').checked = settings.hideIconBorders || false; 
+            $('#beauty-hide-names').checked = settings.hideAppNames || false; 
+            $('#beauty-island').checked = settings.showDynamicIsland !== false; 
+            $('#beauty-sound-url').value = settings.notificationSound || ''; 
+            openModal('modal-beauty'); 
+        }, 10);
+    }
     function applyBeauty() { settings.bgImage = $('#beauty-bg').value.trim(); settings.fontSize = $('#beauty-font').value; settings.bubblePadding = $('#beauty-pad').value; settings.avatarSize = $('#beauty-avatar').value; settings.avatarRadius = $('#beauty-avatar-radius').value; settings.showHeart = $('#beauty-heart').checked; settings.hideIconBorders = $('#beauty-hide-borders').checked; settings.hideAppNames = $('#beauty-hide-names').checked; settings.showDynamicIsland = $('#beauty-island').checked; if (!settings.showDynamicIsland) { const di = $('#dynamic-island'); if (di) di.classList.remove('active'); } settings.notificationSound = $('#beauty-sound-url').value.trim(); $('#val-font').innerText = settings.fontSize; $('#val-pad').innerText = settings.bubblePadding; $('#val-avatar').innerText = settings.avatarSize; $('#val-avatar-radius').innerText = settings.avatarRadius; DB.set('settings', settings); applySettings(); }
     function testNotificationSound() { const soundUrl = $('#beauty-sound-url').value.trim(); if (soundUrl) { try { const audio = new Audio(soundUrl); audio.play(); } catch (e) { alert('无法播放声音，请检查URL是否正确。'); } } else { alert('请先设置一个声音URL或上传文件。'); } }
     function openExportModal() { openModal('modal-export-select'); }
@@ -9982,23 +10000,23 @@ function onAiAvatarDblClick() {
                 <div class="wallet-sub-assets" style="flex-wrap: wrap; gap: 10px 0;">
                     <div class="wallet-sub-item" style="width: 33.33%;">
                         <div class="wallet-sub-label">花呗</div>
-                        <div class="wallet-sub-val ${data.huabei < 0 ? 'wallet-val-neg' : ''}">${data.huabei < 0 ? '' : '+'}${fmtMoney(data.huabei)}</div>
+                        <div class="wallet-sub-val ${data.huabei < 0 ? 'wallet-val-neg' : ''}" style="cursor:pointer;" onclick="handleSubAssetEdit('huabei')">${data.huabei < 0 ? '' : '+'}${fmtMoney(data.huabei)}</div>
                     </div>
                     <div class="wallet-sub-item" style="width: 33.33%; border-left: 1px solid rgba(255,255,255,0.2); border-right: 1px solid rgba(255,255,255,0.2);">
                         <div class="wallet-sub-label">基金</div>
-                        <div class="wallet-sub-val ${data.funds > 0 ? 'wallet-val-pos' : ''}">${fmtMoney(data.funds)}</div>
+                        <div class="wallet-sub-val ${data.funds > 0 ? 'wallet-val-pos' : ''}" style="cursor:pointer;" onclick="handleSubAssetEdit('funds')">${fmtMoney(data.funds)}</div>
                     </div>
                     <div class="wallet-sub-item" style="width: 33.33%;">
                         <div class="wallet-sub-label">股票</div>
-                        <div class="wallet-sub-val ${data.stocks > 0 ? 'wallet-val-pos' : (data.stocks < 0 ? 'wallet-val-neg' : '')}">${fmtMoney(data.stocks)}</div>
+                        <div class="wallet-sub-val ${data.stocks > 0 ? 'wallet-val-pos' : (data.stocks < 0 ? 'wallet-val-neg' : '')}" style="cursor:pointer;" onclick="handleSubAssetEdit('stocks')">${fmtMoney(data.stocks)}</div>
                     </div>
                     <div class="wallet-sub-item" style="width: 50%; margin-top: 10px;">
                         <div class="wallet-sub-label">活期理财</div>
-                        <div class="wallet-sub-val wallet-val-pos">${fmtMoney(data.currentDeposit)}</div>
+                        <div class="wallet-sub-val wallet-val-pos" style="cursor:pointer;" onclick="handleSubAssetEdit('currentDeposit')">${fmtMoney(data.currentDeposit)}</div>
                     </div>
                     <div class="wallet-sub-item" style="width: 50%; margin-top: 10px; border-left: 1px solid rgba(255,255,255,0.2);">
                         <div class="wallet-sub-label">定期存款</div>
-                        <div class="wallet-sub-val wallet-val-pos">${fmtMoney(data.fixedDeposit)}</div>
+                        <div class="wallet-sub-val wallet-val-pos" style="cursor:pointer;" onclick="handleSubAssetEdit('fixedDeposit')">${fmtMoney(data.fixedDeposit)}</div>
                     </div>
                 </div>
             </div>
@@ -10058,6 +10076,23 @@ function onAiAvatarDblClick() {
             `).join('')}
         `;
         content.innerHTML = html;
+    }
+
+    function handleSubAssetEdit(assetType) {
+        const typeNames = {
+            'huabei': '花呗 (负数表示欠款)',
+            'funds': '基金',
+            'stocks': '股票',
+            'currentDeposit': '活期理财',
+            'fixedDeposit': '定期存款'
+        };
+        let currentVal = walletData[currentWalletAccount][assetType] || 0;
+        let amt = prompt(`请输入新的 ${typeNames[assetType]} 金额:`, currentVal);
+        if (amt !== null && !isNaN(amt)) {
+            walletData[currentWalletAccount][assetType] = Number(amt);
+            DB.set('walletData', walletData);
+            renderWalletMain();
+        }
     }
 
        let currentWalletBgTarget = { type: 'main', index: 0 };
@@ -10159,15 +10194,25 @@ function onAiAvatarDblClick() {
         const role = roles.find(r => r.id === currentWalletAccount);
         if (!role || !apiConfig.url) return;
 
+        if (typeof showGlobalTyping === 'function') showGlobalTyping(role.realName);
+
         const globalWbs = worldbooks.filter(w => w.isGlobal).map(w => w.content).join('\n');
         const localWbs = worldbooks.filter(w => role.localWbs?.includes(w.id)).map(w => w.content).join('\n');
         const memorySummary = memories[role.id] ? `\n[SHARED MEMORY]\n${memories[role.id]}` : '';
+        
+        const contextLimit = role.contextLimit || 30;
+        const chatHistory = chats[role.id] || [];
+        const recentChats = chatHistory.slice(-contextLimit).map(m => {
+            let text = m.content.replace(/<[^>]*>/g, '').substring(0, 100);
+            return `${m.role === 'user' ? '用户' : role.realName}: ${text}`;
+        }).join('\n');
+        const chatContext = recentChats ? `\n[最近的聊天记录]\n${recentChats}` : '';
 
         const actionText = actionType === 'recharge' ? `充值了 ¥${amount}` : `提现了 ¥${amount}`;
         
-        const prompt = `[CORE DIRECTIVE]\n你是${role.realName}。${role.persona}\n${globalWbs}\n${localWbs}${memorySummary}\n
+        const systemPrompt = `[CORE DIRECTIVE]\n你是${role.realName}。${role.persona}\n${globalWbs}\n${localWbs}${memorySummary}${chatContext}\n
         系统提示：用户刚刚在你的钱包里${actionText}。
-        请根据你的人设和你们当前的情感状态，发一条消息给用户。
+        请根据你的人设、你们当前的聊天上下文和情感状态，发一条消息给用户。
         要求：
         1. 语气自然，符合人设（比如傲娇的会吐槽，温柔的会感谢，霸总会觉得这点钱算什么）。
         2. 简短口语化，不超过50字。
@@ -10178,7 +10223,7 @@ function onAiAvatarDblClick() {
             const response = await fetch(endpoint, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiConfig.key}` },
-                body: JSON.stringify({ model: apiConfig.model, messages: [{ role: 'user', content: prompt }], max_tokens: 100, temperature: 0.85 })
+                body: JSON.stringify({ model: apiConfig.model, messages: [{ role: 'user', content: systemPrompt }], max_tokens: 150, temperature: 0.85 })
             });
             const data = await response.json();
             const msg = data.choices[0].message.content.trim();
@@ -10188,9 +10233,13 @@ function onAiAvatarDblClick() {
             chats[role.id].push({ role: 'ai', content: msg, time: now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }), rawTime: now.getTime(), mode: 'online' });
             DB.set('chats', chats);
             
+            if (currentChatRoleId === role.id) renderMessages();
+            renderRecent();
             showSystemNotification(role.id, getDisplayName(role), msg, role.avatar);
         } catch (e) {
             console.error("钱包问候生成失败", e);
+        } finally {
+            if (typeof hideGlobalTyping === 'function') hideGlobalTyping();
         }
     }
 
