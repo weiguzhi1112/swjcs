@@ -1533,8 +1533,22 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!usageStr) usageStr = '暂无明显使用记录';
         return `\n[系统权限监控数据]\n(作为绑定的情侣，你可以通过心动日常APP查看到对方的手机状态)\n当前手机电量: ${sysBatteryLevel}\n最近手机使用记录: ${usageStr}\n你可以自然地在聊天中提及这些信息，比如关心对方电量低、或者问对方为什么看了那么久的外卖/论坛等。`;
     }
-    function openModal(id) { $(`#${id}`).style.display = 'flex'; }
-    function closeModal(id) { $(`#${id}`).style.display = 'none'; }
+    function openModal(id) { 
+        const modal = document.getElementById(id);
+        if (modal) {
+            requestAnimationFrame(() => {
+                modal.style.display = 'flex'; 
+            });
+        }
+    }
+    function closeModal(id) { 
+        const modal = document.getElementById(id);
+        if (modal) {
+            requestAnimationFrame(() => {
+                modal.style.display = 'none'; 
+            });
+        }
+    }
     function openMusicInviteModal(messageIndex) { if (!currentChatRoleId) return; const message = (chats[currentChatRoleId] || [])[messageIndex]; if (!message) return; const invite = parseMusicCardContent(message.content); if (!invite) return; const role = roles.find(r => r.id === (invite.contactRoleId || currentChatRoleId)); currentMusicInvite = invite; $('#music-invite-cover').src = invite.picUrl || ''; $('#music-invite-title').innerText = invite.name || '\u672a\u77e5\u6b4c\u66f2'; $('#music-invite-artist').innerText = invite.artist || '\u672a\u77e5\u6b4c\u624b'; $('#music-invite-contact').innerText = role ? getDisplayName(role) : '\u672a\u77e5\u8054\u7cfb\u4eba'; $('#music-invite-status').innerText = invite.status || '\u5f85\u56de\u590d'; $('#music-invite-id').innerText = invite.inviteId || '--'; $('#music-invite-created').innerText = formatInviteTime(invite.createdAt || message.rawTime); $('#music-invite-updated').innerText = formatInviteTime(invite.updatedAt || message.rawTime); openModal('modal-music-invite'); }
     function closeMusicInviteModal() { currentMusicInvite = null; closeModal('modal-music-invite'); }
     function playInviteTrack() { if (!currentMusicInvite?.trackId) return; closeMusicInviteModal(); playMusicById(currentMusicInvite.trackId); }
@@ -1611,12 +1625,15 @@ function showSystemNotification(roleId, title, body, icon) {
     lastNotifTime = now;
     lastNotifBody = cleanBody;
 
-    if (document.visibilityState === 'visible' && currentChatRoleId === roleId && !settings.notifyInChat) {
+    const isCurrentChat = (document.visibilityState === 'visible' && currentChatRoleId === roleId);
+
+    if (isCurrentChat && !settings.notifyInChat) {
         return; 
     }
 
-    // 强制触发应用内横幅通知，确保无论浏览器是否拦截，用户都能看到弹窗
     showInAppNotification(roleId, title, cleanBody, icon);
+
+    if (isCurrentChat) return;
 
     if (!("Notification" in window) || Notification.permission === "denied" || Notification.permission === "default") {
         return;
@@ -5185,24 +5202,22 @@ window.newRoleTempWbs = null;
     function openMaskModal(id = null) { editingMaskId = id; if (id) { const m = masks.find(x => x.id === id); $('#mask-modal-title').innerText = 'CONFIG PERSONA'; $('#mask-name').value = m.name; $('#mask-content').value = m.content; $('#btn-del-mask').style.display = m.id !== 'default' ? 'block' : 'none'; } else { $('#mask-modal-title').innerText = 'NEW PERSONA'; $('#mask-name').value = ''; $('#mask-content').value = ''; $('#btn-del-mask').style.display = 'none'; } openModal('modal-mask'); }
     function saveMask() { const name = $('#mask-name').value.trim(), content = $('#mask-content').value.trim(); if(!name || !content) return alert('REQUIRED FIELDS EMPTY.'); if (editingMaskId) { const idx = masks.findIndex(x => x.id === editingMaskId); masks[idx] = { ...masks[idx], name, content }; } else { masks.push({ id: Date.now().toString(36) + Math.random().toString(36).substring(2, 8), name, content }); } DB.set('masks', masks); closeModal('modal-mask'); renderMasks(); }
     function deleteMask() { if (editingMaskId === 'default' || !confirm('删除面具？')) return; roles.forEach(r => { if (r.activeMaskId === editingMaskId) r.activeMaskId = 'default'; }); DB.set('roles', roles); masks = masks.filter(x => x.id !== editingMaskId); DB.set('masks', masks); closeModal('modal-mask'); renderMasks(); }
-    function openBeautyModal() { 
-        setTimeout(() => {
-            $('#beauty-bg').value = settings.bgImage; 
-            $('#beauty-font').value = settings.fontSize; 
-            $('#val-font').innerText = settings.fontSize; 
-            $('#beauty-pad').value = parseInt(settings.bubblePadding); 
-            $('#val-pad').innerText = parseInt(settings.bubblePadding); 
-            $('#beauty-avatar').value = settings.avatarSize || 28; 
-            $('#val-avatar').innerText = settings.avatarSize || 28; 
-            $('#beauty-avatar-radius').value = settings.avatarRadius || 0; 
-            $('#val-avatar-radius').innerText = settings.avatarRadius || 0; 
-            $('#beauty-heart').checked = settings.showHeart; 
-            $('#beauty-hide-borders').checked = settings.hideIconBorders || false; 
-            $('#beauty-hide-names').checked = settings.hideAppNames || false; 
-            $('#beauty-island').checked = settings.showDynamicIsland !== false; 
-            $('#beauty-sound-url').value = settings.notificationSound || ''; 
-            openModal('modal-beauty'); 
-        }, 10);
+        function openBeautyModal() { 
+        $('#beauty-bg').value = settings.bgImage; 
+        $('#beauty-font').value = settings.fontSize; 
+        $('#val-font').innerText = settings.fontSize; 
+        $('#beauty-pad').value = parseInt(settings.bubblePadding); 
+        $('#val-pad').innerText = parseInt(settings.bubblePadding); 
+        $('#beauty-avatar').value = settings.avatarSize || 28; 
+        $('#val-avatar').innerText = settings.avatarSize || 28; 
+        $('#beauty-avatar-radius').value = settings.avatarRadius || 0; 
+        $('#val-avatar-radius').innerText = settings.avatarRadius || 0; 
+        $('#beauty-heart').checked = settings.showHeart; 
+        $('#beauty-hide-borders').checked = settings.hideIconBorders || false; 
+        $('#beauty-hide-names').checked = settings.hideAppNames || false; 
+        $('#beauty-island').checked = settings.showDynamicIsland !== false; 
+        $('#beauty-sound-url').value = settings.notificationSound || ''; 
+        openModal('modal-beauty'); 
     }
     function applyBeauty() { settings.bgImage = $('#beauty-bg').value.trim(); settings.fontSize = $('#beauty-font').value; settings.bubblePadding = $('#beauty-pad').value; settings.avatarSize = $('#beauty-avatar').value; settings.avatarRadius = $('#beauty-avatar-radius').value; settings.showHeart = $('#beauty-heart').checked; settings.hideIconBorders = $('#beauty-hide-borders').checked; settings.hideAppNames = $('#beauty-hide-names').checked; settings.showDynamicIsland = $('#beauty-island').checked; if (!settings.showDynamicIsland) { const di = $('#dynamic-island'); if (di) di.classList.remove('active'); } settings.notificationSound = $('#beauty-sound-url').value.trim(); $('#val-font').innerText = settings.fontSize; $('#val-pad').innerText = settings.bubblePadding; $('#val-avatar').innerText = settings.avatarSize; $('#val-avatar-radius').innerText = settings.avatarRadius; DB.set('settings', settings); applySettings(); }
     function testNotificationSound() { const soundUrl = $('#beauty-sound-url').value.trim(); if (soundUrl) { try { const audio = new Audio(soundUrl); audio.play(); } catch (e) { alert('无法播放声音，请检查URL是否正确。'); } } else { alert('请先设置一个声音URL或上传文件。'); } }
@@ -7030,6 +7045,123 @@ ${extraLorePrompt}
             btn.disabled = false;
         } finally {
             window.isGeneratingQr = false;
+        }
+    }
+        async function loginWithNeteaseUid() {
+        const uidInput = $('#music-uid-input').value.trim();
+        if (!uidInput) return alert('请输入网易云 UID');
+        
+        let uid = uidInput;
+        const match = uidInput.match(/id=(\d+)/) || uidInput.match(/userid=(\d+)/) || uidInput.match(/^(\d+)$/);
+        if (match) {
+            uid = match[1];
+        }
+
+        try {
+            const res = await fetch(`${MUSIC_API_BASE}/user/detail?uid=${uid}`);
+            const data = await res.json();
+            if (data.code === 200 && data.profile) {
+                musicUserInfo = {
+                    uid: uid,
+                    nickname: data.profile.nickname,
+                    avatarUrl: data.profile.avatarUrl,
+                    signature: data.profile.signature
+                };
+                DB.set('musicUserInfo', musicUserInfo);
+                checkMusicLoginStatus();
+                alert(`登录成功！欢迎，${data.profile.nickname}`);
+            } else {
+                alert('获取用户信息失败，请检查 UID 是否正确。');
+            }
+        } catch (e) {
+            alert('登录请求失败: ' + e.message);
+        }
+    }
+
+    async function fetchMyNeteasePlaylists() {
+        if (!musicUserInfo || !musicUserInfo.uid) {
+            try {
+                const accRes = await fetch(`${MUSIC_API_BASE}/user/account?timestamp=${Date.now()}`);
+                const accData = await accRes.json();
+                if (accData.code === 200 && accData.profile) {
+                    musicUserInfo.uid = accData.profile.userId;
+                    DB.set('musicUserInfo', musicUserInfo);
+                } else {
+                    return alert('无法获取当前账号 UID，请尝试使用 UID 重新登录。');
+                }
+            } catch (e) {
+                return alert('获取账号信息失败: ' + e.message);
+            }
+        }
+
+        const container = $('#netease-playlists-container');
+        container.innerHTML = '<div style="text-align:center; padding:20px; color:var(--text-secondary); font-size:10px;">正在获取歌单...</div>';
+        openModal('modal-netease-playlists');
+
+        try {
+            const res = await fetch(`${MUSIC_API_BASE}/user/playlist?uid=${musicUserInfo.uid}&limit=50&timestamp=${Date.now()}`);
+            const data = await res.json();
+            if (data.code === 200 && data.playlist) {
+                if (data.playlist.length === 0) {
+                    container.innerHTML = '<div style="text-align:center; padding:20px; color:var(--text-secondary); font-size:10px;">暂无歌单</div>';
+                    return;
+                }
+                container.innerHTML = data.playlist.map(pl => `
+                    <div class="list-item" style="padding: 10px; border: 1px solid var(--border-color); border-radius: 8px; background: var(--gray-light); cursor: pointer;" onclick="importNeteasePlaylistById('${pl.id}', '${pl.name.replace(/'/g, "\\'")}', '${pl.coverImgUrl}')">
+                        <img class="avatar" src="${pl.coverImgUrl}?param=100y100" style="border-radius: 8px;">
+                        <div class="item-info">
+                            <div class="item-name" style="font-size: 13px;">${pl.name}</div>
+                            <div class="item-desc">${pl.trackCount} 首歌曲</div>
+                        </div>
+                        <div class="item-actions">
+                            <button class="action-btn primary" style="margin:0; padding: 6px 12px; font-size: 9px;">导入</button>
+                        </div>
+                    </div>
+                `).join('');
+            } else {
+                container.innerHTML = '<div style="text-align:center; padding:20px; color:var(--text-secondary); font-size:10px;">获取歌单失败</div>';
+            }
+        } catch (e) {
+            container.innerHTML = `<div style="text-align:center; padding:20px; color:#ff4d4d; font-size:10px;">请求失败: ${e.message}</div>`;
+        }
+    }
+
+    async function importNeteasePlaylistById(playlistId, playlistName, playlistCover) {
+        const btn = event.currentTarget.querySelector('button');
+        if (btn) {
+            btn.innerText = '导入中...';
+            btn.disabled = true;
+        }
+        
+        try {
+            const response = await fetch(`${MUSIC_API_BASE}/playlist/track/all?id=${playlistId}&limit=100&timestamp=${Date.now()}`); 
+            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`); 
+            const data = await response.json(); 
+            
+            if (data.code === 200 && data.songs) { 
+                const songs = data.songs.map(song => ({ 
+                    id: song.id, 
+                    name: song.name, 
+                    artist: song.ar.map(a => a.name).join('/'), 
+                    picUrl: (song.al.picUrl || '').replace(/^http:/, 'https:') + '?param=100y100' 
+                })); 
+                
+                savedPlaylists.push({ id: playlistId, name: playlistName, cover: playlistCover + '?param=100y100', songs: songs });
+                DB.set('savedPlaylists', savedPlaylists);
+                
+                renderSavedPlaylists();
+                alert(`成功导入歌单: ${playlistName}，共 ${songs.length} 首歌曲。`); 
+                closeModal('modal-netease-playlists');
+            } else { 
+                alert('歌单导入失败，可能是接口限制。'); 
+            } 
+        } catch (e) { 
+            alert(`歌单API错误: ${e.message}`); 
+        } finally {
+            if (btn) {
+                btn.innerText = '导入';
+                btn.disabled = false;
+            }
         }
     }
 
@@ -11348,8 +11480,13 @@ function onAiAvatarDblClick() {
         const localWbs = worldbooks.filter(w => role.localWbs?.includes(w.id)).map(w => w.content).join('\n\n');
         
         let fullMemory = memories[role.id] || '';
-        if (advancedMemories[role.id] && advancedMemories[role.id].coreMemories) {
-            fullMemory += '\n' + advancedMemories[role.id].coreMemories.map(m => m.content).join('\n');
+        if (advancedMemories[role.id]) {
+            if (advancedMemories[role.id].coreMemories) {
+                fullMemory += '\n' + advancedMemories[role.id].coreMemories.map(m => m.content).join('\n');
+            }
+            if (advancedMemories[role.id].episodicMemories) {
+                fullMemory += '\n' + advancedMemories[role.id].episodicMemories.slice(-5).map(m => m.content).join('\n');
+            }
         }
         const memorySummary = fullMemory ? `\n[全部记忆]\n${fullMemory}` : '';
 
@@ -11358,7 +11495,20 @@ function onAiAvatarDblClick() {
         const chatContext = recentChats ? `\n[最近的聊天记录]\n${recentChats}` : '';
 
         const phoneStatus = getPhoneStatusReport();
-        const prompt = `[CORE DIRECTIVE]\n你现在是${role.realName}。请根据你的人设（${role.persona}）、世界观（${globalWbs}\n${localWbs}）、你们的全部记忆（${memorySummary}）、以及最近的聊天上下文（${chatContext}），在情侣空间APP中发布一条【${typeMap[type].name}】。\n${phoneStatus}\n要求：绝对不能OOC，语气必须完全符合你的人设！结合最近聊天中发生的事情，或者对方的手机电量/APP使用情况来发！\n必须返回严格的JSON格式：\n${typeMap[type].format}\n直接输出JSON，不要加任何其他文字。`;
+        
+        const prompt = `[CORE DIRECTIVE - 活人感强制协议]
+你现在是${role.realName}。请根据你的人设（${role.persona}）、世界观（${globalWbs}\n${localWbs}）、你们的全部记忆（${memorySummary}）、以及最近的聊天上下文（${chatContext}），在情侣空间APP中发布一条【${typeMap[type].name}】。
+${phoneStatus}
+
+【活人感要求】：
+1. 绝对不能OOC！语气必须完全符合你的人设！
+2. 必须结合最近聊天中发生的事情，或者对方的手机电量/APP使用情况来发！不要凭空捏造无关的事情。
+3. 极度口语化、生活化，像真人随手记录的。绝对禁止书面语、做作的描写（如“轻笑”、“眼眸深邃”）。
+4. 展现出你真实的情感（吃醋、开心、吐槽、抱怨等）。
+
+必须返回严格的JSON格式：
+${typeMap[type].format}
+直接输出JSON，不要加任何其他文字。`;
 
         try {
             const endpoint = getChatEndpoint(api.url);
