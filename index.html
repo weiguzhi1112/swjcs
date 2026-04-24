@@ -1074,10 +1074,26 @@
                         </div>
                         <!-- 未登录的扫码区 -->
                         <div id="music-login-section" style="margin-bottom: 20px; padding: 15px; border: 1px solid var(--border-color); border-radius: 12px; background: var(--gray-light); text-align: center;">
-                            <div style="font-size: 11px; font-weight: 600; margin-bottom: 10px;">NETEASE CLOUD MUSIC LOGIN / 网易云扫码登录</div>
+                            <div style="font-size: 11px; font-weight: 600; margin-bottom: 10px;">NETEASE CLOUD MUSIC LOGIN / 网易云登录</div>
                             <div id="music-login-status" style="font-size: 9px; color: var(--text-secondary); margin-bottom: 10px;">未登录 (登录后可播放完整版/VIP歌曲)</div>
                             <img id="music-qr-img" src="" style="width: 150px; height: 150px; margin: 0 auto 10px auto; display: none; border: 1px solid var(--border-color); border-radius: 8px;">
-                            <button id="music-login-btn" class="action-btn" style="width: 100%; margin: 0;" onclick="startMusicQrLogin()">GENERATE QR CODE<span>生成登录二维码</span></button>
+                            <button id="music-login-btn" class="action-btn" style="width: 100%; margin: 0 0 10px 0;" onclick="startMusicQrLogin()">GENERATE QR CODE<span>生成扫码登录</span></button>
+                            <div style="font-size: 9px; color: var(--text-secondary); margin: 10px 0;">OR / 或者</div>
+                            <input type="text" id="music-uid-input" placeholder="输入网易云 UID (个人主页分享链接提取)" style="width: 100%; padding: 10px; border: 1px solid var(--border-color); background: transparent; color: var(--text-color); outline: none; font-size: 11px; margin-bottom: 10px;">
+                            <button class="action-btn" style="width: 100%; margin: 0;" onclick="loginWithNeteaseUid()">LOGIN WITH UID<span>UID 快捷登录</span></button>
+                        </div>
+
+                        <!-- 登录后的主页展示区 -->
+                        <div id="music-user-profile" style="display: none; margin-bottom: 20px; padding: 15px; border: 1px solid var(--border-color); border-radius: 12px; background: var(--gray-light); align-items: center; gap: 15px; flex-wrap: wrap;">
+                            <img id="music-user-avatar" src="" style="width: 50px; height: 50px; border-radius: 50%; border: 1px solid var(--border-color); object-fit: cover;">
+                            <div style="flex: 1; min-width: 120px; overflow: hidden;">
+                                <div id="music-user-nickname" style="font-size: 16px; font-weight: 600; color: var(--text-color); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;"></div>
+                                <div id="music-user-signature" style="font-size: 10px; color: var(--text-secondary); margin-top: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;"></div>
+                            </div>
+                            <div style="display: flex; gap: 8px; width: 100%; margin-top: 10px;">
+                                <button class="action-btn primary" style="flex: 1; margin: 0; padding: 8px; font-size: 9px;" onclick="fetchMyNeteasePlaylists()">MY PLAYLISTS<span>导入我的歌单</span></button>
+                                <button class="action-btn" style="flex: 1; margin: 0; padding: 8px; font-size: 9px;" onclick="musicLogout()">LOGOUT<span>退出登录</span></button>
+                            </div>
                         </div>
                         
                         <input type="text" id="music-playlist-input" placeholder="PASTE NETEASE PLAYLIST URL / 粘贴歌单链接">
@@ -2359,11 +2375,15 @@
         </div>
     </div>
 </div>
+<div class="modal-overlay" id="modal-netease-playlists">
+    <div class="modal" style="max-height: 80vh;">
+        <h3>My Playlists <span>我的网易云歌单</span></h3>
+        <div id="netease-playlists-container" style="flex: 1; overflow-y: auto; margin-bottom: 10px; min-height: 200px; display: flex; flex-direction: column; gap: 10px;"></div>
+        <div class="modal-btns">
+            <button class="btn-confirm" style="width: 100%;" onclick="closeModal('modal-netease-playlists')">CLOSE<span>关闭</span></button>
+        </div>
+    </div>
+</div>
 <script src="script.js" defer></script>
-<script src="https://unpkg.com/vconsole@latest/dist/vconsole.min.js"></script>
-<script>
-  // 初始化 VConsole
-  var vConsole = new VConsole();
-</script>
 </body>
 </html>
