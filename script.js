@@ -9905,7 +9905,41 @@ function onAiAvatarDblClick() {
 
     function fmtMoney(num) { return Number(num).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
 
+    function injectWalletModals() {
+        if (!document.getElementById('modal-wallet-fund-action')) {
+            const html = `
+            <div class="modal-overlay" id="modal-wallet-fund-action">
+                <div class="modal">
+                    <h3 id="wallet-fund-title" style="text-align: center; margin-bottom: 15px;">Action</h3>
+                    <select id="wallet-fund-source" style="width: 100%; padding: 10px; margin-bottom: 10px; border: 1px solid var(--border-color); background: transparent; color: var(--text-color); outline: none; font-size: 12px;"></select>
+                    <input type="number" id="wallet-fund-amount" placeholder="金额 (¥)" style="width: 100%; padding: 10px; margin-bottom: 10px; border: 1px solid var(--border-color); background: transparent; color: var(--text-color); outline: none; font-size: 12px;">
+                    <div class="modal-btns">
+                        <button class="btn-cancel" onclick="closeModal('modal-wallet-fund-action')">CANCEL<span>取消</span></button>
+                        <button class="btn-confirm" id="btn-wallet-fund-confirm">CONFIRM<span>确认</span></button>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-overlay" id="modal-sub-asset-action">
+                <div class="modal">
+                    <h3 id="sub-asset-title" style="text-align: center; margin-bottom: 15px;">Asset Action</h3>
+                    <div style="display:flex; gap:10px; margin-bottom:10px;">
+                        <button class="action-btn primary" id="btn-sub-asset-in" style="flex:1; margin:0;">转入</button>
+                        <button class="action-btn" id="btn-sub-asset-out" style="flex:1; margin:0;">转出</button>
+                    </div>
+                    <input type="number" id="sub-asset-amount" placeholder="金额 (¥)" style="width: 100%; padding: 10px; margin-bottom: 10px; border: 1px solid var(--border-color); background: transparent; color: var(--text-color); outline: none; font-size: 12px;">
+                    <div style="font-size:9px; color:var(--text-secondary); margin-bottom:10px; text-align:center;">资金将从当前账号的钱包余额中扣除或增加</div>
+                    <div class="modal-btns">
+                        <button class="btn-cancel" onclick="closeModal('modal-sub-asset-action')">CANCEL<span>取消</span></button>
+                    </div>
+                </div>
+            </div>
+            `;
+            document.body.insertAdjacentHTML('beforeend', html);
+        }
+    }
+
     function renderWalletApp() {
+        injectWalletModals();
         const switcher = $('#wallet-account-switcher');
         switcher.innerHTML = `<option value="ME">ME (我的钱包)</option>` + roles.map(r => `<option value="${r.id}">${getDisplayName(r)}</option>`).join('');
         switcher.value = currentWalletAccount;
@@ -10000,23 +10034,23 @@ function onAiAvatarDblClick() {
                 <div class="wallet-sub-assets" style="flex-wrap: wrap; gap: 10px 0;">
                     <div class="wallet-sub-item" style="width: 33.33%;">
                         <div class="wallet-sub-label">花呗</div>
-                        <div class="wallet-sub-val ${data.huabei < 0 ? 'wallet-val-neg' : ''}" style="cursor:pointer;" onclick="handleSubAssetEdit('huabei')">${data.huabei < 0 ? '' : '+'}${fmtMoney(data.huabei)}</div>
+                        <div class="wallet-sub-val ${data.huabei < 0 ? 'wallet-val-neg' : ''}" style="cursor:pointer;" onclick="openSubAssetModal('huabei')">${data.huabei < 0 ? '' : '+'}${fmtMoney(data.huabei)}</div>
                     </div>
                     <div class="wallet-sub-item" style="width: 33.33%; border-left: 1px solid rgba(255,255,255,0.2); border-right: 1px solid rgba(255,255,255,0.2);">
                         <div class="wallet-sub-label">基金</div>
-                        <div class="wallet-sub-val ${data.funds > 0 ? 'wallet-val-pos' : ''}" style="cursor:pointer;" onclick="handleSubAssetEdit('funds')">${fmtMoney(data.funds)}</div>
+                        <div class="wallet-sub-val ${data.funds > 0 ? 'wallet-val-pos' : ''}" style="cursor:pointer;" onclick="openSubAssetModal('funds')">${fmtMoney(data.funds)}</div>
                     </div>
                     <div class="wallet-sub-item" style="width: 33.33%;">
                         <div class="wallet-sub-label">股票</div>
-                        <div class="wallet-sub-val ${data.stocks > 0 ? 'wallet-val-pos' : (data.stocks < 0 ? 'wallet-val-neg' : '')}" style="cursor:pointer;" onclick="handleSubAssetEdit('stocks')">${fmtMoney(data.stocks)}</div>
+                        <div class="wallet-sub-val ${data.stocks > 0 ? 'wallet-val-pos' : (data.stocks < 0 ? 'wallet-val-neg' : '')}" style="cursor:pointer;" onclick="openSubAssetModal('stocks')">${fmtMoney(data.stocks)}</div>
                     </div>
                     <div class="wallet-sub-item" style="width: 50%; margin-top: 10px;">
                         <div class="wallet-sub-label">活期理财</div>
-                        <div class="wallet-sub-val wallet-val-pos" style="cursor:pointer;" onclick="handleSubAssetEdit('currentDeposit')">${fmtMoney(data.currentDeposit)}</div>
+                        <div class="wallet-sub-val wallet-val-pos" style="cursor:pointer;" onclick="openSubAssetModal('currentDeposit')">${fmtMoney(data.currentDeposit)}</div>
                     </div>
                     <div class="wallet-sub-item" style="width: 50%; margin-top: 10px; border-left: 1px solid rgba(255,255,255,0.2);">
                         <div class="wallet-sub-label">定期存款</div>
-                        <div class="wallet-sub-val wallet-val-pos" style="cursor:pointer;" onclick="handleSubAssetEdit('fixedDeposit')">${fmtMoney(data.fixedDeposit)}</div>
+                        <div class="wallet-sub-val wallet-val-pos" style="cursor:pointer;" onclick="openSubAssetModal('fixedDeposit')">${fmtMoney(data.fixedDeposit)}</div>
                     </div>
                 </div>
             </div>
@@ -10053,7 +10087,7 @@ function onAiAvatarDblClick() {
                         <div style="font-size:9px; color:var(--text-secondary);">已消费 ¥${fmtMoney(c.spent)} / 额度 ¥${fmtMoney(c.limit)}</div>
                     </div>
                     <div style="text-align:right; display:flex; flex-direction:column; align-items:flex-end; gap:4px;">
-                        <div style="font-size:12px; color:#22c55e;">正常</div>
+                        <div style="font-size:9px; color:#22c55e; cursor:pointer; text-decoration:underline; margin-bottom:4px;" onclick="editFamilyCardLimit(${i})">修改额度</div>
                         <div style="font-size:9px; color:#ff4d4d; cursor:pointer; text-decoration:underline;" onclick="deleteWalletItem('family', ${i})">解绑</div>
                     </div>
                 </div>
@@ -10078,20 +10112,71 @@ function onAiAvatarDblClick() {
         content.innerHTML = html;
     }
 
-    function handleSubAssetEdit(assetType) {
+    let currentSubAssetType = '';
+    function openSubAssetModal(type) {
+        currentSubAssetType = type;
         const typeNames = {
-            'huabei': '花呗 (负数表示欠款)',
-            'funds': '基金',
-            'stocks': '股票',
-            'currentDeposit': '活期理财',
-            'fixedDeposit': '定期存款'
+            'huabei': { name: '花呗', in: '还款', out: '借款' },
+            'funds': { name: '基金', in: '买入', out: '卖出' },
+            'stocks': { name: '股票', in: '买入', out: '卖出' },
+            'currentDeposit': { name: '活期理财', in: '存入', out: '转出' },
+            'fixedDeposit': { name: '定期存款', in: '存入', out: '取出' }
         };
-        let currentVal = walletData[currentWalletAccount][assetType] || 0;
-        let amt = prompt(`请输入新的 ${typeNames[assetType]} 金额:`, currentVal);
-        if (amt !== null && !isNaN(amt)) {
-            walletData[currentWalletAccount][assetType] = Number(amt);
+        const info = typeNames[type];
+        $('#sub-asset-title').innerHTML = `${info.name} <span>操作</span>`;
+        $('#btn-sub-asset-in').innerText = info.in;
+        $('#btn-sub-asset-out').innerText = info.out;
+        $('#sub-asset-amount').value = '';
+        
+        $('#btn-sub-asset-in').onclick = () => confirmSubAssetAction('in');
+        $('#btn-sub-asset-out').onclick = () => confirmSubAssetAction('out');
+        
+        openModal('modal-sub-asset-action');
+    }
+
+    function confirmSubAssetAction(action) {
+        const amount = Number($('#sub-asset-amount').value);
+        if (!amount || amount <= 0) return alert("请输入有效金额");
+        
+        const data = walletData[currentWalletAccount];
+        const typeNames = {
+            'huabei': { name: '花呗', in: '还款', out: '借款' },
+            'funds': { name: '基金', in: '买入', out: '卖出' },
+            'stocks': { name: '股票', in: '买入', out: '卖出' },
+            'currentDeposit': { name: '活期理财', in: '存入', out: '转出' },
+            'fixedDeposit': { name: '定期存款', in: '存入', out: '取出' }
+        };
+        const info = typeNames[currentSubAssetType];
+        
+        if (action === 'in') {
+            if (data.balance < amount) return alert("钱包余额不足，请先充值！");
+            data.balance -= amount;
+            data[currentSubAssetType] += amount;
+            addWalletBill(`${info.in} ${info.name}`, -amount, '钱包余额');
+            triggerWalletActionGreeting('sub_asset', `${info.in}了 ¥${amount} 的${info.name}`);
+        } else {
+            if (currentSubAssetType !== 'huabei' && data[currentSubAssetType] < amount) return alert(`${info.name} 余额不足！`);
+            data.balance += amount;
+            data[currentSubAssetType] -= amount;
+            addWalletBill(`${info.out} ${info.name}`, amount, info.name);
+            triggerWalletActionGreeting('sub_asset', `${info.out}了 ¥${amount} 的${info.name}`);
+        }
+        
+        DB.set('walletData', walletData);
+        renderWalletMain();
+        closeModal('modal-sub-asset-action');
+    }
+
+    function editFamilyCardLimit(index) {
+        const card = walletData[currentWalletAccount].familyCards[index];
+        let newLimit = prompt(`请输入新的亲属卡额度 (¥)\n当前额度: ¥${card.limit}`, card.limit);
+        if (newLimit !== null && !isNaN(newLimit) && Number(newLimit) > 0) {
+            newLimit = Number(newLimit);
+            card.limit = newLimit;
+            addWalletBill(`修改亲属卡额度`, 0, `赠予: ${card.to}`);
             DB.set('walletData', walletData);
             renderWalletMain();
+            triggerWalletActionGreeting('family_card', `将赠予 ${card.to} 的亲属卡额度修改为 ¥${newLimit}`);
         }
     }
 
@@ -10159,29 +10244,104 @@ function onAiAvatarDblClick() {
         walletData[currentWalletAccount].bills.unshift({ time: timeStr, location: '线上交易', merchant: merchant, amount: amount, method: method });
     }
 
+    let currentFundAction = '';
     function handleWalletRecharge() {
-        let amt = prompt("请输入充值金额 (¥):");
-        if (amt && !isNaN(amt) && Number(amt) > 0) {
-            amt = Number(amt);
-            walletData[currentWalletAccount].balance += amt;
-            addWalletBill('钱包充值', amt, '快捷支付');
-            DB.set('walletData', walletData);
-            renderWalletMain();
-            triggerWalletActionGreeting('recharge', amt);
-        }
+        currentFundAction = 'recharge';
+        $('#wallet-fund-title').innerHTML = 'Recharge <span>充值</span>';
+        populateFundSource();
+        $('#wallet-fund-amount').value = '';
+        $('#btn-wallet-fund-confirm').onclick = confirmFundAction;
+        openModal('modal-wallet-fund-action');
     }
 
     function handleWalletWithdraw() {
-        let amt = prompt(`请输入提现金额 (¥)\n当前最多可提现: ¥${fmtMoney(walletData[currentWalletAccount].balance)}`);
-        if (amt && !isNaN(amt) && Number(amt) > 0) {
-            amt = Number(amt);
-            if (amt > walletData[currentWalletAccount].balance) return alert("余额不足！");
-            walletData[currentWalletAccount].balance -= amt;
-            addWalletBill('钱包提现', -amt, '提现至银行卡');
-            DB.set('walletData', walletData);
-            renderWalletMain();
-            triggerWalletActionGreeting('withdraw', amt);
+        currentFundAction = 'withdraw';
+        $('#wallet-fund-title').innerHTML = 'Withdraw <span>提现</span>';
+        populateFundSource();
+        $('#wallet-fund-amount').value = '';
+        $('#btn-wallet-fund-confirm').onclick = confirmFundAction;
+        openModal('modal-wallet-fund-action');
+    }
+
+    function populateFundSource() {
+        const sel = $('#wallet-fund-source');
+        let options = '';
+        if (currentWalletAccount === 'ME') {
+            options += `<option value="external">外部银行卡/快捷支付</option>`;
+            walletData['ME'].bankCards.forEach((c, i) => {
+                options += `<option value="bank_${i}">${c.bank}(${c.tail}) (¥${fmtMoney(c.balance)})</option>`;
+            });
+        } else {
+            options += `<option value="me_balance">用户(ME)的钱包余额 (¥${fmtMoney(walletData['ME'].balance)})</option>`;
+            walletData['ME'].bankCards.forEach((c, i) => {
+                options += `<option value="me_bank_${i}">用户(ME)的 ${c.bank}(${c.tail}) (¥${fmtMoney(c.balance)})</option>`;
+            });
+            options += `<option value="external">角色自己的外部资金</option>`;
         }
+        sel.innerHTML = options;
+    }
+
+    function confirmFundAction() {
+        const amount = Number($('#wallet-fund-amount').value);
+        if (!amount || amount <= 0) return alert("请输入有效金额");
+        const source = $('#wallet-fund-source').value;
+        
+        const targetData = walletData[currentWalletAccount];
+        const meData = walletData['ME'];
+        
+        let sourceName = '快捷支付';
+        
+        if (currentFundAction === 'recharge') {
+            if (source === 'me_balance') {
+                if (meData.balance < amount) return alert("用户(ME)钱包余额不足！");
+                meData.balance -= amount;
+                meData.bills.unshift({ time: new Date().toLocaleString('zh-CN'), location: '线上交易', merchant: `为角色充值`, amount: -amount, method: '钱包余额' });
+                sourceName = '用户(ME)钱包余额';
+            } else if (source.startsWith('me_bank_')) {
+                const idx = parseInt(source.split('_')[2]);
+                if (meData.bankCards[idx].balance < amount) return alert("用户(ME)银行卡余额不足！");
+                meData.bankCards[idx].balance -= amount;
+                sourceName = `用户(ME) ${meData.bankCards[idx].bank}`;
+                meData.bills.unshift({ time: new Date().toLocaleString('zh-CN'), location: '线上交易', merchant: `为角色充值`, amount: -amount, method: sourceName });
+            } else if (source.startsWith('bank_')) {
+                const idx = parseInt(source.split('_')[1]);
+                if (targetData.bankCards[idx].balance < amount) return alert("银行卡余额不足！");
+                targetData.bankCards[idx].balance -= amount;
+                sourceName = `${targetData.bankCards[idx].bank}`;
+            }
+            
+            targetData.balance += amount;
+            addWalletBill('钱包充值', amount, sourceName);
+            triggerWalletActionGreeting('recharge', `充值了 ¥${amount}`);
+            
+        } else if (currentFundAction === 'withdraw') {
+            if (targetData.balance < amount) return alert("当前钱包余额不足！");
+            
+            if (source === 'me_balance') {
+                meData.balance += amount;
+                meData.bills.unshift({ time: new Date().toLocaleString('zh-CN'), location: '线上交易', merchant: `角色提现转入`, amount: amount, method: '转入余额' });
+                sourceName = '用户(ME)钱包余额';
+            } else if (source.startsWith('me_bank_')) {
+                const idx = parseInt(source.split('_')[2]);
+                meData.bankCards[idx].balance += amount;
+                sourceName = `用户(ME) ${meData.bankCards[idx].bank}`;
+                meData.bills.unshift({ time: new Date().toLocaleString('zh-CN'), location: '线上交易', merchant: `角色提现转入`, amount: amount, method: sourceName });
+            } else if (source.startsWith('bank_')) {
+                const idx = parseInt(source.split('_')[1]);
+                targetData.bankCards[idx].balance += amount;
+                sourceName = `${targetData.bankCards[idx].bank}`;
+            } else {
+                sourceName = '外部银行卡';
+            }
+            
+            targetData.balance -= amount;
+            addWalletBill('钱包提现', -amount, sourceName);
+            triggerWalletActionGreeting('withdraw', `提现了 ¥${amount}`);
+        }
+        
+        DB.set('walletData', walletData);
+        renderWalletMain();
+        closeModal('modal-wallet-fund-action');
     }
 
     function toggleWalletAutoRefresh(isChecked) {
@@ -10189,7 +10349,7 @@ function onAiAvatarDblClick() {
         DB.set('walletData', walletData);
     }
 
-    async function triggerWalletActionGreeting(actionType, amount) {
+    async function triggerWalletActionGreeting(actionType, actionDetail) {
         if (currentWalletAccount === 'ME') return;
         const role = roles.find(r => r.id === currentWalletAccount);
         if (!role || !apiConfig.url) return;
@@ -10208,10 +10368,8 @@ function onAiAvatarDblClick() {
         }).join('\n');
         const chatContext = recentChats ? `\n[最近的聊天记录]\n${recentChats}` : '';
 
-        const actionText = actionType === 'recharge' ? `充值了 ¥${amount}` : `提现了 ¥${amount}`;
-        
         const systemPrompt = `[CORE DIRECTIVE]\n你是${role.realName}。${role.persona}\n${globalWbs}\n${localWbs}${memorySummary}${chatContext}\n
-        系统提示：用户刚刚在你的钱包里${actionText}。
+        系统提示：用户刚刚在你的钱包里${actionDetail}。
         请根据你的人设、你们当前的聊天上下文和情感状态，发一条消息给用户。
         要求：
         1. 语气自然，符合人设（比如傲娇的会吐槽，温柔的会感谢，霸总会觉得这点钱算什么）。
