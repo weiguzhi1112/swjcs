@@ -9960,7 +9960,15 @@ function onAiAvatarDblClick() {
         const data = walletData[currentWalletAccount];
         const content = $('#wallet-main-view');
         
+        if (data.autoRefresh === undefined) data.autoRefresh = true;
+        if (data.currentDeposit === undefined) data.currentDeposit = 0;
+        if (data.fixedDeposit === undefined) data.fixedDeposit = 0;
+
         let html = `
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 10px; padding: 0 5px;">
+                <span style="font-size: 10px; color: var(--text-secondary); font-weight: 600; letter-spacing: 1px;">每日自动刷新账单</span>
+                <input type="checkbox" ${data.autoRefresh ? 'checked' : ''} onchange="toggleWalletAutoRefresh(this.checked)" style="width:auto; accent-color: var(--text-color);">
+            </div>
             <div class="wallet-card" style="background-image: url('${data.mainBg}')">
                 <div class="wallet-card-title">
                     <span>TOTAL BALANCE / 钱包余额</span>
@@ -9971,18 +9979,26 @@ function onAiAvatarDblClick() {
                     <button class="wallet-action-btn" style="background:var(--text-color); color:var(--bg-color);" onclick="handleWalletRecharge()">RECHARGE 充值</button>
                     <button class="wallet-action-btn" onclick="handleWalletWithdraw()">WITHDRAW 提现</button>
                 </div>
-                <div class="wallet-sub-assets">
-                    <div class="wallet-sub-item">
-                        <div class="wallet-sub-label">花呗 (Huabei)</div>
+                <div class="wallet-sub-assets" style="flex-wrap: wrap; gap: 10px 0;">
+                    <div class="wallet-sub-item" style="width: 33.33%;">
+                        <div class="wallet-sub-label">花呗</div>
                         <div class="wallet-sub-val ${data.huabei < 0 ? 'wallet-val-neg' : ''}">${data.huabei < 0 ? '' : '+'}${fmtMoney(data.huabei)}</div>
                     </div>
-                    <div class="wallet-sub-item" style="border-left: 1px solid rgba(255,255,255,0.2); border-right: 1px solid rgba(255,255,255,0.2);">
-                        <div class="wallet-sub-label">基金 (Funds)</div>
+                    <div class="wallet-sub-item" style="width: 33.33%; border-left: 1px solid rgba(255,255,255,0.2); border-right: 1px solid rgba(255,255,255,0.2);">
+                        <div class="wallet-sub-label">基金</div>
                         <div class="wallet-sub-val ${data.funds > 0 ? 'wallet-val-pos' : ''}">${fmtMoney(data.funds)}</div>
                     </div>
-                    <div class="wallet-sub-item">
-                        <div class="wallet-sub-label">股票 (Stocks)</div>
+                    <div class="wallet-sub-item" style="width: 33.33%;">
+                        <div class="wallet-sub-label">股票</div>
                         <div class="wallet-sub-val ${data.stocks > 0 ? 'wallet-val-pos' : (data.stocks < 0 ? 'wallet-val-neg' : '')}">${fmtMoney(data.stocks)}</div>
+                    </div>
+                    <div class="wallet-sub-item" style="width: 50%; margin-top: 10px;">
+                        <div class="wallet-sub-label">活期理财</div>
+                        <div class="wallet-sub-val wallet-val-pos">${fmtMoney(data.currentDeposit)}</div>
+                    </div>
+                    <div class="wallet-sub-item" style="width: 50%; margin-top: 10px; border-left: 1px solid rgba(255,255,255,0.2);">
+                        <div class="wallet-sub-label">定期存款</div>
+                        <div class="wallet-sub-val wallet-val-pos">${fmtMoney(data.fixedDeposit)}</div>
                     </div>
                 </div>
             </div>
@@ -10116,6 +10132,7 @@ function onAiAvatarDblClick() {
             addWalletBill('钱包充值', amt, '快捷支付');
             DB.set('walletData', walletData);
             renderWalletMain();
+            triggerWalletActionGreeting('recharge', amt);
         }
     }
 
@@ -10128,6 +10145,52 @@ function onAiAvatarDblClick() {
             addWalletBill('钱包提现', -amt, '提现至银行卡');
             DB.set('walletData', walletData);
             renderWalletMain();
+            triggerWalletActionGreeting('withdraw', amt);
+        }
+    }
+
+    function toggleWalletAutoRefresh(isChecked) {
+        walletData[currentWalletAccount].autoRefresh = isChecked;
+        DB.set('walletData', walletData);
+    }
+
+    async function triggerWalletActionGreeting(actionType, amount) {
+        if (currentWalletAccount === 'ME') return;
+        const role = roles.find(r => r.id === currentWalletAccount);
+        if (!role || !apiConfig.url) return;
+
+        const globalWbs = worldbooks.filter(w => w.isGlobal).map(w => w.content).join('\n');
+        const localWbs = worldbooks.filter(w => role.localWbs?.includes(w.id)).map(w => w.content).join('\n');
+        const memorySummary = memories[role.id] ? `\n[SHARED MEMORY]\n${memories[role.id]}` : '';
+
+        const actionText = actionType === 'recharge' ? `充值了 ¥${amount}` : `提现了 ¥${amount}`;
+        
+        const prompt = `[CORE DIRECTIVE]\n你是${role.realName}。${role.persona}\n${globalWbs}\n${localWbs}${memorySummary}\n
+        系统提示：用户刚刚在你的钱包里${actionText}。
+        请根据你的人设和你们当前的情感状态，发一条消息给用户。
+        要求：
+        1. 语气自然，符合人设（比如傲娇的会吐槽，温柔的会感谢，霸总会觉得这点钱算什么）。
+        2. 简短口语化，不超过50字。
+        3. 直接输出回复内容，不要加引号。`;
+
+        try {
+            const endpoint = getChatEndpoint(apiConfig.url);
+            const response = await fetch(endpoint, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiConfig.key}` },
+                body: JSON.stringify({ model: apiConfig.model, messages: [{ role: 'user', content: prompt }], max_tokens: 100, temperature: 0.85 })
+            });
+            const data = await response.json();
+            const msg = data.choices[0].message.content.trim();
+
+            if (!chats[role.id]) chats[role.id] = [];
+            const now = new Date();
+            chats[role.id].push({ role: 'ai', content: msg, time: now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }), rawTime: now.getTime(), mode: 'online' });
+            DB.set('chats', chats);
+            
+            showSystemNotification(role.id, getDisplayName(role), msg, role.avatar);
+        } catch (e) {
+            console.error("钱包问候生成失败", e);
         }
     }
 
@@ -10192,29 +10255,34 @@ function onAiAvatarDblClick() {
         要求返回严格的JSON格式：
         {
             "balance": 余额(数字),
-            "huabei": 花呗(负数表示欠款，0表示不用，正数表示额度),
-            "funds": 基金(数字),
-            "stocks": 股票(数字),
+            "huabei": 花呗(负数表示欠款，正数表示额度，绝对不能为0，根据人设给个合理的值),
+            "funds": 基金(数字，不能为0),
+            "stocks": 股票(数字，不能为0),
+            "currentDeposit": 活期理财(数字),
+            "fixedDeposit": 定期存款(数字),
             "bankCards": [
                 { "bank": "银行名称", "type": "储蓄卡/信用卡/黑卡等", "tail": "4位尾号", "balance": 余额(数字) }
             ],
             "bills": [
-                { "time": "YYYY-MM-DD HH:MM", "location": "地点", "merchant": "商家/交易对象", "amount": 金额(正负数), "method": "支付方式" }
+                { "time": "YYYY-MM-DD HH:MM", "location": "地点", "merchant": "商家/交易对象/赚钱小游戏/工资收入", "amount": 金额(正数表示收入，负数表示支出), "method": "支付方式" }
             ]
         }
-        注意：生成3-5条近期的账单，必须极度符合人设（如霸总买奢侈品/穷学生吃食堂）。直接输出JSON，不要加任何其他文字。`;
+        注意：
+        1. 生成5-8条近期的账单，必须包含【支出】和【收入】（如工资、理财收益、或者符合人设的赚钱小游戏如“羊了个羊通关奖励”、“代练收入”等）。
+        2. 花呗、基金、股票、活期、定期必须根据人设给出一个非0的合理数值。
+        直接输出JSON，不要加任何其他文字。`;
 
         try {
             const endpoint = getChatEndpoint(api.url);
             const response = await fetch(endpoint, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${api.key}` },
-                body: JSON.stringify({ model: api.model, messages: [{ role: 'user', content: prompt }], max_tokens: 1000, temperature: 0.85 })
+                body: JSON.stringify({ model: api.model, messages: [{ role: 'user', content: prompt }], max_tokens: 1500, temperature: 0.85 })
             });
             const data = await response.json();
             const result = JSON.parse(extractJSON(data.choices[0].message.content));
             
-            const currentData = walletData[currentWalletAccount] || { mainBg: '', familyCards: [], bills: [] };
+            const currentData = walletData[currentWalletAccount] || { mainBg: '', familyCards: [], bills: [], autoRefresh: true };
             const newBankCards = (result.bankCards || []).map((c, i) => {
                 const oldCard = (currentData.bankCards && currentData.bankCards[i]) ? currentData.bankCards[i] : {};
                 return { ...c, bg: oldCard.bg || '' };
@@ -10225,10 +10293,18 @@ function onAiAvatarDblClick() {
                 b.merchant.includes(userName) || 
                 b.merchant.includes('代付') || 
                 b.merchant.includes('转账') ||
-                b.merchant.includes('退回')
+                b.merchant.includes('退回') ||
+                b.merchant.includes('充值') ||
+                b.merchant.includes('提现')
             );
-            const aiBills = result.bills || [];
-            const mergedBills = [...realBills, ...aiBills];
+            
+            let mergedBills = [];
+            if (currentData.autoRefresh === false) {
+                const oldAiBills = (currentData.bills || []).filter(b => !realBills.includes(b));
+                mergedBills = [...realBills, ...result.bills, ...oldAiBills];
+            } else {
+                mergedBills = [...realBills, ...(result.bills || [])];
+            }
 
             walletData[currentWalletAccount] = {
                 ...currentData,
@@ -10236,6 +10312,8 @@ function onAiAvatarDblClick() {
                 huabei: result.huabei || 0,
                 funds: result.funds || 0,
                 stocks: result.stocks || 0,
+                currentDeposit: result.currentDeposit || 0,
+                fixedDeposit: result.fixedDeposit || 0,
                 bankCards: newBankCards,
                 bills: mergedBills
             };
