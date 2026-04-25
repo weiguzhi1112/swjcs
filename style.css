@@ -639,9 +639,11 @@ body {
         #music-mini-artist { font-size: 9px; color: var(--text-secondary); }
         #music-mini-controls button { font-size: 18px; background: none; border: none; color: var(--text-color); cursor: pointer; margin-left: 10px; }
 
-        #music-nav-bar { position: absolute; bottom: 0; left: 0; right: 0; height: 50px; background: var(--bg-color); border-top: 1px solid var(--border-color); display: flex; justify-content: space-around; align-items: center; z-index: 10; }
-        .music-nav-btn { flex: 1; text-align: center; font-size: 9px; letter-spacing: 1px; text-transform: uppercase; color: var(--text-secondary); cursor: pointer; }
+        #music-nav-bar { position: absolute; bottom: 0; left: 0; right: 0; height: 60px; background: var(--bg-color); border-top: 1px solid var(--border-color); display: flex; justify-content: space-around; align-items: center; z-index: 10; padding-bottom: 5px; }
+        .music-nav-btn { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; font-size: 9px; letter-spacing: 1px; color: var(--text-secondary); cursor: pointer; }
+        .music-nav-btn svg { opacity: 0.6; transition: opacity 0.2s; }
         .music-nav-btn.active { color: var(--text-color); font-weight: 600; }
+        .music-nav-btn.active svg { opacity: 1; }
 
         #music-fullscreen-player {
     position: absolute;
@@ -2104,3 +2106,12 @@ body.is-app .to-page { padding-bottom: calc(70px + env(safe-area-inset-bottom)) 
 .css-wifi span:nth-child(3) { width: 4px; height: 4px; bottom: 0; background: currentColor; border: none; }
 .css-battery { position: relative; width: 20px; height: 10px; border: 1px solid currentColor; border-radius: 3px; padding: 1px; display: flex; align-items: center; margin-left: 2px; }
 .css-battery::after { content: ''; position: absolute; right: -3px; top: 2px; width: 2px; height: 4px; background: currentColor; border-radius: 0 2px 2px 0; }
+/* 人设输入区域：不聚焦时模糊，聚焦时清晰 */
+#role-persona:not(:focus) {
+    filter: blur(5px);
+    transition: filter 0.3s ease;
+}
+#role-persona:focus {
+    filter: blur(0);
+    transition: filter 0.3s ease;
+}

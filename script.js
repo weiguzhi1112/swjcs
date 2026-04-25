@@ -375,6 +375,10 @@ cipherState = DB.get('cipherState', {score:0,created:0,solved:0,collection:[], h
         activeBeautyPresetId = DB.get('activeBeautyPresetId', null);
         musicPlaylist = DB.get('musicPlaylist', []);
         savedPlaylists = DB.get('savedPlaylists', []);
+        window.musicFavorites = DB.get('musicFavorites', []);
+        window.musicCreds = DB.get('musicCreds', {});
+        window.rolePlaylists = DB.get('rolePlaylists', {});
+        window.currentMusicAccount = 'ME';
         calendarEvents = DB.get('calendarEvents', []);
         calendarSettings = DB.get('calendarSettings', { notifyRoleIds: [] });
         apiLogs = DB.get('apiLogs', []);
@@ -624,8 +628,14 @@ async function checkDiscordCallback() {
                 const img = new Image();
                 img.onload = () => {
                     let quality = settings.imageQuality !== undefined ? settings.imageQuality : 0.8;
+                    let MAX_DIMENSION = quality >= 1.0 ? 4096 : 1280; 
                     
-                        if (quality >= 1.0) {
+                    if (targetInputId === 'beauty-bg' || targetInputId === 'role-chat-bg' || targetInputId === 'role-call-bg') {
+                        quality = Math.min(quality, 0.7);
+                        MAX_DIMENSION = 1920;
+                    }
+
+                    if (quality >= 1.0 && targetInputId !== 'beauty-bg' && targetInputId !== 'role-chat-bg' && targetInputId !== 'role-call-bg') {
                         finishUpload(resultData, targetInputId, type);
                         return;
                     }
@@ -635,7 +645,6 @@ async function checkDiscordCallback() {
                     
                     let width = img.width;
                     let height = img.height;
-                    const MAX_DIMENSION = quality >= 1.0 ? 4096 : 1280; 
                     
                     if (width > MAX_DIMENSION || height > MAX_DIMENSION) {
                         if (width > height) {
@@ -661,10 +670,18 @@ async function checkDiscordCallback() {
         };
         reader.readAsDataURL(file);
     }
+
     function finishUpload(dataUrl, targetInputId, type) {
         const targetInput = document.getElementById(targetInputId);
         if (!targetInput) return;
-        targetInput.value = dataUrl;
+        
+        if (targetInputId === 'beauty-bg' || targetInputId === 'role-chat-bg' || targetInputId === 'role-call-bg') {
+            targetInput.dataset.realValue = dataUrl;
+            targetInput.value = '已上传本地图片 (重新上传覆盖)';
+        } else {
+            targetInput.value = dataUrl;
+        }
+        
         targetInput.dispatchEvent(new Event('input', { bubbles: true }));
         targetInput.dispatchEvent(new Event('change', { bubbles: true }));
         if (type === 'AUDIO' || targetInputId === 'beauty-bg') applyBeauty();
@@ -1344,7 +1361,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     renderOsPairingView();
                 }
             }
-        }, 50);
+        }, 400);
 
         const desktop = $('#view-desktop');
         if (desktop) {
@@ -4818,8 +4835,15 @@ function updateRoleWbPreview() {
         $('#role-edit-user-avatar').style.backgroundImage = `url('${userAvatarUrl}')`;
 
         $('#role-persona').value = isEditing ? role.persona : ''; 
-        $('#role-chat-bg').value = isEditing ? (role.chatBg || '') : ''; 
-        $('#role-call-bg').value = isEditing ? (role.callBg || '') : ''; 
+        
+        const chatBg = isEditing ? (role.chatBg || '') : '';
+        $('#role-chat-bg').dataset.realValue = chatBg;
+        $('#role-chat-bg').value = chatBg.length > 200 ? '已上传本地图片 (重新上传覆盖)' : chatBg;
+        
+        const callBg = isEditing ? (role.callBg || '') : '';
+        $('#role-call-bg').dataset.realValue = callBg;
+        $('#role-call-bg').value = callBg.length > 200 ? '已上传本地图片 (重新上传覆盖)' : callBg;
+        
         $('#role-chat-css').value = isEditing ? (role.chatCss || '') : ''; 
         $('#role-bubble-css').value = isEditing ? (role.bubbleCss || '') : ''; 
         $('#role-ai-bubble-color').value = isEditing && role.aiBubbleColor ? role.aiBubbleColor : '#333333';
@@ -4901,14 +4925,21 @@ function updateRoleWbPreview() {
 window.newRoleTempWbs = null;
         const activeMaskId = $('#role-mask-select').value; 
         const boundMapId = $('#role-map-preset-select').value;         
+        
+        let chatBgVal = $('#role-chat-bg').value.trim();
+        if (chatBgVal === '已上传本地图片 (重新上传覆盖)') chatBgVal = $('#role-chat-bg').dataset.realValue || '';
+        
+        let callBgVal = $('#role-call-bg').value.trim();
+        if (callBgVal === '已上传本地图片 (重新上传覆盖)') callBgVal = $('#role-call-bg').dataset.realValue || '';
+
         const roleData = { 
             id, 
             realName, 
             remark: $('#role-remark').value.trim(), 
             avatar: $('#role-avatar').value.trim(), 
             persona: $('#role-persona').value.trim(), 
-            chatBg: $('#role-chat-bg').value.trim(), 
-            callBg: $('#role-call-bg').value.trim(), 
+            chatBg: chatBgVal, 
+            callBg: callBgVal, 
             chatCss: $('#role-chat-css').value.trim(), 
             bubbleCss: $('#role-bubble-css').value.trim(), 
             aiBubbleColor: $('#role-ai-bubble-color').value, 
@@ -5202,8 +5233,11 @@ window.newRoleTempWbs = null;
     function openMaskModal(id = null) { editingMaskId = id; if (id) { const m = masks.find(x => x.id === id); $('#mask-modal-title').innerText = 'CONFIG PERSONA'; $('#mask-name').value = m.name; $('#mask-content').value = m.content; $('#btn-del-mask').style.display = m.id !== 'default' ? 'block' : 'none'; } else { $('#mask-modal-title').innerText = 'NEW PERSONA'; $('#mask-name').value = ''; $('#mask-content').value = ''; $('#btn-del-mask').style.display = 'none'; } openModal('modal-mask'); }
     function saveMask() { const name = $('#mask-name').value.trim(), content = $('#mask-content').value.trim(); if(!name || !content) return alert('REQUIRED FIELDS EMPTY.'); if (editingMaskId) { const idx = masks.findIndex(x => x.id === editingMaskId); masks[idx] = { ...masks[idx], name, content }; } else { masks.push({ id: Date.now().toString(36) + Math.random().toString(36).substring(2, 8), name, content }); } DB.set('masks', masks); closeModal('modal-mask'); renderMasks(); }
     function deleteMask() { if (editingMaskId === 'default' || !confirm('删除面具？')) return; roles.forEach(r => { if (r.activeMaskId === editingMaskId) r.activeMaskId = 'default'; }); DB.set('roles', roles); masks = masks.filter(x => x.id !== editingMaskId); DB.set('masks', masks); closeModal('modal-mask'); renderMasks(); }
-        function openBeautyModal() { 
-        $('#beauty-bg').value = settings.bgImage; 
+    function openBeautyModal() { 
+        const bgVal = settings.bgImage || '';
+        $('#beauty-bg').dataset.realValue = bgVal;
+        $('#beauty-bg').value = bgVal.length > 200 ? '已上传本地图片 (重新上传覆盖)' : bgVal;
+        
         $('#beauty-font').value = settings.fontSize; 
         $('#val-font').innerText = settings.fontSize; 
         $('#beauty-pad').value = parseInt(settings.bubblePadding); 
@@ -5219,7 +5253,33 @@ window.newRoleTempWbs = null;
         $('#beauty-sound-url').value = settings.notificationSound || ''; 
         openModal('modal-beauty'); 
     }
-    function applyBeauty() { settings.bgImage = $('#beauty-bg').value.trim(); settings.fontSize = $('#beauty-font').value; settings.bubblePadding = $('#beauty-pad').value; settings.avatarSize = $('#beauty-avatar').value; settings.avatarRadius = $('#beauty-avatar-radius').value; settings.showHeart = $('#beauty-heart').checked; settings.hideIconBorders = $('#beauty-hide-borders').checked; settings.hideAppNames = $('#beauty-hide-names').checked; settings.showDynamicIsland = $('#beauty-island').checked; if (!settings.showDynamicIsland) { const di = $('#dynamic-island'); if (di) di.classList.remove('active'); } settings.notificationSound = $('#beauty-sound-url').value.trim(); $('#val-font').innerText = settings.fontSize; $('#val-pad').innerText = settings.bubblePadding; $('#val-avatar').innerText = settings.avatarSize; $('#val-avatar-radius').innerText = settings.avatarRadius; DB.set('settings', settings); applySettings(); }
+
+    function applyBeauty() { 
+        let bgVal = $('#beauty-bg').value.trim();
+        if (bgVal === '已上传本地图片 (重新上传覆盖)') {
+            bgVal = $('#beauty-bg').dataset.realValue || '';
+        } else {
+            $('#beauty-bg').dataset.realValue = bgVal;
+        }
+        settings.bgImage = bgVal; 
+        
+        settings.fontSize = $('#beauty-font').value; 
+        settings.bubblePadding = $('#beauty-pad').value; 
+        settings.avatarSize = $('#beauty-avatar').value; 
+        settings.avatarRadius = $('#beauty-avatar-radius').value; 
+        settings.showHeart = $('#beauty-heart').checked; 
+        settings.hideIconBorders = $('#beauty-hide-borders').checked; 
+        settings.hideAppNames = $('#beauty-hide-names').checked; 
+        settings.showDynamicIsland = $('#beauty-island').checked; 
+        if (!settings.showDynamicIsland) { const di = $('#dynamic-island'); if (di) di.classList.remove('active'); } 
+        settings.notificationSound = $('#beauty-sound-url').value.trim(); 
+        $('#val-font').innerText = settings.fontSize; 
+        $('#val-pad').innerText = settings.bubblePadding; 
+        $('#val-avatar').innerText = settings.avatarSize; 
+        $('#val-avatar-radius').innerText = settings.avatarRadius; 
+        DB.set('settings', settings); 
+        applySettings(); 
+    }
     function testNotificationSound() { const soundUrl = $('#beauty-sound-url').value.trim(); if (soundUrl) { try { const audio = new Audio(soundUrl); audio.play(); } catch (e) { alert('无法播放声音，请检查URL是否正确。'); } } else { alert('请先设置一个声音URL或上传文件。'); } }
     function openExportModal() { openModal('modal-export-select'); }
     function toggleExportAll(check) { document.querySelectorAll('.export-cb').forEach(cb => cb.checked = check); }
@@ -7202,40 +7262,439 @@ ${extraLorePrompt}
         DB.set('savedPlaylists', savedPlaylists);
         renderSavedPlaylists();
     }
-
     function renderMusicApp() { 
         $$('.music-tab-content').forEach(el => el.classList.remove('active')); 
         $(`#music-${musicActiveTab}-page`).classList.add('active'); 
         $$('.music-nav-btn').forEach(el => el.classList.remove('active')); 
         $(`.music-nav-btn[onclick*="'${musicActiveTab}'"]`).classList.add('active'); 
+        
         if (musicActiveTab === 'playlist') { renderMusicPlaylist(); } 
         if (musicActiveTab === 'listen-together') { renderListenTogetherTab(); } 
-        if (musicActiveTab === 'menu') { renderSavedPlaylists(); checkMusicLoginStatus(); }
+        if (musicActiveTab === 'favorites') { renderMusicFavorites(); }
+        if (musicActiveTab === 'account') { 
+            const switcher = $('#music-account-switcher');
+            switcher.innerHTML = `<option value="ME">ME (我的音乐)</option>` + roles.map(r => `<option value="${r.id}">${getDisplayName(r)}</option>`).join('');
+            switcher.value = window.currentMusicAccount;
+            switchMusicAccount(); 
+        }
     }
     
     function switchMusicTab(tab) { 
         musicActiveTab = tab; 
         renderMusicApp(); 
     }
-    
+
+    function switchMusicAccount() {
+        window.currentMusicAccount = $('#music-account-switcher').value;
+        if (window.currentMusicAccount === 'ME') {
+            $('#music-me-view').style.display = 'block';
+            $('#music-role-view').style.display = 'none';
+            checkMusicLoginStatus();
+            renderSavedPlaylists();
+        } else {
+            $('#music-me-view').style.display = 'none';
+            $('#music-role-view').style.display = 'block';
+            checkMusicRoleLogin();
+        }
+    }
+
+    function checkMusicRoleLogin() {
+        if (!window.musicCreds[window.currentMusicAccount]) {
+            window.musicCreds[window.currentMusicAccount] = {
+                acc: 'music_' + Math.floor(Math.random() * 9000 + 1000),
+                pwd: Math.floor(Math.random() * 900000 + 100000).toString(),
+                isLoggedIn: false
+            };
+            DB.set('musicCreds', window.musicCreds);
+        }
+        if (window.musicCreds[window.currentMusicAccount].isLoggedIn) {
+            $('#music-role-login-view').style.display = 'none';
+            $('#music-role-main-view').style.display = 'block';
+            const role = roles.find(r => r.id === window.currentMusicAccount);
+            $('#music-role-avatar').src = role ? (role.avatar || DEFAULT_AVATAR) : DEFAULT_AVATAR;
+            $('#music-role-name').innerText = role ? getDisplayName(role) : 'Unknown';
+            renderRolePlaylists();
+        } else {
+            $('#music-role-login-acc').value = '';
+            $('#music-role-login-pwd').value = '';
+            $('#music-role-login-view').style.display = 'flex';
+            $('#music-role-main-view').style.display = 'none';
+        }
+    }
+
+    function verifyMusicRoleLogin() {
+        const acc = $('#music-role-login-acc').value.trim();
+        const pwd = $('#music-role-login-pwd').value.trim();
+        const creds = window.musicCreds[window.currentMusicAccount];
+        if (acc === creds.acc && pwd === creds.pwd) {
+            creds.isLoggedIn = true;
+            DB.set('musicCreds', window.musicCreds);
+            checkMusicRoleLogin();
+        } else {
+            alert('账号或密码错误！请在聊天中询问角色获取账密。');
+        }
+    }
+
+    function devMusicRoleLogin() {
+        window.musicCreds[window.currentMusicAccount].isLoggedIn = true;
+        DB.set('musicCreds', window.musicCreds);
+        checkMusicRoleLogin();
+    }
+
+    function getMusicHeartIcon(id, name, artist, picUrl) {
+        const isFav = window.musicFavorites.some(f => f.id == id);
+        return `<button style="background:none; border:none; color:${isFav ? '#ff4d4d' : 'var(--text-secondary)'}; font-size:16px; cursor:pointer; padding: 0 10px;" onclick="event.stopPropagation(); toggleMusicFavorite('${id}', '${name.replace(/'/g, "\\'")}', '${artist.replace(/'/g, "\\'")}', '${picUrl}')">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="${isFav ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>
+        </button>`;
+    }
+
+    function toggleMusicFavorite(id, name, artist, picUrl) {
+        const idx = window.musicFavorites.findIndex(f => f.id == id);
+        if (idx > -1) {
+            window.musicFavorites.splice(idx, 1);
+        } else {
+            window.musicFavorites.unshift({ id, name, artist, picUrl });
+        }
+        DB.set('musicFavorites', window.musicFavorites);
+        
+        if (musicActiveTab === 'favorites') renderMusicFavorites();
+        if (musicActiveTab === 'search') {
+            const resultsContainer = $('#music-search-results');
+            if (resultsContainer.innerHTML !== '') {
+                const currentQuery = $('#music-search-input').value.trim();
+                if (currentQuery) searchMusic(true); 
+            }
+        }
+        if (musicActiveTab === 'playlist') renderMusicPlaylist();
+    }
+
+    function renderMusicFavorites() {
+        const container = $('#music-favorites-list');
+        if (!container) return;
+        if (window.musicFavorites.length === 0) {
+            container.innerHTML = '<div style="text-align:center; color:var(--text-secondary); padding: 20px; font-size:10px;">暂无收藏歌曲</div>';
+            return;
+        }
+        container.innerHTML = window.musicFavorites.map(track => `
+            <div class="list-item" onclick="playMusicFromData('${track.id}', '${track.name.replace(/'/g, "\\'")}', '${track.artist.replace(/'/g, "\\'")}', '${track.picUrl}')">
+                <img class="avatar" src="${track.picUrl}">
+                <div class="item-info">
+                    <div class="item-name">${track.name}</div>
+                    <div class="item-desc">${track.artist}</div>
+                </div>
+                <div class="item-actions">
+                    ${getMusicHeartIcon(track.id, track.name, track.artist, track.picUrl)}
+                </div>
+            </div>
+        `).join('');
+    }
+
+    async function searchMusic(isSilentUpdate = false) { 
+        const query = $('#music-search-input').value.trim(); 
+        if (!query) return; 
+        const searchBtn = $('#music-search-btn'); 
+        const resultsContainer = $('#music-search-results'); 
+        
+        if (!isSilentUpdate) {
+            searchBtn.disabled = true; 
+            searchBtn.innerHTML = 'SEARCHING...'; 
+            resultsContainer.innerHTML = `<div style="text-align:center; color:var(--text-secondary); padding: 20px;">正在搜索...</div>`; 
+        }
+        
+        try { 
+            const response = await fetch(`${MUSIC_API_BASE}/cloudsearch?keywords=${encodeURIComponent(query)}&limit=30`); 
+            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`); 
+            const data = await response.json(); 
+            
+            if (data.code === 200 && data.result && data.result.songs) { 
+                const searchResults = data.result.songs.map(song => ({ 
+                    id: song.id, 
+                    name: song.name, 
+                    artist: song.ar.map(a => a.name).join('/'), 
+                    picUrl: (song.al.picUrl || '').replace(/^http:/, 'https:') + '?param=100y100' 
+                })); 
+                renderMusicSearchResults(searchResults); 
+            } else { 
+                resultsContainer.innerHTML = `<div style="text-align:center; color:var(--text-secondary); padding: 20px;">无结果</div>`; 
+            } 
+        } catch (e) { 
+            resultsContainer.innerHTML = `<div style="text-align:center; color:var(--text-secondary); padding: 20px;">搜索API错误: ${e.message}</div>`; 
+        } finally { 
+            if (!isSilentUpdate) {
+                searchBtn.disabled = false; 
+                searchBtn.innerHTML = 'SEARCH<span>搜索</span>'; 
+            }
+        } 
+    }
+
     function renderMusicSearchResults(results) { 
         const container = $('#music-search-results'); 
         if (results.length === 0) { 
             container.innerHTML = `<div style="text-align:center; color:var(--text-secondary); padding: 20px;">无结果</div>`; 
             return; 
         } 
-        container.innerHTML = results.map(track => `<div class="list-item" onclick="playMusicFromData('${track.id}', '${track.name}', '${track.artist}', '${track.picUrl}')"><img class="avatar" src="${track.picUrl}"><div class="item-info"><div class="item-name">${track.name}</div><div class="item-desc">${track.artist}</div></div></div>`).join(''); 
+        container.innerHTML = results.map(track => `
+            <div class="list-item" onclick="playMusicFromData('${track.id}', '${track.name.replace(/'/g, "\\'")}', '${track.artist.replace(/'/g, "\\'")}', '${track.picUrl}')">
+                <img class="avatar" src="${track.picUrl}">
+                <div class="item-info">
+                    <div class="item-name">${track.name}</div>
+                    <div class="item-desc">${track.artist}</div>
+                </div>
+                <div class="item-actions">
+                    ${getMusicHeartIcon(track.id, track.name, track.artist, track.picUrl)}
+                </div>
+            </div>
+        `).join(''); 
     }
-    
+
     function renderMusicPlaylist() { 
         const container = $('#music-playlist-page'); 
         if (musicPlaylist.length > 0) { 
-            container.innerHTML = musicPlaylist.map((track, index) => `<div class="list-item ${index === musicCurrentTrackIndex ? 'playing' : ''}" onclick="playMusicTrack(${index})"><img class="avatar" src="${track.picUrl}"><div class="item-info"><div class="item-name">${track.name}</div><div class="item-desc">${track.artist}</div></div></div>`).join(''); 
+            container.innerHTML = musicPlaylist.map((track, index) => `
+                <div class="list-item ${index === musicCurrentTrackIndex ? 'playing' : ''}" onclick="playMusicTrack(${index})">
+                    <img class="avatar" src="${track.picUrl}">
+                    <div class="item-info">
+                        <div class="item-name">${track.name}</div>
+                        <div class="item-desc">${track.artist}</div>
+                    </div>
+                    <div class="item-actions">
+                        ${getMusicHeartIcon(track.id, track.name, track.artist, track.picUrl)}
+                    </div>
+                </div>
+            `).join(''); 
         } else { 
             container.innerHTML = `<div style="text-align:center; color:var(--text-secondary); padding: 40px; font-size:10px; letter-spacing:2px;">NO SONGS IN PLAYLIST.</div>`; 
         } 
     }
-    
+
+    function renderSavedPlaylists() {
+        const neteaseContainer = $('#music-netease-playlists-list');
+        const importedContainer = $('#music-imported-playlists-list');
+        if (!neteaseContainer || !importedContainer) return;
+
+        savedPlaylists.forEach(p => { if (!p.type) p.type = 'imported'; });
+
+        const netease = savedPlaylists.filter(p => p.type === 'netease');
+        const imported = savedPlaylists.filter(p => p.type === 'imported');
+
+        const renderList = (list) => {
+            if (list.length === 0) return `<div style="text-align:center; color:var(--text-secondary); padding: 10px; font-size:10px;">暂无歌单</div>`;
+            return list.map((pl) => {
+                const globalIndex = savedPlaylists.indexOf(pl);
+                return `
+                <div class="list-item" onclick="loadSavedPlaylist(${globalIndex})">
+                    <img class="avatar" src="${pl.cover}">
+                    <div class="item-info">
+                        <div class="item-name">${pl.name}</div>
+                        <div class="item-desc">${pl.songs.length} 首歌曲</div>
+                    </div>
+                    <div class="item-actions">
+                        <button class="btn-delete" onclick="event.stopPropagation(); deleteSavedPlaylist(${globalIndex})">DEL</button>
+                    </div>
+                </div>
+            `}).join('');
+        };
+
+        neteaseContainer.innerHTML = renderList(netease);
+        importedContainer.innerHTML = renderList(imported);
+    }
+
+    async function importNetEasePlaylist() { 
+        const url = $('#music-playlist-input').value.trim(); 
+        if (!url) return; 
+        const match = url.match(/id=(\d+)/) || url.match(/^(\d+)$/); 
+        if (!match) return alert('无效的网易云歌单链接或ID。请粘贴包含 id=xxx 的链接。'); 
+        
+        const playlistId = match[1]; 
+        const btn = $('#music-import-btn');
+        btn.innerText = 'IMPORTING...';
+        btn.disabled = true;
+        
+        try { 
+            const detailRes = await fetch(`${MUSIC_API_BASE}/playlist/detail?id=${playlistId}`);
+            const detailData = await detailRes.json();
+            let playlistName = `歌单 ${playlistId}`;
+            let playlistCover = DEFAULT_AVATAR;
+            if (detailData.code === 200 && detailData.playlist) {
+                playlistName = detailData.playlist.name;
+                playlistCover = detailData.playlist.coverImgUrl + '?param=100y100';
+            }
+
+            const response = await fetch(`${MUSIC_API_BASE}/playlist/track/all?id=${playlistId}&limit=100`); 
+            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`); 
+            const data = await response.json(); 
+            
+            if (data.code === 200 && data.songs) { 
+                const songs = data.songs.map(song => ({ 
+                    id: song.id, 
+                    name: song.name, 
+                    artist: song.ar.map(a => a.name).join('/'), 
+                    picUrl: (song.al.picUrl || '').replace(/^http:/, 'https:') + '?param=100y100' 
+                })); 
+                
+                savedPlaylists.push({ id: playlistId, name: playlistName, cover: playlistCover, songs: songs, type: 'imported' });
+                DB.set('savedPlaylists', savedPlaylists);
+                
+                renderSavedPlaylists();
+                alert(`成功导入歌单: ${playlistName}，共 ${songs.length} 首歌曲。`); 
+                $('#music-playlist-input').value = '';
+            } else { 
+                alert('歌单导入失败，可能是歌单不存在或接口限制。'); 
+            } 
+        } catch (e) { 
+            alert(`歌单API错误: ${e.message}`); 
+        } finally {
+            btn.innerHTML = 'IMPORT PLAYLIST<span>导入歌单</span>';
+            btn.disabled = false;
+        }
+    }
+
+    async function importNeteasePlaylistById(playlistId, playlistName, playlistCover) {
+        const btn = event.currentTarget.querySelector('button');
+        if (btn) {
+            btn.innerText = '导入中...';
+            btn.disabled = true;
+        }
+        
+        try {
+            const response = await fetch(`${MUSIC_API_BASE}/playlist/track/all?id=${playlistId}&limit=100&timestamp=${Date.now()}`); 
+            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`); 
+            const data = await response.json(); 
+            
+            if (data.code === 200 && data.songs) { 
+                const songs = data.songs.map(song => ({ 
+                    id: song.id, 
+                    name: song.name, 
+                    artist: song.ar.map(a => a.name).join('/'), 
+                    picUrl: (song.al.picUrl || '').replace(/^http:/, 'https:') + '?param=100y100' 
+                })); 
+                
+                savedPlaylists.push({ id: playlistId, name: playlistName, cover: playlistCover + '?param=100y100', songs: songs, type: 'netease' });
+                DB.set('savedPlaylists', savedPlaylists);
+                
+                renderSavedPlaylists();
+                alert(`成功导入歌单: ${playlistName}，共 ${songs.length} 首歌曲。`); 
+                closeModal('modal-netease-playlists');
+            } else { 
+                alert('歌单导入失败，可能是接口限制。'); 
+            } 
+        } catch (e) { 
+            alert(`歌单API错误: ${e.message}`); 
+        } finally {
+            if (btn) {
+                btn.innerText = '导入';
+                btn.disabled = false;
+            }
+        }
+    }
+
+    async function generateRolePlaylist() {
+        const role = roles.find(r => r.id === window.currentMusicAccount);
+        if (!role) return;
+        if (!apiConfig.url) return alert('请先配置 API。');
+
+        const btn = document.querySelector('#music-role-main-view .action-btn.primary');
+        const origText = btn.innerHTML;
+        btn.innerHTML = 'GENERATING...';
+        btn.disabled = true;
+
+        const prompt = `你是一个音乐推荐助手。请根据角色【${role.realName}】的人设（${role.persona}），为TA推荐10首符合TA性格和品味的真实存在的歌曲。
+        要求返回严格的JSON格式：
+        {
+            "playlistName": "歌单名称(如: 寂静之声/深夜飙车曲)",
+            "songs": [
+                {"name": "歌曲名", "artist": "歌手名"}
+            ]
+        }
+        直接输出JSON，不要加任何其他文字。`;
+
+        try {
+            const endpoint = getChatEndpoint(apiConfig.url);
+            const response = await fetch(endpoint, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiConfig.key}` },
+                body: JSON.stringify({ model: apiConfig.model, messages: [{ role: 'user', content: prompt }], max_tokens: 800, temperature: 0.85 })
+            });
+            const data = await response.json();
+            const result = JSON.parse(extractJSON(data.choices[0].message.content));
+            
+            let realSongs = [];
+            for (let s of result.songs) {
+                try {
+                    const searchRes = await fetch(`${MUSIC_API_BASE}/cloudsearch?keywords=${encodeURIComponent(s.name + ' ' + s.artist)}&limit=1`);
+                    const searchData = await searchRes.json();
+                    if (searchData.code === 200 && searchData.result && searchData.result.songs && searchData.result.songs.length > 0) {
+                        const song = searchData.result.songs[0];
+                        realSongs.push({
+                            id: song.id,
+                            name: song.name,
+                            artist: song.ar.map(a => a.name).join('/'),
+                            picUrl: (song.al.picUrl || '').replace(/^http:/, 'https:') + '?param=100y100'
+                        });
+                    }
+                } catch(e) {}
+            }
+
+            if (realSongs.length > 0) {
+                if (!window.rolePlaylists[role.id]) window.rolePlaylists[role.id] = [];
+                window.rolePlaylists[role.id].unshift({
+                    id: 'rp_' + Date.now(),
+                    name: result.playlistName,
+                    cover: realSongs[0].picUrl,
+                    songs: realSongs
+                });
+                DB.set('rolePlaylists', window.rolePlaylists);
+                renderRolePlaylists();
+                alert(`成功生成歌单：${result.playlistName}，共匹配到 ${realSongs.length} 首歌曲！`);
+            } else {
+                alert('未能匹配到真实的歌曲，请重试。');
+            }
+        } catch (e) {
+            alert('生成失败: ' + e.message);
+        } finally {
+            btn.innerHTML = origText;
+            btn.disabled = false;
+        }
+    }
+
+    function renderRolePlaylists() {
+        const container = $('#music-role-playlists-list');
+        const lists = window.rolePlaylists[window.currentMusicAccount] || [];
+        if (lists.length === 0) {
+            container.innerHTML = '<div style="text-align:center; color:var(--text-secondary); padding: 20px; font-size:10px;">暂无歌单</div>';
+            return;
+        }
+        container.innerHTML = lists.map((pl, index) => `
+            <div class="list-item" onclick="loadRolePlaylist(${index})">
+                <img class="avatar" src="${pl.cover}">
+                <div class="item-info">
+                    <div class="item-name">${pl.name}</div>
+                    <div class="item-desc">${pl.songs.length} 首歌曲</div>
+                </div>
+                <div class="item-actions">
+                    <button class="btn-delete" onclick="event.stopPropagation(); deleteRolePlaylist(${index})">DEL</button>
+                </div>
+            </div>
+        `).join('');
+    }
+
+    function loadRolePlaylist(index) {
+        const pl = window.rolePlaylists[window.currentMusicAccount][index];
+        if (!pl) return;
+        musicPlaylist = [...pl.songs];
+        DB.set('musicPlaylist', musicPlaylist);
+        musicCurrentTrackIndex = -1;
+        switchMusicTab('playlist');
+        alert(`已加载歌单: ${pl.name}`);
+    }
+
+    function deleteRolePlaylist(index) {
+        if (!confirm('确定删除该歌单吗？')) return;
+        window.rolePlaylists[window.currentMusicAccount].splice(index, 1);
+        DB.set('rolePlaylists', window.rolePlaylists);
+        renderRolePlaylists();
+    }
+
     function renderListenTogetherTab() { 
         const container = $('#music-listen-together-page'); 
         let html = '';
@@ -7461,7 +7920,7 @@ ${extraLorePrompt}
     if (!lrc) return []; 
     const lines = lrc.split('\n'); 
     const result = []; 
-    const timeRegex = /\[(\d{2}):(\d{2})\.(\d{2,3})\]/; 
+    const timeRegex = /$$(\d{2}):(\d{2})\.(\d{2,3})$$/; 
     for (const line of lines) { 
         const match = line.match(timeRegex); 
         if (match) { 
@@ -7957,31 +8416,31 @@ async function generateAutoMsg(roleId) {
             let textContent = m.content;
             textContent = textContent.replace(/<thought>[\s\S]*?<\/thought>\n*/gi, '');
             textContent = textContent.replace(/思考：[\s\S]*?\n\n/gi, '');
-            textContent = textContent.replace(/\[GIFT_TO_AI:(.*?)\]/g, (match, p1) => {
+            textContent = textContent.replace(/$$GIFT_TO_AI:(.*?)$$/g, (match, p1) => {
                 try { const data = JSON.parse(decodeURIComponent(p1)); return `[系统提示：用户为你点了一份礼物/外卖，物品：${data.itemName}，来自：${data.shopName}，价值：¥${data.price}]`; } catch(e) { return '[收到一份礼物]'; }
             });
-            textContent = textContent.replace(/\[TRANSFER:(.*?)\]/g, (match, p1) => {
+            textContent = textContent.replace(/$$TRANSFER:(.*?)$$/g, (match, p1) => {
                 try { const data = JSON.parse(decodeURIComponent(p1)); return `[系统提示：用户向你转账了 ¥${data.amount}]`; } catch(e) { return '[收到一笔转账]'; }
             });
-            textContent = textContent.replace(/\[FAMILY_CARD:(.*?)\]/g, (match, p1) => {
+            textContent = textContent.replace(/$$FAMILY_CARD:(.*?)$$/g, (match, p1) => {
                 try { const data = JSON.parse(decodeURIComponent(p1)); return `[系统提示：用户赠送了你一张亲属卡，每月额度：¥${data.limit}]`; } catch(e) { return '[收到一张亲属卡]'; }
             });
-            textContent = textContent.replace(/\[PAY_REQUEST:(.*?)\]/g, (match, p1) => {
+            textContent = textContent.replace(/$$PAY_REQUEST:(.*?)$$/g, (match, p1) => {
                 try { const data = JSON.parse(decodeURIComponent(p1)); return `[系统提示：用户向你发送了代付请求，物品：${data.shopName}，需要你支付：¥${data.total}]`; } catch(e) { return '[收到一个代付请求]'; }
             });
-            textContent = textContent.replace(/\[OURSPACE_INVITE:(.*?)\]/g, (match, p1) => {
+            textContent = textContent.replace(/$$OURSPACE_INVITE:(.*?)$$/g, (match, p1) => {
                 try { 
                     const data = JSON.parse(decodeURIComponent(p1)); 
                     return `[系统提示：用户向你发送了专属情侣空间(OurSpace)的绑定邀请，用户的配对码为：${data.code}。如果你同意绑定，请务必在回复中包含隐藏指令 [ACCEPT_OURSPACE:${data.code}]，并且你需要自己编造一个全新的 6 位数字配对码发给用户，让用户去输入。]`; 
                 } catch(e) { return '[收到情侣空间绑定邀请]'; }
             });
-            textContent = textContent.replace(/\[MUSIC_CARD:(.*?)\]/g, (match, p1) => {
+            textContent = textContent.replace(/$$MUSIC_CARD:(.*?)$$/g, (match, p1) => {
                 try { const data = JSON.parse(decodeURIComponent(p1)); return `[系统提示：用户邀请你一起听歌：《${data.name}》- ${data.artist}]`; } catch(e) { return '[收到一起听歌邀请]'; }
             });
-            textContent = textContent.replace(/\[TICKET:(.*?)\]/g, (match, p1) => {
+            textContent = textContent.replace(/$$TICKET:(.*?)$$/g, (match, p1) => {
                 try { const data = JSON.parse(decodeURIComponent(p1)); return `[系统提示：用户向你分享了一张票根：${data.title} (${data.subtitle})]`; } catch(e) { return '[收到一张票根]'; }
             });
-            textContent = textContent.replace(/\[FEED_CARD:(.*?)\]/g, (match, p1) => {
+            textContent = textContent.replace(/$$FEED_CARD:(.*?)$$/g, (match, p1) => {
                 try { const data = JSON.parse(decodeURIComponent(p1)); return `[系统提示：用户向你分享了一条动态，作者：${data.author}，内容：${data.content}]`; } catch(e) { return '[分享了一条动态]'; }
             });
             textContent = textContent.replace(/<div class="virtual-img-box" data-text="(.*?)".*?<\/div>/g, '[图片: $1]');

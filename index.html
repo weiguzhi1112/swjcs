@@ -1053,55 +1053,93 @@
             </div>
             <div class="view-content" style="position: relative; overflow: hidden; padding: 0;">
                 <div class="music-main-area" style="position: absolute; top: 0; left: 0; right: 0; bottom: 110px; overflow-y: auto;">
+                    
                     <div id="music-search-page" class="music-tab-content active">
                         <input type="text" id="music-search-input" placeholder="SEARCH SONGS / 搜索歌曲" onkeydown="if(event.key==='Enter') searchMusic()">
                         <button id="music-search-btn" class="action-btn primary" style="width: 100%;" onclick="searchMusic()">SEARCH<span>搜索</span></button>
                         <div id="music-search-results" style="margin-top: 15px;"></div>
                     </div>
-                    <div id="music-listen-together-page" class="music-tab-content">
-                        <!-- 内容由 JS 动态生成 -->
-                    </div>
-                    <div id="music-playlist-page" class="music-tab-content"></div>
-                    <div id="music-menu-page" class="music-tab-content">
-                        <!-- 登录后的主页展示区 -->
-                        <div id="music-user-profile" style="display: none; margin-bottom: 20px; padding: 15px; border: 1px solid var(--border-color); border-radius: 12px; background: var(--gray-light); align-items: center; gap: 15px;">
-                            <img id="music-user-avatar" src="" style="width: 50px; height: 50px; border-radius: 50%; border: 1px solid var(--border-color); object-fit: cover;">
-                            <div style="flex: 1; overflow: hidden;">
-                                <div id="music-user-nickname" style="font-size: 16px; font-weight: 600; color: var(--text-color); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;"></div>
-                                <div id="music-user-signature" style="font-size: 10px; color: var(--text-secondary); margin-top: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;"></div>
-                            </div>
-                            <button class="action-btn" style="margin: 0; padding: 6px 10px; font-size: 9px;" onclick="musicLogout()">LOGOUT</button>
-                        </div>
-                        <!-- 未登录的扫码区 -->
-                        <div id="music-login-section" style="margin-bottom: 20px; padding: 15px; border: 1px solid var(--border-color); border-radius: 12px; background: var(--gray-light); text-align: center;">
-                            <div style="font-size: 11px; font-weight: 600; margin-bottom: 10px;">NETEASE CLOUD MUSIC LOGIN / 网易云登录</div>
-                            <div id="music-login-status" style="font-size: 9px; color: var(--text-secondary); margin-bottom: 10px;">未登录 (登录后可播放完整版/VIP歌曲)</div>
-                            <img id="music-qr-img" src="" style="width: 150px; height: 150px; margin: 0 auto 10px auto; display: none; border: 1px solid var(--border-color); border-radius: 8px;">
-                            <button id="music-login-btn" class="action-btn" style="width: 100%; margin: 0 0 10px 0;" onclick="startMusicQrLogin()">GENERATE QR CODE<span>生成扫码登录</span></button>
-                            <div style="font-size: 9px; color: var(--text-secondary); margin: 10px 0;">OR / 或者</div>
-                            <input type="text" id="music-uid-input" placeholder="输入网易云 UID (个人主页分享链接提取)" style="width: 100%; padding: 10px; border: 1px solid var(--border-color); background: transparent; color: var(--text-color); outline: none; font-size: 11px; margin-bottom: 10px;">
-                            <button class="action-btn" style="width: 100%; margin: 0;" onclick="loginWithNeteaseUid()">LOGIN WITH UID<span>UID 快捷登录</span></button>
-                        </div>
 
-                        <!-- 登录后的主页展示区 -->
-                        <div id="music-user-profile" style="display: none; margin-bottom: 20px; padding: 15px; border: 1px solid var(--border-color); border-radius: 12px; background: var(--gray-light); align-items: center; gap: 15px; flex-wrap: wrap;">
-                            <img id="music-user-avatar" src="" style="width: 50px; height: 50px; border-radius: 50%; border: 1px solid var(--border-color); object-fit: cover;">
-                            <div style="flex: 1; min-width: 120px; overflow: hidden;">
-                                <div id="music-user-nickname" style="font-size: 16px; font-weight: 600; color: var(--text-color); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;"></div>
-                                <div id="music-user-signature" style="font-size: 10px; color: var(--text-secondary); margin-top: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;"></div>
+                    <div id="music-favorites-page" class="music-tab-content">
+                        <div style="padding: 15px 20px;">
+                            <div style="font-size: 18px; font-family: var(--font-serif); font-weight: 600; margin-bottom: 15px; display: flex; align-items: center; gap: 10px;">
+                                <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="1" color="#ff4d4d"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>
+                                Favorite Songs
                             </div>
-                            <div style="display: flex; gap: 8px; width: 100%; margin-top: 10px;">
-                                <button class="action-btn primary" style="flex: 1; margin: 0; padding: 8px; font-size: 9px;" onclick="fetchMyNeteasePlaylists()">MY PLAYLISTS<span>导入我的歌单</span></button>
-                                <button class="action-btn" style="flex: 1; margin: 0; padding: 8px; font-size: 9px;" onclick="musicLogout()">LOGOUT<span>退出登录</span></button>
-                            </div>
+                            <div id="music-favorites-list"></div>
+                        </div>
+                    </div>
+
+                    <div id="music-listen-together-page" class="music-tab-content">
+                    </div>
+
+                    <div id="music-playlist-page" class="music-tab-content"></div>
+
+                    <div id="music-account-page" class="music-tab-content">
+                        <div style="padding: 15px 20px; background: var(--glass-bg); border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center;">
+                            <select id="music-account-switcher" onchange="switchMusicAccount()" style="width:100%; background: transparent; color: var(--text-color); border: 1px solid var(--border-color); padding: 8px; border-radius: 8px; font-size: 11px; outline: none;"></select>
                         </div>
                         
-                        <input type="text" id="music-playlist-input" placeholder="PASTE NETEASE PLAYLIST URL / 粘贴歌单链接">
-                        <button id="music-import-btn" class="action-btn primary" onclick="importNetEasePlaylist()">IMPORT PLAYLIST<span>导入歌单</span></button>
-                        <div style="margin-top: 20px; font-size: 11px; font-weight: 600; color: var(--text-secondary); letter-spacing: 1px; text-transform: uppercase; margin-bottom: 10px;">SAVED PLAYLISTS / 已存歌单</div>
-                        <div id="music-saved-playlists"></div>
+                        <div id="music-me-view" style="padding: 15px 20px;">
+                            <div id="music-login-section" style="margin-bottom: 20px; padding: 15px; border: 1px solid var(--border-color); border-radius: 12px; background: var(--gray-light); text-align: center;">
+                                <div style="font-size: 11px; font-weight: 600; margin-bottom: 10px;">NETEASE CLOUD MUSIC LOGIN / 网易云登录</div>
+                                <div id="music-login-status" style="font-size: 9px; color: var(--text-secondary); margin-bottom: 10px;">未登录 (登录后可播放完整版/VIP歌曲)</div>
+                                <img id="music-qr-img" src="" style="width: 150px; height: 150px; margin: 0 auto 10px auto; display: none; border: 1px solid var(--border-color); border-radius: 8px;">
+                                <button id="music-login-btn" class="action-btn" style="width: 100%; margin: 0 0 10px 0;" onclick="startMusicQrLogin()">GENERATE QR CODE<span>生成扫码登录</span></button>
+                                <div style="font-size: 9px; color: var(--text-secondary); margin: 10px 0;">OR / 或者</div>
+                                <input type="text" id="music-uid-input" placeholder="输入网易云 UID (个人主页分享链接提取)" style="width: 100%; padding: 10px; border: 1px solid var(--border-color); background: transparent; color: var(--text-color); outline: none; font-size: 11px; margin-bottom: 10px;">
+                                <button class="action-btn" style="width: 100%; margin: 0;" onclick="loginWithNeteaseUid()">LOGIN WITH UID<span>UID 快捷登录</span></button>
+                            </div>
+
+                            <div id="music-user-profile" style="display: none; margin-bottom: 20px; padding: 15px; border: 1px solid var(--border-color); border-radius: 12px; background: var(--gray-light); align-items: center; gap: 15px; flex-wrap: wrap;">
+                                <img id="music-user-avatar" src="" style="width: 50px; height: 50px; border-radius: 50%; border: 1px solid var(--border-color); object-fit: cover;">
+                                <div style="flex: 1; min-width: 120px; overflow: hidden;">
+                                    <div id="music-user-nickname" style="font-size: 16px; font-weight: 600; color: var(--text-color); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;"></div>
+                                    <div id="music-user-signature" style="font-size: 10px; color: var(--text-secondary); margin-top: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;"></div>
+                                </div>
+                                <div style="display: flex; gap: 8px; width: 100%; margin-top: 10px;">
+                                    <button class="action-btn primary" style="flex: 1; margin: 0; padding: 8px; font-size: 9px;" onclick="fetchMyNeteasePlaylists()">MY PLAYLISTS<span>导入我的歌单</span></button>
+                                    <button class="action-btn" style="flex: 1; margin: 0; padding: 8px; font-size: 9px;" onclick="musicLogout()">LOGOUT<span>退出登录</span></button>
+                                </div>
+                            </div>
+                            
+                            <input type="text" id="music-playlist-input" placeholder="PASTE NETEASE PLAYLIST URL / 粘贴歌单链接" style="width: 100%; padding: 10px; border: 1px solid var(--border-color); background: transparent; color: var(--text-color); outline: none; font-size: 11px; margin-bottom: 10px;">
+                            <button id="music-import-btn" class="action-btn primary" style="width: 100%;" onclick="importNetEasePlaylist()">IMPORT PLAYLIST<span>导入歌单</span></button>
+                            
+                            <div style="margin-top: 25px; font-size: 11px; font-weight: 600; color: var(--text-secondary); letter-spacing: 1px; text-transform: uppercase; margin-bottom: 10px;">NETEASE PLAYLISTS / 网易云歌单</div>
+                            <div id="music-netease-playlists-list"></div>
+                            
+                            <div style="margin-top: 25px; font-size: 11px; font-weight: 600; color: var(--text-secondary); letter-spacing: 1px; text-transform: uppercase; margin-bottom: 10px;">IMPORTED PLAYLISTS / 导入的歌单</div>
+                            <div id="music-imported-playlists-list"></div>
+                        </div>
+
+                        <div id="music-role-view" style="display: none; padding: 15px 20px;">
+                            <div id="music-role-login-view" style="display: none; flex-direction: column; justify-content: center; align-items: center; padding: 40px 0;">
+                                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--text-color)" stroke-width="1.5" style="margin-bottom: 20px;"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+                                <div style="font-family: var(--font-serif); font-size: 20px; margin-bottom: 5px;">Authentication</div>
+                                <div style="font-size: 10px; color: var(--text-secondary); margin-bottom: 20px;">请输入该角色的音乐账密</div>
+                                <input type="text" id="music-role-login-acc" placeholder="ACCOUNT / 账号" style="width: 100%; padding: 12px; margin-bottom: 10px; background: transparent; border: 1px solid var(--border-color); color: var(--text-color); border-radius: 8px; text-align: center; font-size: 12px; outline: none;">
+                                <input type="password" id="music-role-login-pwd" placeholder="PASSWORD / 密码" style="width: 100%; padding: 12px; margin-bottom: 20px; background: transparent; border: 1px solid var(--border-color); color: var(--text-color); border-radius: 8px; text-align: center; font-size: 12px; outline: none;">
+                                <button class="action-btn primary" style="width: 100%; border-radius: 8px; padding: 12px;" onclick="verifyMusicRoleLogin()">LOGIN 登录</button>
+                                <button class="action-btn" style="width: 100%; border-radius: 8px; padding: 12px; margin-top: 10px;" onclick="devMusicRoleLogin()">DEVELOPER MODE 强制登入</button>
+                            </div>
+                            
+                            <div id="music-role-main-view" style="display: none;">
+                                <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 20px; padding: 15px; background: var(--gray-light); border-radius: 12px; border: 1px solid var(--border-color);">
+                                    <img id="music-role-avatar" src="" style="width: 60px; height: 60px; border-radius: 50%; object-fit: cover; border: 2px solid var(--text-color);">
+                                    <div>
+                                        <div id="music-role-name" style="font-size: 18px; font-weight: 600; font-family: var(--font-serif);">Name</div>
+                                        <div style="font-size: 10px; color: var(--text-secondary); margin-top: 4px;">TA的专属音乐空间</div>
+                                    </div>
+                                </div>
+                                <button class="action-btn primary" style="width: 100%; margin-bottom: 20px;" onclick="generateRolePlaylist()">AI GENERATE PLAYLIST<span>生成TA的红心歌单</span></button>
+                                <div style="font-size: 11px; font-weight: 600; color: var(--text-secondary); letter-spacing: 1px; text-transform: uppercase; margin-bottom: 10px;">TA'S PLAYLISTS / TA的歌单</div>
+                                <div id="music-role-playlists-list"></div>
+                            </div>
+                        </div>
                     </div>
                 </div>
+                
                 <div id="music-mini-player" onclick="showFullScreenPlayer()">
                     <img id="music-mini-cover" src="">
                     <div id="music-mini-details">
@@ -1112,11 +1150,28 @@
                         <button id="music-play-pause-btn" onclick="togglePlayPause()" style="display:flex; align-items:center; justify-content:center;"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg></button>
                     </div>
                 </div>
+                
                 <div id="music-nav-bar">
-                    <div class="music-nav-btn active" onclick="switchMusicTab('search')">搜索</div>
-                    <div class="music-nav-btn" onclick="switchMusicTab('listen-together')">一起听</div>
-                    <div class="music-nav-btn" onclick="switchMusicTab('playlist')">列表</div>
-                    <div class="music-nav-btn" onclick="switchMusicTab('menu')">菜单</div>
+                    <div class="music-nav-btn active" onclick="switchMusicTab('search')">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                        <div>搜索</div>
+                    </div>
+                    <div class="music-nav-btn" onclick="switchMusicTab('favorites')">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>
+                        <div>收藏</div>
+                    </div>
+                    <div class="music-nav-btn" onclick="switchMusicTab('listen-together')">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+                        <div>一起听</div>
+                    </div>
+                    <div class="music-nav-btn" onclick="switchMusicTab('playlist')">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg>
+                        <div>列表</div>
+                    </div>
+                    <div class="music-nav-btn" onclick="switchMusicTab('account')">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+                        <div>账号</div>
+                    </div>
                 </div>
             </div>
         </div>
