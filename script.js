@@ -380,6 +380,7 @@ cipherState = DB.get('cipherState', {score:0,created:0,solved:0,collection:[], h
         window.rolePlaylists = DB.get('rolePlaylists', {});
         window.currentMusicAccount = 'ME';
         calendarEvents = DB.get('calendarEvents', []);
+
         calendarSettings = DB.get('calendarSettings', { notifyRoleIds: [] });
         apiLogs = DB.get('apiLogs', []);
                 listenTogetherSession = DB.get('listenTogetherSession', { isActive: false, roleId: null, startTime: null, inviteId: null });
@@ -6971,7 +6972,7 @@ ${extraLorePrompt}
                 playlistCover = detailData.playlist.coverImgUrl + '?param=100y100';
             }
 
-            const response = await fetch(`${MUSIC_API_BASE}/playlist/track/all?id=${playlistId}&limit=100`); 
+            const response = await fetch(`${MUSIC_API_BASE}/playlist/track/all?id=${playlistId}&limit=1000`); 
             if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`); 
             const data = await response.json(); 
             
@@ -7194,7 +7195,7 @@ ${extraLorePrompt}
         }
         
         try {
-            const response = await fetch(`${MUSIC_API_BASE}/playlist/track/all?id=${playlistId}&limit=100&timestamp=${Date.now()}`); 
+            const response = await fetch(`${MUSIC_API_BASE}/playlist/track/all?id=${playlistId}&limit=1000&timestamp=${Date.now()}`); 
             if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`); 
             const data = await response.json(); 
             
@@ -7314,6 +7315,10 @@ ${extraLorePrompt}
             $('#music-role-avatar').src = role ? (role.avatar || DEFAULT_AVATAR) : DEFAULT_AVATAR;
             $('#music-role-name').innerText = role ? getDisplayName(role) : 'Unknown';
             renderRolePlaylists();
+            
+            if (!window.rolePlaylists[window.currentMusicAccount] || window.rolePlaylists[window.currentMusicAccount].length === 0) {
+                generateRolePlaylist();
+            }
         } else {
             $('#music-role-login-acc').value = '';
             $('#music-role-login-pwd').value = '';
@@ -7448,7 +7453,8 @@ ${extraLorePrompt}
     }
 
     function renderMusicPlaylist() { 
-        const container = $('#music-playlist-page'); 
+        const container = $('#music-playlist-container'); 
+        if (!container) return;
         if (musicPlaylist.length > 0) { 
             container.innerHTML = musicPlaylist.map((track, index) => `
                 <div class="list-item ${index === musicCurrentTrackIndex ? 'playing' : ''}" onclick="playMusicTrack(${index})">
@@ -7465,6 +7471,74 @@ ${extraLorePrompt}
         } else { 
             container.innerHTML = `<div style="text-align:center; color:var(--text-secondary); padding: 40px; font-size:10px; letter-spacing:2px;">NO SONGS IN PLAYLIST.</div>`; 
         } 
+    }
+
+    function openLocalMusicModal() {
+        let modal = document.getElementById('modal-local-music');
+        if (!modal) {
+            const html = `
+            <div class="modal-overlay" id="modal-local-music">
+                <div class="modal">
+                    <h3>Local Music <span>添加本地歌曲</span></h3>
+                    <input type="text" id="local-music-name" placeholder="SONG NAME / 歌曲名" style="margin-bottom: 10px;">
+                    <input type="text" id="local-music-artist" placeholder="ARTIST / 歌手" style="margin-bottom: 10px;">
+                    
+                    <div class="setting-group" style="border:none; padding:0; margin-bottom: 10px;">
+                        <label>COVER IMAGE / 封面图</label>
+                        <input type="text" id="local-music-cover" placeholder="IMAGE URL" style="margin-bottom: 5px;">
+                        <label class="file-upload-btn">LOCAL UPLOAD<input type="file" style="display:none" accept="image/*" onchange="handleImageUpload(this, 'local-music-cover')"></label>
+                    </div>
+                    
+                    <div class="setting-group" style="border:none; padding:0; margin-bottom: 10px;">
+                        <label>AUDIO FILE / 音频文件</label>
+                        <input type="text" id="local-music-audio" placeholder="AUDIO URL" style="margin-bottom: 5px;">
+                        <label class="file-upload-btn">LOCAL UPLOAD<input type="file" style="display:none" accept="audio/*" onchange="handleAudioUpload(this, 'local-music-audio')"></label>
+                    </div>
+                    
+                    <div class="setting-group" style="border:none; padding:0;">
+                        <label>LYRICS / 歌词 (LRC格式，可选)</label>
+                        <textarea id="local-music-lyrics" placeholder="[00:00.00] 歌词内容..."></textarea>
+                    </div>
+                    
+                    <div class="modal-btns">
+                        <button class="btn-cancel" onclick="closeModal('modal-local-music')">CANCEL<span>取消</span></button>
+                        <button class="btn-confirm" onclick="saveLocalMusic()">SAVE<span>保存</span></button>
+                    </div>
+                </div>
+            </div>`;
+            document.body.insertAdjacentHTML('beforeend', html);
+        }
+        $('#local-music-name').value = '';
+        $('#local-music-artist').value = '';
+        $('#local-music-cover').value = '';
+        $('#local-music-audio').value = '';
+        $('#local-music-lyrics').value = '';
+        openModal('modal-local-music');
+    }
+
+    function saveLocalMusic() {
+        const name = $('#local-music-name').value.trim();
+        const artist = $('#local-music-artist').value.trim() || 'Unknown';
+        const cover = $('#local-music-cover').value.trim() || DEFAULT_AVATAR;
+        const audio = $('#local-music-audio').value.trim();
+        const lyrics = $('#local-music-lyrics').value.trim();
+        
+        if (!name || !audio) return alert('歌曲名和音频文件不能为空！');
+        
+        const newTrack = {
+            id: 'local_' + Date.now(),
+            name: name,
+            artist: artist,
+            picUrl: cover,
+            url: audio,
+            lyrics: lyrics
+        };
+        
+        musicPlaylist.unshift(newTrack);
+        DB.set('musicPlaylist', musicPlaylist);
+        renderMusicPlaylist();
+        closeModal('modal-local-music');
+        alert('本地歌曲添加成功！');
     }
 
     function renderSavedPlaylists() {
@@ -7520,7 +7594,7 @@ ${extraLorePrompt}
                 playlistCover = detailData.playlist.coverImgUrl + '?param=100y100';
             }
 
-            const response = await fetch(`${MUSIC_API_BASE}/playlist/track/all?id=${playlistId}&limit=100`); 
+            const response = await fetch(`${MUSIC_API_BASE}/playlist/track/all?id=${playlistId}&limit=1000`); 
             if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`); 
             const data = await response.json(); 
             
@@ -7557,7 +7631,7 @@ ${extraLorePrompt}
         }
         
         try {
-            const response = await fetch(`${MUSIC_API_BASE}/playlist/track/all?id=${playlistId}&limit=100&timestamp=${Date.now()}`); 
+            const response = await fetch(`${MUSIC_API_BASE}/playlist/track/all?id=${playlistId}&limit=1000&timestamp=${Date.now()}`); 
             if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`); 
             const data = await response.json(); 
             
@@ -7598,7 +7672,7 @@ ${extraLorePrompt}
         btn.innerHTML = 'GENERATING...';
         btn.disabled = true;
 
-        const prompt = `你是一个音乐推荐助手。请根据角色【${role.realName}】的人设（${role.persona}），为TA推荐10首符合TA性格和品味的真实存在的歌曲。
+        const prompt = `你是一个音乐推荐助手。请根据角色【${role.realName}】的人设（${role.persona}），为TA推荐100首符合TA性格和品味的真实存在的歌曲。
         要求返回严格的JSON格式：
         {
             "playlistName": "歌单名称(如: 寂静之声/深夜飙车曲)",
@@ -7613,7 +7687,7 @@ ${extraLorePrompt}
             const response = await fetch(endpoint, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiConfig.key}` },
-                body: JSON.stringify({ model: apiConfig.model, messages: [{ role: 'user', content: prompt }], max_tokens: 800, temperature: 0.85 })
+                body: JSON.stringify({ model: apiConfig.model, messages: [{ role: 'user', content: prompt }], max_tokens: 1500, temperature: 0.85 })
             });
             const data = await response.json();
             const result = JSON.parse(extractJSON(data.choices[0].message.content));
@@ -7773,6 +7847,16 @@ ${extraLorePrompt}
     try {
         updatePlayerUI(track.name, track.artist, track.picUrl, null, null);
 
+        if (track.id.toString().startsWith('local_')) {
+            musicLyrics = parseLRC(track.lyrics || '');
+            musicAudio.src = track.url;
+            await musicAudio.play();
+            musicIsPlaying = true;
+            updatePlayerUI(track.name, track.artist, track.picUrl, null, true);
+            renderMusicPlaylist();
+            return;
+        }
+
         try {
             const lyricRes = await fetch(`${MUSIC_API_BASE}/lyric?id=${track.id}`);
             const lyricData = await lyricRes.json();
@@ -7829,6 +7913,52 @@ ${extraLorePrompt}
     const SVG_PLAY = '<svg width="1em" height="1em" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>';
     const SVG_PAUSE = '<svg width="1em" height="1em" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>';
 
+    function toggleCurrentMusicFavorite() {
+        if (musicCurrentTrackIndex === -1) return;
+        const track = musicPlaylist[musicCurrentTrackIndex];
+        toggleMusicFavorite(track.id, track.name, track.artist, track.picUrl);
+        updateFullscreenFavoriteIcon();
+    }
+
+    function updateFullscreenFavoriteIcon() {
+        if (musicCurrentTrackIndex === -1) return;
+        const track = musicPlaylist[musicCurrentTrackIndex];
+        const isFav = window.musicFavorites.some(f => f.id == track.id);
+        const btn = $('#music-fs-fav-btn');
+        if (btn) {
+            btn.innerHTML = `<svg width="20" height="20" viewBox="0 0 24 24" fill="${isFav ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>`;
+            btn.style.color = isFav ? '#ff4d4d' : 'var(--text-color)';
+        }
+    }
+
+    function shareCurrentMusic() {
+        if (musicCurrentTrackIndex === -1) return;
+        if (!currentChatRoleId) return alert("请先进入一个聊天界面！");
+        const track = musicPlaylist[musicCurrentTrackIndex];
+        const payload = { 
+            version: 2, 
+            trackId: track.id, 
+            name: track.name, 
+            artist: track.artist, 
+            picUrl: track.picUrl, 
+            contactRoleId: currentChatRoleId, 
+            inviteId: 'share_' + Date.now(), 
+            status: '分享歌曲', 
+            createdAt: Date.now(), 
+            updatedAt: Date.now() 
+        };
+        const msgContent = `[MUSIC_CARD:${encodeURIComponent(JSON.stringify(payload))}]`;
+        if(!chats[currentChatRoleId]) chats[currentChatRoleId] = [];
+        const now = new Date();
+        chats[currentChatRoleId].push({ role: 'user', content: msgContent, time: now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }), rawTime: now.getTime(), status: 'SENT', mode: 'online' });
+        DB.set('chats', chats);
+        alert('已分享到当前聊天！');
+        hideFullScreenPlayer();
+        closeApp('music');
+        renderMessages();
+        triggerAI();
+    }
+
     function updatePlayerUI(name, artist, cover, url, isPlayingUpdate) {
         const miniPlayer = $('#music-mini-player');
         if (name) {
@@ -7841,11 +7971,13 @@ ${extraLorePrompt}
             $('#music-fullscreen-cover').style.backgroundImage = `url(${cover})`;
             $('#music-lyrics-container').innerHTML = musicLyrics.map(l => `<p>${l.text}</p>`).join('') || '...';
             
+            updateFullscreenFavoriteIcon();
+            
             const widgetTrackInfo = $('#widget-track-info');
             if (widgetTrackInfo) widgetTrackInfo.textContent = `${artist} / ${name}`;
             
             if (url) musicAudio.src = url;
-            
+ 
             if (isPlayingUpdate !== null) {
                 const iconHtml = isPlayingUpdate ? SVG_PAUSE : SVG_PLAY;
                 $('#music-play-pause-btn').innerHTML = iconHtml;

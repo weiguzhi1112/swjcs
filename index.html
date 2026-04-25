@@ -1073,7 +1073,13 @@
                     <div id="music-listen-together-page" class="music-tab-content">
                     </div>
 
-                    <div id="music-playlist-page" class="music-tab-content"></div>
+                    <div id="music-playlist-page" class="music-tab-content">
+                        <div style="padding: 15px 20px 0 20px; display: flex; justify-content: space-between; align-items: center;">
+                            <div style="font-size: 11px; font-weight: 600; color: var(--text-secondary); letter-spacing: 1px;">CURRENT PLAYLIST</div>
+                            <button class="action-btn" style="margin: 0; padding: 4px 10px; font-size: 8px; border-radius: 12px;" onclick="openLocalMusicModal()">+ ADD LOCAL</button>
+                        </div>
+                        <div id="music-playlist-container" style="padding: 10px 20px;"></div>
+                    </div>
 
                     <div id="music-account-page" class="music-tab-content">
                         <div style="padding: 15px 20px; background: var(--glass-bg); border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center;">
@@ -1103,8 +1109,10 @@
                                 </div>
                             </div>
                             
-                            <input type="text" id="music-playlist-input" placeholder="PASTE NETEASE PLAYLIST URL / 粘贴歌单链接" style="width: 100%; padding: 10px; border: 1px solid var(--border-color); background: transparent; color: var(--text-color); outline: none; font-size: 11px; margin-bottom: 10px;">
-                            <button id="music-import-btn" class="action-btn primary" style="width: 100%;" onclick="importNetEasePlaylist()">IMPORT PLAYLIST<span>导入歌单</span></button>
+                            <div style="display: flex; gap: 8px; margin-bottom: 10px;">
+                                <input type="text" id="music-playlist-input" placeholder="PASTE NETEASE PLAYLIST URL" style="flex: 1; padding: 8px 12px; border: 1px solid var(--border-color); background: transparent; color: var(--text-color); outline: none; font-size: 11px; border-radius: 16px;">
+                                <button id="music-import-btn" class="action-btn primary" style="margin: 0; padding: 8px 16px; border-radius: 16px; font-size: 9px; width: auto;" onclick="importNetEasePlaylist()">IMPORT</button>
+                            </div>
                             
                             <div style="margin-top: 25px; font-size: 11px; font-weight: 600; color: var(--text-secondary); letter-spacing: 1px; text-transform: uppercase; margin-bottom: 10px;">NETEASE PLAYLISTS / 网易云歌单</div>
                             <div id="music-netease-playlists-list"></div>
@@ -1176,12 +1184,23 @@
             </div>
         </div>
         
-        <!-- 音乐全屏播放器 -->
         <div id="music-fullscreen-player">
             <div id="music-fullscreen-header">
-                <button class="text-btn" onclick="hideFullScreenPlayer()">CLOSE</button>
-                <button class="text-btn" onclick="inviteAiToListen()">INVITE AI<span>一起听</span></button>
-            </div>
+                <button class="text-btn" onclick="hideFullScreenPlayer()">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                </button>
+                <div style="display: flex; gap: 15px;">
+                    <button class="text-btn" id="music-fs-fav-btn" onclick="toggleCurrentMusicFavorite()">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>
+                    </button>
+                    <button class="text-btn" onclick="shareCurrentMusic()">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"></path><polyline points="16 6 12 2 8 6"></polyline><line x1="12" y1="2" x2="12" y2="15"></line></svg>
+                    </button>
+                    <button class="text-btn" onclick="inviteAiToListen()">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+                    </button>
+                </div>
+            </div>        
             <div id="music-fullscreen-cover"></div>
             <div id="music-fullscreen-details">
                 <div id="music-fullscreen-title">...</div>
