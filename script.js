@@ -676,9 +676,12 @@ async function checkDiscordCallback() {
         const targetInput = document.getElementById(targetInputId);
         if (!targetInput) return;
         
-        if (targetInputId === 'beauty-bg' || targetInputId === 'role-chat-bg' || targetInputId === 'role-call-bg') {
+        if (targetInputId === 'beauty-bg' || targetInputId === 'role-chat-bg' || targetInputId === 'role-call-bg' || targetInputId === 'wallet-bg-url') {
             targetInput.dataset.realValue = dataUrl;
             targetInput.value = '已上传本地图片 (重新上传覆盖)';
+        } else if (type === 'FONT' || targetInputId === 'font-url-input') {
+            targetInput.dataset.realValue = dataUrl;
+            targetInput.value = '已上传本地字体 (重新上传覆盖)';
         } else {
             targetInput.value = dataUrl;
         }
@@ -4017,8 +4020,77 @@ ${modeRules}
         btn.innerHTML = 'LOCATING...<span>定位中...</span>';
         btn.disabled = true;
         
+        if (mapConfig.key && mapConfig.securityCode) {
+            if (!window.AMap) {
+                window._AMapSecurityConfig = { securityJsCode: mapConfig.securityCode };
+                await new Promise((resolve, reject) => {
+                    const script = document.createElement('script');
+                    script.src = `https://webapi.amap.com/maps?v=2.0&key=${mapConfig.key}&plugin=AMap.Geolocation,AMap.Weather`;
+                    script.onload = resolve;
+                    script.onerror = reject;
+                    document.head.appendChild(script);
+                });
+            }
+            
+            AMap.plugin(['AMap.Geolocation', 'AMap.Weather'], function() {
+                const geolocation = new AMap.Geolocation({ enableHighAccuracy: true, timeout: 10000 });
+                geolocation.getCurrentPosition(function(status, result) {
+                    if (status === 'complete') {
+                        const city = result.addressComponent.city || result.addressComponent.province;
+                        const adcode = result.addressComponent.adcode;
+                        
+                        const weather = new AMap.Weather();
+                        weather.getLive(adcode, function(err, data) {
+                            if (!err) {
+                                updateWeatherData(city, data.temperature, data.temperature, data.weather, data.humidity, data.windPower, '0', result.position.lat, result.position.lng);
+                                btn.innerHTML = origText; btn.disabled = false;
+                            } else {
+                                fallbackWeather(btn, origText);
+                            }
+                        });
+                    } else {
+                        fallbackWeather(btn, origText);
+                    }
+                });
+            });
+        } else {
+            fallbackWeather(btn, origText);
+        }
+    }
+
+    function updateWeatherData(city, temp, feelsLike, condition, humidity, wind, precip, lat, lon) {
+        let clothing = '舒适';
+        if (feelsLike < 10) clothing = '羽绒服/保暖';
+        else if (feelsLike < 20) clothing = '外套/毛衣';
+        else if (feelsLike < 28) clothing = '长袖/薄外套';
+        else clothing = '短袖/清凉';
+        
+        const currentVirtualCity = document.getElementById('weather-city') ? document.getElementById('weather-city').value.trim() : '';
+        
+        weatherData = {
+            city: currentVirtualCity || city,
+            realCity: city,
+            temp: temp.toString(),
+            feelsLike: feelsLike.toString(),
+            condition: condition,
+            humidity: humidity.toString(),
+            wind: wind.toString(),
+            precip: precip.toString(),
+            quality: '优',
+            clothing: clothing,
+            lat: lat ? lat.toFixed(4) : '--',
+            lon: lon ? lon.toFixed(4) : '--',
+            boundMaskId: document.getElementById('weather-mask-bind')?.value || ''
+        };
+        
+        DB.set('weather', weatherData);
+        renderWeather();
+        alert('真实天气获取成功！已将【' + city + '】的详细天气映射到您的虚拟城市。');
+    }
+
+    function fallbackWeather(btn, origText) {
         if (!navigator.geolocation) {
-            alert('您的设备不支持地理定位');
+            alert('您的设备不支持地理定位，且未配置高德地图API。');
             btn.innerHTML = origText; btn.disabled = false; return;
         }
         
@@ -4053,46 +4125,20 @@ ${modeRules}
                 else if (code >= 80 && code <= 82) condition = '阵雨';
                 else if (code >= 95) condition = '雷暴';
                 
-                let clothing = '舒适';
-                if (feelsLike < 10) clothing = '羽绒服/保暖';
-                else if (feelsLike < 20) clothing = '外套/毛衣';
-                else if (feelsLike < 28) clothing = '长袖/薄外套';
-                else clothing = '短袖/清凉';
-                
-                const currentVirtualCity = document.getElementById('weather-city') ? document.getElementById('weather-city').value.trim() : '';
-                
-                weatherData = {
-                    city: currentVirtualCity || city,
-                    realCity: city,
-                    temp: temp.toString(),
-                    feelsLike: feelsLike.toString(),
-                    condition: condition,
-                    humidity: humidity.toString(),
-                    wind: wind.toString(),
-                    precip: precip.toString(),
-                    quality: '优',
-                    clothing: clothing,
-                    lat: lat.toFixed(4),
-                    lon: lon.toFixed(4),
-                    boundMaskId: document.getElementById('weather-mask-bind')?.value || ''
-                };
-                
-                DB.set('weather', weatherData);
-                renderWeather();
-                alert('真实天气获取成功！已将【' + city + '】的详细天气映射到您的虚拟城市。');
+                updateWeatherData(city, temp, feelsLike, condition, humidity, wind, precip, lat, lon);
             } catch (e) {
-                alert('获取天气失败: ' + e.message);
+                alert('获取天气失败: ' + e.message + '\n建议在 System -> Engine 中配置高德地图 API 以获得更稳定的服务。');
             } finally {
                 btn.innerHTML = origText; btn.disabled = false;
             }
         }, (error) => {
             let errorMsg = '未知错误';
             switch(error.code) {
-                case error.PERMISSION_DENIED: errorMsg = '您拒绝了定位权限请求，请在手机系统设置或浏览器设置中允许本网页获取位置。'; break;
-                case error.POSITION_UNAVAILABLE: errorMsg = '位置信息不可用，可能是信号弱或未开启 GPS。'; break;
-                case error.TIMEOUT: errorMsg = '请求定位超时，请走到开阔地带重试。'; break;
+                case error.PERMISSION_DENIED: errorMsg = '您拒绝了定位权限请求。'; break;
+                case error.POSITION_UNAVAILABLE: errorMsg = '位置信息不可用。'; break;
+                case error.TIMEOUT: errorMsg = '请求定位超时。'; break;
             }
-            alert('定位失败：\n' + errorMsg);
+            alert('定位失败：\n' + errorMsg + '\n建议在 System -> Engine 中配置高德地图 API。');
             btn.innerHTML = origText; btn.disabled = false;
         }, geoOptions);
     }
@@ -5837,9 +5883,42 @@ window.newRoleTempWbs = null;
     function renderAppearanceApp() { const list = $('#app-customization-list'); list.innerHTML = Object.entries(DESKTOP_APPS).map(([id, defaults]) => { const custom = appCustomizations[id] || {}; const name = custom.name || defaults.name; const icon = custom.icon || defaults.defaultIconUrl; const style = `background-image: url('${icon}')`; return ` <div style="margin-bottom:20px; border-bottom:1px solid var(--border-color); padding-bottom:15px;"> <div class="app-customize-header" style="display:flex; align-items:center; gap:15px; margin-bottom:10px;"> <div class="icon app-icon" style="cursor:default; margin:0;"><div id="preview-icon-${id}" class="icon" style="margin:0; width:40px; height:40px; ${style}"></div></div> <input type="text" id="app-name-${id}" value="${name.replace(/"/g, '&quot;')}" onchange="saveAppCustomization('${id}')" style="padding:10px; border:1px solid var(--border-color); background:transparent; color:var(--text-color); outline:none; font-family:var(--font-sans); font-size:12px; text-transform:uppercase; letter-spacing:1px; flex:1;"> </div> <div class="app-customize-body"> <input type="text" id="app-icon-${id}" placeholder="ICON URL OR UPLOAD" value="${icon.replace(/"/g, '&quot;')}" onchange="saveAppCustomization('${id}')" style="padding:10px; border:1px solid var(--border-color); background:transparent; color:var(--text-color); outline:none; font-family:var(--font-sans); font-size:10px; width:100%; margin-bottom:10px;"> <label class="file-upload-btn">LOCAL UPLOAD<input type="file" style="display:none" accept="image/*" onchange="handleImageUpload(this, 'app-icon-${id}');"></label> </div> </div>`; }).join(''); renderFontPresets(); }
     function saveAppCustomization(appId) { const name = $(`#app-name-${appId}`).value.trim(); const icon = $(`#app-icon-${appId}`).value.trim(); if (!appCustomizations[appId]) appCustomizations[appId] = {}; appCustomizations[appId].name = name || DESKTOP_APPS[appId].name; appCustomizations[appId].icon = icon || DESKTOP_APPS[appId].defaultIconUrl; DB.set('appCustomizations', appCustomizations); renderDesktop(); const previewEl = $(`#preview-icon-${appId}`); if (previewEl) { previewEl.style.backgroundImage = `url('${appCustomizations[appId].icon}')`; } }
     function updateFontPreviewText(text) { $('#font-preview').innerText = text || 'The quick brown fox jumps over the lazy dog.'; }
-    function saveFontPreset() { const name = $('#font-name-input').value.trim(); const url = $('#font-url-input').value.trim(); if (!name || !url) return alert('ALIAS AND URL REQUIRED.'); if (fontPresets.some(p => p.name === name)) return alert('ALIAS EXISTS.'); fontPresets.push({ id: `font_${Date.now()}`, name, url }); DB.set('fontPresets', fontPresets); renderFontPresets(); $('#font-name-input').value = ''; $('#font-url-input').value = ''; }
+    function saveFontPreset() { 
+        const name = $('#font-name-input').value.trim(); 
+        let url = $('#font-url-input').value.trim(); 
+        if (url === '已上传本地字体 (重新上传覆盖)') url = $('#font-url-input').dataset.realValue || '';
+        if (!name || !url) return alert('ALIAS AND URL REQUIRED.'); 
+        if (fontPresets.some(p => p.name === name)) return alert('ALIAS EXISTS.'); 
+        fontPresets.push({ id: `font_${Date.now()}`, name, url }); 
+        DB.set('fontPresets', fontPresets); 
+        renderFontPresets(); 
+        $('#font-name-input').value = ''; 
+        $('#font-url-input').value = ''; 
+        $('#font-url-input').dataset.realValue = '';
+    }
     function renderFontPresets() { const list = $('#font-presets-list'); if (fontPresets.length === 0) { list.innerHTML = `<div style="text-align:center; color:var(--text-secondary); padding: 10px; font-size:10px; letter-spacing:2px;">VOID.</div>`; return; } list.innerHTML = fontPresets.map(p => ` <div class="list-item" style="padding:10px 0;"> ${settings.activeFontId === p.id ? '<div class="active-font-indicator">✓</div>' : ''} <div class="item-name" style="font-size:14px; font-family:var(--font-sans);">${p.name}</div> <div class="item-actions"><button class="btn-edit" onclick="loadFontPreset('${p.id}')">LOAD</button> <button class="btn-delete" onclick="event.stopPropagation(); deleteFontPreset('${p.id}')">DEL</button></div> </div> `).join(''); }
-    function loadFontPreset(presetId, url, name) { let preset; if (presetId) { preset = fontPresets.find(p => p.id === presetId); } else { preset = { id: null, url, name }; } if (!preset) return; activeFontToApply = preset; $('#font-name-input').value = preset.name; $('#font-url-input').value = preset.url; const styleId = 'font-preview-style'; let styleEl = $(`#${styleId}`); if (!styleEl) { styleEl = document.createElement('style'); styleEl.id = styleId; document.head.appendChild(styleEl); } const safeName = `custom_font_${preset.id || Date.now()}`; styleEl.innerHTML = `@font-face { font-family: '${safeName}'; src: url('${preset.url}'); font-display: swap; }`; $('#font-preview').style.fontFamily = `'${safeName}'`; activeFontToApply.safeName = safeName; }
+    function loadFontPreset(presetId, url, name) { 
+        let preset; 
+        if (presetId) { preset = fontPresets.find(p => p.id === presetId); } else { preset = { id: null, url, name }; } 
+        if (!preset) return; 
+        activeFontToApply = preset; 
+        $('#font-name-input').value = preset.name; 
+        
+        if (preset.url && preset.url.length > 200) {
+            $('#font-url-input').dataset.realValue = preset.url;
+            $('#font-url-input').value = '已上传本地字体 (重新上传覆盖)';
+        } else {
+            $('#font-url-input').value = preset.url; 
+        }
+        
+        const styleId = 'font-preview-style'; 
+        let styleEl = $(`#${styleId}`); 
+        if (!styleEl) { styleEl = document.createElement('style'); styleEl.id = styleId; document.head.appendChild(styleEl); } 
+        const safeName = `custom_font_${preset.id || Date.now()}`; 
+        styleEl.innerHTML = `@font-face { font-family: '${safeName}'; src: url('${preset.url}'); font-display: swap; }`; 
+        $('#font-preview').style.fontFamily = `'${safeName}'`; 
+        activeFontToApply.safeName = safeName; 
+    }
     function applyActiveFont() { if (!activeFontToApply) return alert('LOAD A PRESET FIRST.'); applyFont(activeFontToApply.id, false, activeFontToApply.safeName); }
     function applyFont(presetId, isSilent, safeName) { const preset = fontPresets.find(p => p.id === presetId); const styleId = 'main-font-style'; let styleEl = $(`#${styleId}`); if (!styleEl) { styleEl = document.createElement('style'); styleEl.id = styleId; document.head.appendChild(styleEl); } if (preset) { const nameToUse = safeName || `custom_font_${preset.id}`; styleEl.innerHTML = `@font-face { font-family: '${nameToUse}'; src: url('${preset.url}'); font-display: swap; }`; document.documentElement.style.setProperty('--main-font', `'${nameToUse}', 'Inter', sans-serif`); settings.activeFontId = preset.id; } else { styleEl.innerHTML = ''; document.documentElement.style.setProperty('--main-font', `'Inter', sans-serif`); settings.activeFontId = null; } if (!isSilent) { DB.set('settings', settings); renderFontPresets(); } }
     function deleteFontPreset(presetId) { if (!confirm('删除字体？')) return; fontPresets = fontPresets.filter(p => p.id !== presetId); DB.set('fontPresets', fontPresets); if (settings.activeFontId === presetId) { applyFont(null, false); } renderFontPresets(); }
@@ -7931,32 +8010,48 @@ ${extraLorePrompt}
         }
     }
 
+    let currentMusicAction = ''; 
+    function openMusicRoleSelectModal(action) {
+        currentMusicAction = action;
+        const sel = $('#music-share-role-select');
+        sel.innerHTML = roles.map(r => `<option value="${r.id}">${getDisplayName(r)}</option>`).join('');
+        if(roles.length === 0) return alert("请先在通讯录创建角色！");
+        $('#music-share-title').innerHTML = action === 'share' ? 'Share Music <span>分享音乐</span>' : 'Listen Together <span>邀请一起听</span>';
+        openModal('modal-music-share-select');
+    }
+
     function shareCurrentMusic() {
         if (musicCurrentTrackIndex === -1) return;
-        if (!currentChatRoleId) return alert("请先进入一个聊天界面！");
-        const track = musicPlaylist[musicCurrentTrackIndex];
-        const payload = { 
-            version: 2, 
-            trackId: track.id, 
-            name: track.name, 
-            artist: track.artist, 
-            picUrl: track.picUrl, 
-            contactRoleId: currentChatRoleId, 
-            inviteId: 'share_' + Date.now(), 
-            status: '分享歌曲', 
-            createdAt: Date.now(), 
-            updatedAt: Date.now() 
-        };
-        const msgContent = `[MUSIC_CARD:${encodeURIComponent(JSON.stringify(payload))}]`;
-        if(!chats[currentChatRoleId]) chats[currentChatRoleId] = [];
-        const now = new Date();
-        chats[currentChatRoleId].push({ role: 'user', content: msgContent, time: now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }), rawTime: now.getTime(), status: 'SENT', mode: 'online' });
-        DB.set('chats', chats);
-        alert('已分享到当前聊天！');
-        hideFullScreenPlayer();
-        closeApp('music');
-        renderMessages();
-        triggerAI();
+        openMusicRoleSelectModal('share');
+    }
+
+    function confirmMusicShareOrListen() {
+        const roleId = $('#music-share-role-select').value;
+        if (!roleId) return;
+        closeModal('modal-music-share-select');
+        
+        if (currentMusicAction === 'share') {
+            const track = musicPlaylist[musicCurrentTrackIndex];
+            const payload = { 
+                version: 2, trackId: track.id, name: track.name, artist: track.artist, picUrl: track.picUrl, 
+                contactRoleId: roleId, inviteId: 'share_' + Date.now(), status: '分享歌曲', createdAt: Date.now(), updatedAt: Date.now() 
+            };
+            const msgContent = `[MUSIC_CARD:${encodeURIComponent(JSON.stringify(payload))}]`;
+            if(!chats[roleId]) chats[roleId] = [];
+            const now = new Date();
+            chats[roleId].push({ role: 'user', content: msgContent, time: now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }), rawTime: now.getTime(), status: 'SENT', mode: 'online' });
+            DB.set('chats', chats);
+            alert('已分享给该角色！');
+            hideFullScreenPlayer();
+            closeApp('music');
+            openChat(roleId);
+            triggerAI();
+        } else if (currentMusicAction === 'listen') {
+            inviteSpecificAiToListen(roleId);
+            hideFullScreenPlayer();
+            closeApp('music');
+            openChat(roleId);
+        }
     }
 
     function updatePlayerUI(name, artist, cover, url, isPlayingUpdate) {
@@ -8120,8 +8215,8 @@ ${extraLorePrompt}
     }
     
     function inviteAiToListen() { 
-        if (!currentChatRoleId) { alert('请先进入一个聊天。'); return; } 
-        inviteSpecificAiToListen(currentChatRoleId); 
+        if (musicCurrentTrackIndex === -1) return alert('没有正在播放的歌曲，请先播放一首歌。');
+        openMusicRoleSelectModal('listen');
     }
     
     function inviteSpecificAiToListen(roleId) { 
@@ -10741,8 +10836,11 @@ function onAiAvatarDblClick() {
 
         let html = `
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 10px; padding: 0 5px;">
-                <span style="font-size: 10px; color: var(--text-secondary); font-weight: 600; letter-spacing: 1px;">每日自动刷新账单</span>
-                <input type="checkbox" ${data.autoRefresh ? 'checked' : ''} onchange="toggleWalletAutoRefresh(this.checked)" style="width:auto; accent-color: var(--text-color);">
+                <div style="display:flex; align-items:center; gap:10px;">
+                    <span style="font-size: 10px; color: var(--text-secondary); font-weight: 600; letter-spacing: 1px;">每日自动刷新账单</span>
+                    <input type="checkbox" ${data.autoRefresh ? 'checked' : ''} onchange="toggleWalletAutoRefresh(this.checked)" style="width:auto; accent-color: var(--text-color);">
+                </div>
+                <button class="action-btn" style="margin:0; padding:4px 8px; font-size:8px; border-radius:8px;" onclick="generateWalletAssets()">手动刷新</button>
             </div>
             <div class="wallet-card" style="background-image: url('${data.mainBg}')">
                 <div class="wallet-card-title">

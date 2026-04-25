@@ -2347,6 +2347,20 @@
     </div>
 </div>
 
+<div class="modal-overlay" id="modal-music-share-select">
+    <div class="modal">
+        <h3 id="music-share-title">Share Music <span>分享音乐</span></h3>
+        <div class="setting-group" style="border:none; padding:0;">
+            <label>SELECT ENTITY / 选择角色</label>
+            <select id="music-share-role-select" style="width:100%; padding:10px; border:1px solid var(--border-color); background:transparent; color:var(--text-color); outline:none; font-family:var(--font-sans); font-size:11px;"></select>
+        </div>
+        <div class="modal-btns">
+            <button class="btn-cancel" onclick="closeModal('modal-music-share-select')">CANCEL<span>取消</span></button>
+            <button class="btn-confirm" onclick="confirmMusicShareOrListen()">CONFIRM<span>确认</span></button>
+        </div>
+    </div>
+</div>
+
 <div class="modal-overlay" id="modal-daifu-select">
     <div class="modal">
         <h3>Ask to Pay <span>找人代付</span></h3>
