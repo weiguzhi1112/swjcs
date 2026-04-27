@@ -2416,6 +2416,17 @@
         </div>
     </div>
 </div>
+<!-- 记忆编辑/添加弹窗 -->
+<div class="modal-overlay" id="modal-memory-edit">
+    <div class="modal">
+        <h3 id="memory-edit-modal-title">Edit Memory <span>编辑记忆</span></h3>
+        <textarea id="memory-edit-textarea" style="height: 180px; line-height: 1.5;"></textarea>
+        <div class="modal-btns">
+            <button class="btn-cancel" onclick="closeModal('modal-memory-edit')">CANCEL<span>取消</span></button>
+            <button class="btn-confirm" onclick="saveMemoryEdit()">SAVE<span>保存</span></button>
+        </div>
+    </div>
+</div>
 <!-- 通用小票弹窗 -->
 <div class="modal-overlay" id="modal-receipt">
     <div class="modal" style="background: #fff; color: #333; border-radius: 0; width: 280px; padding: 30px 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); font-family: monospace;">

@@ -1526,20 +1526,22 @@ document.addEventListener('DOMContentLoaded', () => {
         const chatHeader = document.getElementById('chat-header');
         const chatMessages = document.getElementById('chat-messages');
         if (chatHeader && chatMessages) {
+            chatHeader.style.position = 'absolute';
+            chatHeader.style.top = '0';
+            chatHeader.style.left = '0';
+            chatHeader.style.right = '0';
             if (settings.chatHeaderOpaque) {
-                chatHeader.style.position = 'relative';
-                chatHeader.style.background = 'var(--bg-color)';
+                chatHeader.style.background = 'var(--glass-bg)';
+                chatHeader.style.backdropFilter = 'blur(20px)';
+                chatHeader.style.webkitBackdropFilter = 'blur(20px)';
                 chatHeader.style.borderBottom = '1px solid var(--border-color)';
-                chatMessages.style.paddingTop = '15px';
             } else {
-                chatHeader.style.position = 'absolute';
-                chatHeader.style.top = '0';
-                chatHeader.style.left = '0';
-                chatHeader.style.right = '0';
                 chatHeader.style.background = 'transparent';
+                chatHeader.style.backdropFilter = 'none';
+                chatHeader.style.webkitBackdropFilter = 'none';
                 chatHeader.style.borderBottom = 'none';
-                chatMessages.style.paddingTop = 'calc(70px + env(safe-area-inset-top))';
             }
+            chatMessages.style.paddingTop = 'calc(70px + env(safe-area-inset-top))';
         }
     }
 
@@ -3646,13 +3648,26 @@ toRenderFavorites();toRenderSearchResults();}
         const bubbleContentEl = document.querySelector(`#${msgId} .msg-bubble-content`);
 
         try {
-            const activeMask = masks.find(m => m.id === role.activeMaskId) || masks[0];
+            const activeMask = masks.find(m => m.id === role.activeMaskId) || masks.find(m => m.id === 'default') || masks[0];
             const globalWbs = worldbooks.filter(w => w.isGlobal).map(w => w.content).join('\n\n');
             const localWbs = worldbooks.filter(w => role.localWbs?.includes(w.id)).map(w => w.content).join('\n\n');
             
             const currentAddr = toAddresses.find(a => a.id === toSelectedAddrId) || toAddresses[0];
             const addrStr = currentAddr ? `${currentAddr.tag}(${currentAddr.addr})` : "未设置";
             const weatherAddr = (weatherData.realCity || '') + ' ' + (weatherData.address || '');
+
+            // 提前初始化并获取该角色的音乐账密
+            if (!window.musicCreds) window.musicCreds = DB.get('musicCreds', {});
+            if (!window.musicCreds[targetRoleId]) {
+                window.musicCreds[targetRoleId] = {
+                    acc: 'music_' + Math.floor(Math.random() * 9000 + 1000),
+                    pwd: Math.floor(Math.random() * 900000 + 100000).toString(),
+                    isLoggedIn: false
+                };
+                DB.set('musicCreds', window.musicCreds);
+            }
+            const roleMusicAcc = window.musicCreds[targetRoleId].acc;
+            const roleMusicPwd = window.musicCreds[targetRoleId].pwd;
 
             const minB = settings.bubbleCountMin || 1;
             const maxB = settings.bubbleCountMax || 5;
@@ -3696,6 +3711,7 @@ ${memories[role.id] ? `<shared_memory>\n${memories[role.id]}\n</shared_memory>` 
 5. 【票根生成】当你们约定去看电影、演唱会、展览或旅行时，你必须在回复中包含隐藏指令生成票根：[TICKET:{"type":"movie/concert/travel/exhibit","title":"活动名称","subtitle":"副标题","label1":"地点","value1":"具体地点","label2":"座位/时间","value2":"具体信息","label3":"时间","value3":"具体时间"}]
 6. 【主动转账】当你想给用户转账时，在回复中包含：[转账 ¥金额]${translationRule}
 7. 【记忆提取】如果用户在聊天中提到了喜欢的歌曲、食物等，请自然地记住并在后续对话中提及。
+8. 【专属音乐空间】你的网易云音乐账号是：${roleMusicAcc}，密码是：${roleMusicPwd}。如果用户问你要，请自然地告诉TA。
 ${modeRules}
 </rules>
 
@@ -4811,41 +4827,31 @@ function switchMemoryTab(roleId, tab) {
     `).join('');
 }
 
+let memEditState = { roleId: null, tab: null, index: -1, isNew: false };
+
 function editMemoryItem(roleId, tab, index) {
     const keyMap = { core: 'coreMemories', episodic: 'episodicMemories', plot: 'plotSummaries' };
     const key = keyMap[tab];
     const item = advancedMemories[roleId][key][index];
-    const newContent = prompt('编辑记忆内容：', item.content);
-    if (newContent !== null && newContent.trim() !== "") {
-        advancedMemories[roleId][key][index].content = newContent.trim();
-        DB.set('advancedMemories', advancedMemories);
-        switchMemoryTab(roleId, tab);
-    }
+    memEditState = { roleId, tab, index, isNew: false };
+    $('#memory-edit-modal-title').innerHTML = 'Edit Memory <span>编辑记忆</span>';
+    $('#memory-edit-textarea').value = item.content;
+    openModal('modal-memory-edit');
 }
 
 function editLegacyMemoryItem(roleId, index) {
     const item = memories[roleId][index];
-    const newContent = prompt('编辑传统记忆内容：', item.content);
-    if (newContent !== null && newContent.trim() !== "") {
-        memories[roleId][index].content = newContent.trim();
-        DB.set('memories', memories);
-        switchMemoryTab(roleId, 'legacy');
-    }
+    memEditState = { roleId, tab: 'legacy', index, isNew: false };
+    $('#memory-edit-modal-title').innerHTML = 'Edit Memory <span>编辑传统记忆</span>';
+    $('#memory-edit-textarea').value = item.content;
+    openModal('modal-memory-edit');
 }
 
 function openAddLegacyMemoryDialog(roleId) {
-    const content = prompt('请输入要添加的传统记忆内容：');
-    if (content && content.trim()) {
-        if (!memories[roleId] || typeof memories[roleId] === 'string') {
-            memories[roleId] = [];
-        }
-        memories[roleId].push({
-            content: content.trim(),
-            time: new Date().toLocaleString('zh-CN')
-        });
-        DB.set('memories', memories);
-        switchMemoryTab(roleId, 'legacy');
-    }
+    memEditState = { roleId, tab: 'legacy', index: -1, isNew: true };
+    $('#memory-edit-modal-title').innerHTML = 'Add Memory <span>添加传统记忆</span>';
+    $('#memory-edit-textarea').value = '';
+    openModal('modal-memory-edit');
 }
 
 function deleteLegacyMemoryItem(roleId, index) {
@@ -4871,18 +4877,45 @@ function deleteMemoryItem(roleId, tab, index) {
 function openAddMemoryDialog(roleId) {
     const type = prompt('选择类型：\n1 = 核心记忆\n2 = 情景记忆\n3 = 剧情总结\n请输入数字：');
     if (!type) return;
-    const content = prompt('输入记忆内容：');
-    if (!content) return;
-    initRoleMemory(roleId);
-    const now = new Date().toLocaleString('zh-CN');
-    const typeMap = { '1': 'coreMemories', '2': 'episodicMemories', '3': 'plotSummaries' };
-    const key = typeMap[type];
-    if (!key) return alert('类型无效。');
-    advancedMemories[roleId][key].push({ content, time: now, auto: false });
-    DB.set('advancedMemories', advancedMemories);
     const tabMap = { '1': 'core', '2': 'episodic', '3': 'plot' };
-    switchMemoryTab(roleId, tabMap[type]);
-    alert('记忆已添加！');
+    const tab = tabMap[type];
+    if (!tab) return alert('类型无效。');
+    
+    memEditState = { roleId, tab, index: -1, isNew: true };
+    $('#memory-edit-modal-title').innerHTML = 'Add Memory <span>添加高级记忆</span>';
+    $('#memory-edit-textarea').value = '';
+    openModal('modal-memory-edit');
+}
+
+function saveMemoryEdit() {
+    const content = $('#memory-edit-textarea').value.trim();
+    if (!content) return alert('内容不能为空');
+    
+    const { roleId, tab, index, isNew } = memEditState;
+    const now = new Date().toLocaleString('zh-CN');
+    
+    if (tab === 'legacy') {
+        if (!memories[roleId] || typeof memories[roleId] === 'string') memories[roleId] = [];
+        if (isNew) {
+            memories[roleId].push({ content, time: now });
+        } else {
+            memories[roleId][index].content = content;
+        }
+        DB.set('memories', memories);
+    } else {
+        initRoleMemory(roleId);
+        const keyMap = { core: 'coreMemories', episodic: 'episodicMemories', plot: 'plotSummaries' };
+        const key = keyMap[tab];
+        if (isNew) {
+            advancedMemories[roleId][key].push({ content, time: now, auto: false });
+        } else {
+            advancedMemories[roleId][key][index].content = content;
+        }
+        DB.set('advancedMemories', advancedMemories);
+    }
+    
+    switchMemoryTab(roleId, tab);
+    closeModal('modal-memory-edit');
 }
 
 async function generateTodaySummary(roleId) {
@@ -5780,12 +5813,12 @@ window.newRoleTempWbs = null;
             track.style.background = 'var(--text-color)'; 
             thumb.style.left = '20px'; 
             thumb.style.background = 'var(--bg-color)'; 
-            if (status) status.innerText = '已开启：顶栏不透明，不遮挡聊天记录'; 
+            if (status) status.innerText = '已开启：顶栏毛玻璃效果，显示背景且文字清晰'; 
         } else { 
             track.style.background = 'var(--gray-light)'; 
             thumb.style.left = '2px'; 
             thumb.style.background = 'var(--text-color)'; 
-            if (status) status.innerText = '已关闭：顶栏透明，沉浸式体验'; 
+            if (status) status.innerText = '已关闭：顶栏完全透明，沉浸式体验'; 
         } 
     }
 
@@ -11632,6 +11665,9 @@ function onAiAvatarDblClick() {
         btn.style.pointerEvents = 'none';
         btn.innerHTML = 'GENERATING...';
         
+        const now = new Date();
+        const todayStr = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
+        
         const prompt = `[CORE DIRECTIVE]\n你现在是系统后台的数据生成器。请根据角色【${role.realName}】的人设（${role.persona}），生成符合其身份的数字钱包资产数据。绝对不能OOC！\n
         要求返回严格的JSON格式：
         {
@@ -11649,8 +11685,9 @@ function onAiAvatarDblClick() {
             ]
         }
         注意：
-        1. 生成5-8条近期的账单，必须包含【支出】和【收入】（如工资、理财收益、或者符合人设的赚钱小游戏如“羊了个羊通关奖励”、“代练收入”等）。
-        2. 花呗、基金、股票、活期、定期必须根据人设给出一个非0的合理数值。
+        1. 必须生成 10-15 条最近三天（必须包含今天 ${todayStr} 和昨天）的账单明细！
+        2. 账单必须符合其人设的日常消费（如餐饮、购物、出行、娱乐等）或收入（如工资、理财收益、代练收入等）。时间格式必须是真实的日期时间。
+        3. 花呗、基金、股票、活期、定期必须根据人设给出一个非0的合理数值。
         直接输出JSON，不要加任何其他文字。`;
 
         try {
@@ -13931,6 +13968,15 @@ function applyBeautyStyles() {
         .msg-bubble { font-size: ${bubbleSize}px !important; }
         #chat-input { font-size: ${size}px !important; }
     `;
+
+    // 修复：强制覆盖桌面图标的中英文颜色
+    let appTextStyle = document.getElementById('app-text-style');
+    if (!appTextStyle) {
+        appTextStyle = document.createElement('style');
+        appTextStyle.id = 'app-text-style';
+        document.head.appendChild(appTextStyle);
+    }
+    appTextStyle.innerHTML = `.app-icon span { color: ${color} !important; } .app-icon .sub-name { color: ${subColor} !important; }`;
 
     let chatStyleEl = document.getElementById('dynamic-chat-style');
     if (!chatStyleEl) {
