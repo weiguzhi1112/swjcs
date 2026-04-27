@@ -698,7 +698,7 @@ async function checkDiscordCallback() {
     }
 
     const handleImageUpload = (el, id) => handleFileUpload(el, id, 20, 'IMAGE');
-    const handleFontUpload = (el, id) => handleFileUpload(el, id, 50, 'FONT'); 
+        const handleFontUpload = (el, id) => handleFileUpload(el, id, 100, 'FONT'); 
     const handleAudioUpload = (el, id) => handleFileUpload(el, id, 20, 'AUDIO'); 
     function extractJSON(str) { const match = str.match(/\{[\s\S]*\}/); return match ? match[0] : str; }
     function splitIntoSentences(text) { if (!text) return []; const sentences = text.trim().match(/[^.!?。！？…\n]+([.!?。！？…\n]|\s)*/g); return (sentences || [text]).map(s => s.trim()).filter(s => s); }
@@ -2325,6 +2325,8 @@ function updateKeepAliveUI(isOn) {
             else if (content.includes('[VIRTUAL_IMG:') || content.includes('图片') || content.includes('表情')) $('#qf-type').value = 'image';
             else if (content.includes('[TRANSFER:') || content.includes('转账')) $('#qf-type').value = 'transfer';
             else if (content.includes('[PAY_REQUEST:') || content.includes('代付')) $('#qf-type').value = 'pay_req';
+            else if (content.includes('[FORUM_CARD:') || content.includes('论坛')) $('#qf-type').value = 'forum_card';
+            else if (content.includes('[FEED_CARD:') || content.includes('动态')) $('#qf-type').value = 'feed_card';
             else $('#qf-type').value = 'text';
             
             updateQfFields(content);
@@ -2347,6 +2349,10 @@ function updateKeepAliveUI(isOn) {
             html = `<label>TRANSFER AMOUNT / 转账金额 (¥)</label><input type="number" id="qf-tx-amount" placeholder="例如: 520" value="520">`;
         } else if (type === 'pay_req') {
             html = `<label>ITEM NAME / 商品名称</label><input type="text" id="qf-pay-shop" placeholder="例如: 奶茶/礼物" value="礼物" style="margin-bottom:10px;"><label>AMOUNT / 代付金额 (¥)</label><input type="number" id="qf-pay-amount" placeholder="例如: 1314" value="1314">`;
+        } else if (type === 'forum_card') {
+            html = `<label>TITLE / 帖子标题</label><input type="text" id="qf-forum-title" placeholder="例如: 标题" value="修复的帖子" style="margin-bottom:10px;"><label>AUTHOR / 作者</label><input type="text" id="qf-forum-author" placeholder="例如: 匿名" value="匿名" style="margin-bottom:10px;"><label>CONTENT / 内容</label><textarea id="qf-forum-content" placeholder="帖子内容...">${cleanText}</textarea>`;
+        } else if (type === 'feed_card') {
+            html = `<label>AUTHOR / 作者</label><input type="text" id="qf-feed-author" placeholder="例如: 匿名" value="匿名" style="margin-bottom:10px;"><label>CONTENT / 内容</label><textarea id="qf-feed-content" placeholder="动态内容...">${cleanText}</textarea>`;
         } else {
             html = `<label>TEXT CONTENT / 纯文本内容</label><textarea id="qf-text-content" placeholder="输入纯文本...">${cleanText}</textarea>`;
         }
@@ -2377,6 +2383,17 @@ function updateKeepAliveUI(isOn) {
             const amt = parseFloat($('#qf-pay-amount').value) || 0;
             const payload = { shopName: shop, total: amt, emoji: '🛍️', orderId: 'TO_FIX_' + Date.now() };
             newContent = `[PAY_REQUEST:${encodeURIComponent(JSON.stringify(payload))}]`;
+        } else if (type === 'forum_card') {
+            const title = $('#qf-forum-title').value.trim() || '无题';
+            const author = $('#qf-forum-author').value.trim() || '匿名';
+            const content = $('#qf-forum-content').value.trim() || '...';
+            const payload = { id: 'thread_fix_' + Date.now(), title: title, content: content, author: author, category: 'EXP' };
+            newContent = `[FORUM_CARD:${encodeURIComponent(JSON.stringify(payload))}]`;
+        } else if (type === 'feed_card') {
+            const author = $('#qf-feed-author').value.trim() || '匿名';
+            const content = $('#qf-feed-content').value.trim() || '...';
+            const payload = { id: 'feed_fix_' + Date.now(), author: author, content: content };
+            newContent = `[FEED_CARD:${encodeURIComponent(JSON.stringify(payload))}]`;
         } else {
             newContent = $('#qf-text-content').value.trim();
         }
@@ -3818,7 +3835,14 @@ ${modeRules}
                     try { const data = JSON.parse(decodeURIComponent(p1)); return `[系统提示：用户向你分享了一张票根：${data.title} (${data.subtitle})]`; } catch(e) { return '[收到一张票根]'; }
                 });
                 text = text.replace(/\[FORUM_CARD:(.*?)\]/g, (match, p1) => {
-                    try { const data = JSON.parse(decodeURIComponent(p1)); return `[系统提示：用户向你分享了一个暗网论坛帖子，标题：${data.title}，作者：${data.author}，内容：${data.content}。请根据你的人设对这个帖子发表看法或做出反应。]`; } catch(e) { return '[分享了一个论坛帖子]'; }
+                    try { 
+                        const data = JSON.parse(decodeURIComponent(p1)); 
+                        if (data.author === role.realName || data.author === getDisplayName(role)) {
+                            return `[系统提示：用户向你分享了一个暗网论坛帖子，标题：${data.title}，作者：${data.author}，内容：${data.content}。这是你自己发的帖子，请根据你的人设对用户看到你发的帖子做出反应。]`;
+                        } else {
+                            return `[系统提示：用户向你分享了一个暗网论坛帖子，标题：${data.title}，作者：${data.author}，内容：${data.content}。请根据你的人设对这个帖子发表看法或做出反应。]`; 
+                        }
+                    } catch(e) { return '[分享了一个论坛帖子]'; }
                 });
                 text = text.replace(/\[FEED_CARD:(.*?)\]/g, (match, p1) => {
                     try { const data = JSON.parse(decodeURIComponent(p1)); return `[系统提示：用户向你分享了一条动态，作者：${data.author}，内容：${data.content}]`; } catch(e) { return '[分享了一条动态]'; }
@@ -5641,16 +5665,27 @@ window.newRoleTempWbs = null;
                             if (tagType === 'PAY_REQUEST') card.status = '待支付';
                             if (tagType === 'ORDER_RECEIPT_CARD') card.status = '已支付';
                             if (tagType === 'TRANSFER' || tagType === 'FAMILY_CARD') card.status = '待接收';
-                            if (tagType === 'OURSPACE_INVITE') card.status = '等待对方回复配对码';
-                            needsFix = true;
-                        }
-                        if (needsFix) {
-                            msg.content = msg.content.replace(tagMatch[0], `[${tagType}:${encodeURIComponent(JSON.stringify(card))}]`);
-                            fixCount++;
-                        }
+                        if (tagType === 'OURSPACE_INVITE') card.status = '等待对方回复配对码';
+                        needsFix = true;
                     }
-                } catch(e) {}
-            }
+                    if (needsFix) {
+                        msg.content = msg.content.replace(tagMatch[0], `[${tagType}:${encodeURIComponent(JSON.stringify(card))}]`);
+                        fixCount++;
+                    }
+                }
+            } catch(e) {}
+        }
+
+        const jsonArrayRegex = /\[\s*\{.*?\}\s*\]/g;
+        if (msg.content.match(jsonArrayRegex)) {
+            msg.content = msg.content.replace(jsonArrayRegex, '[JSON数据已清理]');
+            fixCount++;
+        }
+        const htmlTagRegex = /<\/?(?:html|body|head|div|span|p|a|script|style)[^>]*>/gi;
+        if (msg.content.match(htmlTagRegex) && !msg.content.includes('class="chat-inline-img"') && !msg.content.includes('class="bubble-typing-indicator"')) {
+            msg.content = msg.content.replace(htmlTagRegex, '');
+            fixCount++;
+        }
 
             // 自动分割多行 AI 消息气泡
             if (msg.role === 'ai' && msg.mode === 'online' && msg.content.includes('\n') && !msg.content.includes('===TRANSLATION===')) {
@@ -6682,8 +6717,8 @@ window.newRoleTempWbs = null;
                             ${(p.views > 5000 || p.likes > 300) ? '<span style="font-size: 7px; background: #ff3b30; color: #fff; padding: 1px 5px; text-transform: uppercase; font-weight: 600; letter-spacing: 0.5px; border-radius: 2px;">HOT</span>' : ''}
                             <span style="font-size: 8px; color: var(--text-secondary); margin-left: auto;">${p.time}</span>
                         </div>
-                        <div style="font-family: var(--font-serif); font-size: 15px; font-weight: 600; color: var(--text-color); margin-bottom: 4px; line-height: 1.3;" contenteditable="true" onblur="updateForumPost('${p.id}', 'title', this.innerText)" onclick="event.stopPropagation()">${p.title}</div>
-                        <div style="font-size: 10px; color: var(--text-secondary); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; line-height: 1.5;" contenteditable="true" onblur="updateForumPost('${p.id}', 'content', this.innerText)" onclick="event.stopPropagation()">${p.content.replace(/\[VIRTUAL_IMG:(.*?)\]/g, '[图片]')}</div>
+<div style="font-family: var(--font-serif); font-size: 15px; font-weight: 600; color: var(--text-color); margin-bottom: 4px; line-height: 1.3;">${p.title}</div>
+<div style="font-size: 10px; color: var(--text-secondary); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; line-height: 1.5;">${p.content.replace(/\[VIRTUAL_IMG:(.*?)\]/g, '[图片]')}</div>
                         <div style="display: flex; gap: 15px; margin-top: 8px; color: var(--text-secondary); font-size: 9px;">
                             <span style="display: flex; gap: 3px; align-items: center;">${iconView} ${p.views || Math.floor(Math.random()*5000 + 100)}</span>
                             <span style="display: flex; gap: 3px; align-items: center;">${iconLike} ${p.likes || 0}</span>
@@ -7196,7 +7231,7 @@ ${extraLorePrompt}
 现在，${knowUser ? `你现实中认识的人（名字叫 ${userName}）` : `一个陌生的论坛网友`} 回复了你："${userText}"
 请以楼主的身份回复他。语气符合你发帖时的人设（可能是高傲的Dom，也可能是求助的Sub，或者是分享经验的网黄）。
 ${knowUser ? `注意：你清楚地知道回复你的人就是 ${userName}，请在回复中自然地带入你们现实中的关系和情感，不要装作不认识。` : '注意：你完全不认识回复你的用户，只是一个陌生的看客，绝对不要表现出认识对方。'}
-只输出回复的正文，不要加引号，不要超过100字。务必严格遵守格式，不要输出多余的解释。
+只输出回复的正文，不要加引号，不要超过100字。务必严格遵守格式，回复的开头必须是“回复 ${userName}：”，不要输出多余的解释。
 `;
         try {
             const endpoint = getChatEndpoint(api.url);
@@ -8943,7 +8978,14 @@ async function generateAutoMsg(roleId) {
                 try { const data = JSON.parse(decodeURIComponent(p1)); return `[系统提示：用户向你分享了一张票根：${data.title} (${data.subtitle})]`; } catch(e) { return '[收到一张票根]'; }
             });
             textContent = textContent.replace(/\[FORUM_CARD:(.*?)\]/g, (match, p1) => {
-                try { const data = JSON.parse(decodeURIComponent(p1)); return `[系统提示：用户向你分享了一个暗网论坛帖子，标题：${data.title}，作者：${data.author}，内容：${data.content}。请根据你的人设对这个帖子发表看法或做出反应。]`; } catch(e) { return '[分享了一个论坛帖子]'; }
+                try { 
+                    const data = JSON.parse(decodeURIComponent(p1)); 
+                    if (data.author === role.realName || data.author === getDisplayName(role)) {
+                        return `[系统提示：用户向你分享了一个暗网论坛帖子，标题：${data.title}，作者：${data.author}，内容：${data.content}。这是你自己发的帖子，请根据你的人设对用户看到你发的帖子做出反应。]`;
+                    } else {
+                        return `[系统提示：用户向你分享了一个暗网论坛帖子，标题：${data.title}，作者：${data.author}，内容：${data.content}。请根据你的人设对这个帖子发表看法或做出反应。]`; 
+                    }
+                } catch(e) { return '[分享了一个论坛帖子]'; }
             });
             textContent = textContent.replace(/\[FEED_CARD:(.*?)\]/g, (match, p1) => {
                 try { const data = JSON.parse(decodeURIComponent(p1)); return `[系统提示：用户向你分享了一条动态，作者：${data.author}，内容：${data.content}]`; } catch(e) { return '[分享了一条动态]'; }
