@@ -472,7 +472,7 @@ function getDiscordAuthUrl() {
     return `https://discord.com/api/oauth2/authorize?${params.toString()}`;
 }
 
-function loginWithDiscord() {
+window.loginWithDiscord = function() {
     const authUrl = getDiscordAuthUrl();
     window.location.href = authUrl;
 }
@@ -1105,7 +1105,7 @@ function isBlacklisted(deviceId) {
     return blacklist.some(item => item.deviceId === deviceId);
 }
 
-function checkActivation() {
+window.checkActivation = function() {
     const code = $('#login-code').value.trim().toUpperCase();
     const errorEl = $('#login-error');
     const deviceId = getOrCreateDeviceId();
