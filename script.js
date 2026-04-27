@@ -413,10 +413,8 @@ cipherState = DB.get('cipherState', {score:0,created:0,solved:0,collection:[], h
         initKeepAlive();
         const lastBeautySettings = DB.get('lastActiveBeautySettings');
         if (lastBeautySettings) {
-            $('#beauty-global-color').value = lastBeautySettings.color;
-            $('#beauty-global-size').value = lastBeautySettings.size;
-            $('#beauty-chat-css').value = lastBeautySettings.chatCss;
-            $('#beauty-bubble-css').value = lastBeautySettings.bubbleCss;
+            if ($('#beauty-chat-css')) $('#beauty-chat-css').value = lastBeautySettings.chatCss || '';
+            if ($('#beauty-bubble-css')) $('#beauty-bubble-css').value = lastBeautySettings.bubbleCss || '';
             applyBeautyStyles();
         }
     }
@@ -13891,68 +13889,44 @@ async function playGrimoireBGM(level, keywordContext) {
     } catch (e) { console.log("BGM随机搜索失败", e); }
 }
 
-function openBeautyApp() {
-    const lastSettings = DB.get('lastActiveBeautySettings', {
-        size: 13,
-        bubbleSize: 14,
-        chatCss: '',
-        bubbleCss: ''
-    });
-    
-    $('#beauty-global-size').value = lastSettings.size;
-    $('#beauty-global-size-label').innerText = lastSettings.size;
-    $('#beauty-bubble-size').value = lastSettings.bubbleSize || 14;
-    $('#beauty-bubble-size-label').innerText = lastSettings.bubbleSize || 14;
-    $('#beauty-chat-css').value = lastSettings.chatCss;
-    $('#beauty-bubble-css').value = lastSettings.bubbleCss;
+    function openBeautyApp() {
+        const lastSettings = DB.get('lastActiveBeautySettings', {
+            chatCss: '',
+            bubbleCss: ''
+        });
+        
+        $('#beauty-chat-css').value = lastSettings.chatCss;
+        $('#beauty-bubble-css').value = lastSettings.bubbleCss;
 
-    renderBeautyPresets();
-}
-
-function applyBeautyStyles() {
-    const size = $('#beauty-global-size').value;
-    const bubbleSize = $('#beauty-bubble-size').value;
-    const chatCss = $('#beauty-chat-css').value;
-    const bubbleCss = $('#beauty-bubble-css').value;
-
-    $('#beauty-global-size-label').innerText = size;
-    $('#beauty-bubble-size-label').innerText = bubbleSize;
-
-    let globalStyleEl = document.getElementById('dynamic-global-style');
-    if (!globalStyleEl) {
-        globalStyleEl = document.createElement('style');
-        globalStyleEl.id = 'dynamic-global-style';
-        document.head.appendChild(globalStyleEl);
+        renderBeautyPresets();
     }
-    globalStyleEl.innerHTML = `
-        :root { --font-size: ${size}px !important; }
-        .msg-bubble { font-size: ${bubbleSize}px !important; }
-        #chat-input { font-size: ${size}px !important; }
-    `;
+    function applyBeautyStyles() {
+        const chatCss = $('#beauty-chat-css').value;
+        const bubbleCss = $('#beauty-bubble-css').value;
 
-    let appTextStyle = document.getElementById('app-text-style');
-    if (appTextStyle) {
-        appTextStyle.innerHTML = ''; // 清除之前强制覆盖的颜色
+        let appTextStyle = document.getElementById('app-text-style');
+        if (appTextStyle) {
+            appTextStyle.innerHTML = ''; 
+        }
+
+        let chatStyleEl = document.getElementById('dynamic-chat-style');
+        if (!chatStyleEl) {
+            chatStyleEl = document.createElement('style');
+            chatStyleEl.id = 'dynamic-chat-style';
+            document.head.appendChild(chatStyleEl);
+        }
+        chatStyleEl.innerHTML = chatCss;
+
+        let bubbleStyleEl = document.getElementById('dynamic-bubble-style');
+        if (!bubbleStyleEl) {
+            bubbleStyleEl = document.createElement('style');
+            bubbleStyleEl.id = 'dynamic-bubble-style';
+            document.head.appendChild(bubbleStyleEl);
+        }
+        bubbleStyleEl.innerHTML = bubbleCss;
+
+        DB.set('lastActiveBeautySettings', { chatCss, bubbleCss });
     }
-
-    let chatStyleEl = document.getElementById('dynamic-chat-style');
-    if (!chatStyleEl) {
-        chatStyleEl = document.createElement('style');
-        chatStyleEl.id = 'dynamic-chat-style';
-        document.head.appendChild(chatStyleEl);
-    }
-    chatStyleEl.innerHTML = chatCss;
-
-    let bubbleStyleEl = document.getElementById('dynamic-bubble-style');
-    if (!bubbleStyleEl) {
-        bubbleStyleEl = document.createElement('style');
-        bubbleStyleEl.id = 'dynamic-bubble-style';
-        document.head.appendChild(bubbleStyleEl);
-    }
-    bubbleStyleEl.innerHTML = bubbleCss;
-
-    DB.set('lastActiveBeautySettings', { size, bubbleSize, chatCss, bubbleCss });
-}
 
 function renderBeautyPresets() {
     const listEl = $('#beauty-presets-list');
@@ -13977,42 +13951,38 @@ function promptSaveBeautyPreset() {
     openModal('modal-beauty-preset-name');
 }
 
-function saveBeautyPreset() {
-    const name = $('#beauty-preset-name-input').value.trim();
-    if (!name) return alert('请输入预设名称');
+    function saveBeautyPreset() {
+        const name = $('#beauty-preset-name-input').value.trim();
+        if (!name) return alert('请输入预设名称');
 
-    const newPreset = {
-        id: 'beauty_' + Date.now(),
-        name: name,
-        styles: {
-            size: $('#beauty-global-size').value,
-            bubbleSize: $('#beauty-bubble-size').value,
-            chatCss: $('#beauty-chat-css').value,
-            bubbleCss: $('#beauty-bubble-css').value
-        }
-    };
-    beautyPresets.push(newPreset);
-    DB.set('beautyPresets', beautyPresets);
-    renderBeautyPresets();
-    closeModal('modal-beauty-preset-name');
-}
+        const newPreset = {
+            id: 'beauty_' + Date.now(),
+            name: name,
+            styles: {
+                chatCss: $('#beauty-chat-css').value,
+                bubbleCss: $('#beauty-bubble-css').value
+            }
+        };
+        beautyPresets.push(newPreset);
+        DB.set('beautyPresets', beautyPresets);
+        renderBeautyPresets();
+        closeModal('modal-beauty-preset-name');
+    }
 
-function loadBeautyPreset(id) {
-    const preset = beautyPresets.find(p => p.id === id);
-    if (!preset) return;
+    function loadBeautyPreset(id) {
+        const preset = beautyPresets.find(p => p.id === id);
+        if (!preset) return;
 
-    $('#beauty-global-size').value = preset.styles.size;
-    $('#beauty-bubble-size').value = preset.styles.bubbleSize || 14;
-    $('#beauty-chat-css').value = preset.styles.chatCss;
-    $('#beauty-bubble-css').value = preset.styles.bubbleCss;
-    
-    activeBeautyPresetId = id;
-    DB.set('activeBeautyPresetId', id);
+        $('#beauty-chat-css').value = preset.styles.chatCss || '';
+        $('#beauty-bubble-css').value = preset.styles.bubbleCss || '';
+        
+        activeBeautyPresetId = id;
+        DB.set('activeBeautyPresetId', id);
 
-    applyBeautyStyles();
-    renderBeautyPresets();
-    alert(`已加载预设: ${preset.name}`);
-}
+        applyBeautyStyles();
+        renderBeautyPresets();
+        alert(`已加载预设: ${preset.name}`);
+    }
 
 function deleteBeautyPreset(id) {
     if (!confirm('确定删除这个预设吗？')) return;
