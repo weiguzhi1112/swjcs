@@ -676,7 +676,7 @@ async function checkDiscordCallback() {
         const targetInput = document.getElementById(targetInputId);
         if (!targetInput) return;
         
-        if (targetInputId === 'beauty-bg' || targetInputId === 'role-chat-bg' || targetInputId === 'role-call-bg' || targetInputId === 'wallet-bg-url') {
+        if (targetInputId === 'beauty-bg' || targetInputId === 'role-chat-bg' || targetInputId === 'role-call-bg' || targetInputId === 'wallet-bg-url' || targetInputId === 'chat-btn-return' || targetInputId === 'chat-btn-detail' || targetInputId === 'chat-btn-attach' || targetInputId === 'chat-btn-send') {
             targetInput.dataset.realValue = dataUrl;
             targetInput.value = '已上传本地图片 (重新上传覆盖)';
         } else if (type === 'FONT' || targetInputId === 'font-url-input') {
@@ -9284,24 +9284,24 @@ async function checkCalendarNotifications() {
         
         if (settings.chatBtnReturn) {
             css += `
-                #chat-header .glass-icon-btn[onclick="closeChat()"] svg { display: none !important; }
-                #chat-header .glass-icon-btn[onclick="closeChat()"] {
-                    background-image: url('\${settings.chatBtnReturn}') !important;
-                    background-size: cover !important;
-                    background-position: center !important;
-                    background-repeat: no-repeat !important;
+                #chat-header > div:first-child .glass-icon-btn svg { display: none !important; }
+                #chat-header > div:first-child .glass-icon-btn {
+                    background: url('${settings.chatBtnReturn}') center/contain no-repeat !important;
+                    background-color: transparent !important;
+                    border: none !important;
+                    box-shadow: none !important;
                 }
             `;
         }
         
         if (settings.chatBtnDetail) {
             css += `
-                #chat-header .glass-icon-btn[onclick="openCurrentRoleInfo()"] svg { display: none !important; }
-                #chat-header .glass-icon-btn[onclick="openCurrentRoleInfo()"] {
-                    background-image: url('\${settings.chatBtnDetail}') !important;
-                    background-size: cover !important;
-                    background-position: center !important;
-                    background-repeat: no-repeat !important;
+                #chat-header > div:last-child .glass-icon-btn svg { display: none !important; }
+                #chat-header > div:last-child .glass-icon-btn {
+                    background: url('${settings.chatBtnDetail}') center/contain no-repeat !important;
+                    background-color: transparent !important;
+                    border: none !important;
+                    box-shadow: none !important;
                 }
             `;
         }
@@ -9310,10 +9310,10 @@ async function checkCalendarNotifications() {
             css += `
                 .standalone-icon-btn::after { display: none !important; }
                 .standalone-icon-btn {
-                    background-image: url('\${settings.chatBtnAttach}') !important;
-                    background-size: cover !important;
-                    background-position: center !important;
-                    background-repeat: no-repeat !important;
+                    background: url('${settings.chatBtnAttach}') center/contain no-repeat !important;
+                    background-color: transparent !important;
+                    border: none !important;
+                    box-shadow: none !important;
                 }
             `;
         }
@@ -9322,11 +9322,10 @@ async function checkCalendarNotifications() {
             css += `
                 .standalone-send-btn::before { display: none !important; }
                 .standalone-send-btn {
-                    background-image: url('\${settings.chatBtnSend}') !important;
-                    background-size: cover !important;
-                    background-position: center !important;
-                    background-repeat: no-repeat !important;
+                    background: url('${settings.chatBtnSend}') center/contain no-repeat !important;
                     background-color: transparent !important;
+                    border: none !important;
+                    box-shadow: none !important;
                 }
             `;
         }
