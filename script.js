@@ -7020,63 +7020,6 @@ ${extraLorePrompt}
         }
     }
 
-        try {
-            const endpoint = getChatEndpoint(api.url);
-            const response = await fetch(endpoint, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${api.key}` },
-                body: JSON.stringify({
-                    model: api.model,
-                    messages: [{ role: 'user', content: worldbookPrompt }],
-                    max_tokens: 2500,
-                    temperature: 0.9
-                })
-            });
-
-            if (!response.ok) throw new Error(await parseApiError(response));
-            const data = await response.json();
-            const result = JSON.parse(extractJSON(data.choices[0].message.content));
-
-            const now = new Date();
-            result.posts.forEach(p => {
-                let generatedReplies = (p.replies || []).map(r => ({
-                    author: r.author,
-                    avatar: `https://api.dicebear.com/9.x/micah/svg?seed=${r.author}`,
-                    content: r.content,
-                    time: now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false })
-                }));
-
-                forumPosts.push({
-                    id: 'thread_' + Date.now() + '_' + Math.floor(Math.random() * 1000),
-                    category: p.category,
-                    title: p.title,
-                    content: p.content,
-                    author: p.author,
-                    avatar: `https://api.dicebear.com/9.x/micah/svg?seed=${p.author}`,
-                    time: now.toLocaleString('en-US', { month:'short', day:'numeric', hour: '2-digit', minute: '2-digit', hour12: false }),
-                    rawTime: now.getTime(),
-                    likes: p.initial_likes || Math.floor(Math.random() * 300 + 10),
-                    liked: false,
-                    boundWbId: selectedWbIds.length > 0 ? selectedWbIds[0] : null,
-                    replies: generatedReplies
-                });
-            });
-
-            DB.set('forumPosts', forumPosts);
-            renderForum();
-        } catch (e) {
-            console.error(e);
-            if (e.message.includes('Unexpected token') || e.message.includes('JSON')) {
-                alert('生成失败：模型拒绝了生成请求。\n\n【原因分析】\n论坛生成的内置提示词包含敏感/成人设定，你当前使用的模型触发了“安全审查”，回复了“很抱歉...”，导致系统无法解析。\n\n【解决方法】\n1. 请在 System -> Engine 中更换为【无审查/破限模型】（如破限版API或无限制的本地模型）。');
-            } else {
-                alert('生成失败: ' + e.message + '\n(请检查网络或在Engine更换模型)');
-            }
-        } finally {
-            btn.innerHTML = 'SYNC<span>生成</span>';
-            btn.disabled = false;
-        }
-    }
-
     async function triggerForumAiReply(threadId, userText) {
         const api = getSubApi('forum');
         const post = forumPosts.find(p => p.id === threadId);
