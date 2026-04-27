@@ -14339,6 +14339,14 @@ document.addEventListener('visibilitychange', () => {
         });
     }
 });
+window.updateRoleTokenCountUI = function(roleId) {
+    const tokenCountEl = document.getElementById('role-token-count');
+    if (tokenCountEl && chats[roleId]) {
+        const tokenCount = chats[roleId].reduce((acc, msg) => acc + (msg.content ? msg.content.length : 0), 0);
+        tokenCountEl.innerText = `当前聊天总计 Token: 约 ${tokenCount}`;
+    }
+};
+
 window.openTokenInspector = function() {
     const roleId = $('#role-realname').dataset.id;
     if (!roleId || !chats[roleId]) return alert("暂无聊天记录");
@@ -14394,8 +14402,8 @@ window.compressMessageToken = async function(index, btn) {
         chats[roleId][index].content = compressed;
         DB.set('chats', chats);
         
-        alert("压缩成功！");
-        window.openTokenInspector(); 
+        window.updateRoleTokenCountUI(roleId); // 更新总Token显示
+        window.openTokenInspector(); // 刷新列表
         if (currentChatRoleId === roleId) renderMessages();
     } catch (e) {
         alert("压缩失败: " + e.message);
@@ -14404,11 +14412,65 @@ window.compressMessageToken = async function(index, btn) {
     }
 };
 
+window.compressAllTokens = async function() {
+    const roleId = $('#role-realname').dataset.id;
+    if (!roleId || !chats[roleId]) return alert("暂无聊天记录");
+    if (!apiConfig.url) return alert("请先配置 API");
+
+    // 筛选出长度大于 500 的消息
+    const longMsgs = chats[roleId].map((m, i) => ({ ...m, originalIndex: i, length: (m.content || '').length })).filter(m => m.length > 500);
+    
+    if (longMsgs.length === 0) {
+        return alert("当前没有长度超过 500 字的消息需要压缩。");
+    }
+
+    if (!confirm(`找到 ${longMsgs.length} 条超长消息，确定要一键压缩吗？这可能需要一些时间。`)) return;
+
+    const btn = document.getElementById('btn-compress-all');
+    const origText = btn.innerText;
+    btn.disabled = true;
+
+    let successCount = 0;
+    const endpoint = getChatEndpoint(apiConfig.url);
+
+    for (let i = 0; i < longMsgs.length; i++) {
+        const msgObj = longMsgs[i];
+        btn.innerText = `正在压缩 (${i + 1}/${longMsgs.length})...`;
+        
+        const prompt = `请将以下长文本压缩为简短的摘要（保留核心信息和关键动作），字数控制在原文本的30%以内。直接输出压缩后的文本，不要加任何解释：\n\n${msgObj.content}`;
+        
+        try {
+            const res = await fetch(endpoint, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiConfig.key}` },
+                body: JSON.stringify({ model: apiConfig.model, messages: [{ role: 'user', content: prompt }], max_tokens: 500, temperature: 0.5 })
+            });
+            const data = await res.json();
+            const compressed = data.choices[0].message.content.trim();
+            
+            chats[roleId][msgObj.originalIndex].content = compressed;
+            successCount++;
+        } catch (e) {
+            console.error(`压缩第 ${i+1} 条失败:`, e);
+        }
+    }
+
+    DB.set('chats', chats);
+    window.updateRoleTokenCountUI(roleId); // 更新总Token显示
+    window.openTokenInspector(); // 刷新列表
+    if (currentChatRoleId === roleId) renderMessages();
+
+    btn.innerText = origText;
+    btn.disabled = false;
+    alert(`一键压缩完成！成功压缩了 ${successCount} 条消息。`);
+};
+
 window.deleteMessageToken = function(index) {
     if (!confirm("确定删除这条长消息吗？")) return;
     const roleId = $('#role-realname').dataset.id;
     chats[roleId].splice(index, 1);
     DB.set('chats', chats);
+    window.updateRoleTokenCountUI(roleId); // 更新总Token显示
     window.openTokenInspector();
     if (currentChatRoleId === roleId) renderMessages();
 };

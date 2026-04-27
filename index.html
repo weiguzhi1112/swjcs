@@ -2524,6 +2524,7 @@
     <div class="modal" style="max-height: 80vh;">
         <h3>Token Inspector <span>消息长度排查</span></h3>
         <div style="font-size: 9px; color: var(--text-secondary); margin-bottom: 10px; text-align: center;">列出当前聊天中最长的 20 条消息</div>
+        <button class="action-btn primary" id="btn-compress-all" style="width: 100%; margin-bottom: 10px;" onclick="window.compressAllTokens()">一键压缩超长消息 (>500字)</button>
         <div id="token-inspector-list" style="flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; min-height: 200px;"></div>
         <div class="modal-btns">
             <button class="btn-confirm" style="width: 100%;" onclick="closeModal('modal-token-inspector')">CLOSE<span>关闭</span></button>
@@ -2531,10 +2532,5 @@
     </div>
 </div>
 <script src="script.js" defer></script>
-<script src="https://unpkg.com/vconsole@latest/dist/vconsole.min.js"></script>
-<script>
-  // 初始化 VConsole
-  var vConsole = new VConsole();
-</script>
 </body>
 </html>
