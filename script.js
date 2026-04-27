@@ -870,7 +870,8 @@ async function checkDiscordCallback() {
         if (mutation.attributeName === 'class') {
             const chatView = mutation.target;
             const role = roles.find(r => r.id === currentChatRoleId);
-            if (!chatView.classList.contains('active') && window.isAiResponding) {
+            window.isAiResponding = window.isAiResponding || {};
+            if (!chatView.classList.contains('active') && currentChatRoleId && window.isAiResponding[currentChatRoleId]) {
                 if (typeof showGlobalTyping === 'function' && role) {
                     const el = document.getElementById('global-typing-indicator');
                     const nameEl = document.getElementById('global-typing-name');
@@ -953,7 +954,8 @@ if (chatViewEl) {
         startAllAutoMsgTimers();
         processPendingBgMessages();
         
-        if (!window.isAiResponding) {
+        window.isAiResponding = window.isAiResponding || {};
+        if (!currentChatRoleId || !window.isAiResponding[currentChatRoleId]) {
             if (typeof hideGlobalTyping === 'function') hideGlobalTyping();
             if (currentChatRoleId && chats[currentChatRoleId]) {
                 const msgs = chats[currentChatRoleId];
@@ -1783,6 +1785,13 @@ function updateKeepAliveUI(isOn) {
 
         function switchChatMode(mode) {
         currentChatMode = mode;
+        if (currentChatRoleId) {
+            const role = roles.find(r => r.id === currentChatRoleId);
+            if (role) {
+                role.lastChatMode = mode;
+                DB.set('roles', roles);
+            }
+        }
         let pText = 'iMessage信息';
         if (currentChatRoleId) {
             const role = roles.find(r => r.id === currentChatRoleId);
@@ -1844,9 +1853,12 @@ function updateKeepAliveUI(isOn) {
         const pColor = role.placeholderColor || '#bbbbbb';
         chatInput.style.setProperty('--placeholder-color', pColor);
         
+        const inputTextColor = role.inputTextColor || (settings.theme === 'dark' ? '#ffffff' : '#000000');
+        chatInput.style.color = inputTextColor;
+        
         chatInput.value = chatInput.value; 
 
-        switchChatMode(role.defaultChatMode || 'online'); 
+        switchChatMode(role.lastChatMode || role.defaultChatMode || 'online'); 
         
         cancelSelectionMode(); 
         cancelQuote(); 
@@ -3568,9 +3580,12 @@ function toInitApp(){toRenderShopList();toRenderAddresses();
 toRenderFavorites();toRenderSearchResults();}
 
         async function triggerAI(isReroll = false) {
-        if (!currentChatRoleId || window.isAiResponding) return;
-
+        if (!currentChatRoleId) return;
+        
         const targetRoleId = currentChatRoleId;
+        window.isAiResponding = window.isAiResponding || {};
+        if (window.isAiResponding[targetRoleId]) return;
+
         const role = roles.find(r => r.id === targetRoleId);
         if (!role) return;
 
@@ -3582,30 +3597,27 @@ toRenderFavorites();toRenderSearchResults();}
         let msgs = chats[targetRoleId] || [];
         if (!isReroll && msgs.length === 0) return;
 
-        window.isAiResponding = true;
+        window.isAiResponding[targetRoleId] = true;
         if (typeof showGlobalTyping === 'function') showGlobalTyping(role.realName);
 
         const now = new Date();
         const timeStr = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
         const msgId = `msg-${now.getTime()}`;
 
-        let finalChatMode = role.defaultChatMode || 'online';
-        if (role.autoSwitchMode && msgs.length > 0) {
+        // 强制锁定当前用户选择的模式
+        let finalChatMode = currentChatMode; 
+        
+        // 如果开启了自动切换且当前是线上模式，才根据字数判断是否切到线下
+        if (role.autoSwitchMode && finalChatMode === 'online' && msgs.length > 0) {
             const lastUserMsg = msgs.slice().reverse().find(m => m.role === 'user');
             if (lastUserMsg && lastUserMsg.content) {
                 const content = lastUserMsg.content;
                 if (/\*.*\*|\(.*\)|（.*）/.test(content) || content.length > 30) {
                     finalChatMode = 'offline';
-                } else if (content.length < 5 && role.defaultChatMode !== 'offline') {
-                    finalChatMode = 'online';
+                    switchChatMode(finalChatMode);
                 }
             }
         }
-        if (role.defaultChatMode === 'offline') {
-            finalChatMode = 'offline';
-        }
-
-        switchChatMode(finalChatMode);
 
         const placeholderMsg = { 
             role: 'ai', 
@@ -3634,7 +3646,8 @@ toRenderFavorites();toRenderSearchResults();}
             if (finalChatMode === 'online') {
                 modeRules = `【线上聊天模式强制规则】\n- 保持简短、自然的网聊风格。\n- 必须严格输出 ${minB} 到 ${maxB} 句话（行）。如果设置了最少${minB}条，你绝对不能少于${minB}条！\n- 每句话必须独占一行（按回车换行），系统会根据换行自动切分为多个气泡。\n- 句末绝对不要加句号。\n- 【格式红线】：绝对禁止使用星号、括号包裹动作描写（如 *笑*、(叹气)），只能输出纯文字对话！`;
             } else {
-                modeRules = `【线下叙事模式强制规则】\n- 严格控制总字数在 ${settings.memoirMaxLength || 400} 字左右。\n- 必须严格按照以下三段式结构输出，绝对不能把对话和旁白揉在同一段里：\n第一段：纯粹的环境描写或心理描写（绝对不含任何对话）\n第二段："双引号包裹的对话文本"（必须独占一段）\n第三段：纯粹的环境描写或心理描写（绝对不含任何对话）\n- 【格式红线】：对话必须用双引号 "" 包裹，且必须单独成段！禁止在对话段落中夹杂动作！`;
+                const targetLength = settings.memoirMaxLength || 400;
+                modeRules = `【线下叙事模式强制规则】\n- 必须强制输出不少于 ${targetLength} 字的长篇叙事！绝对不允许敷衍了事！\n- 必须严格按照以下三段式结构输出，绝对不能把对话和旁白揉在同一段里：\n第一段：纯粹的环境描写或心理描写（绝对不含任何对话）\n第二段："双引号包裹的对话文本"（必须独占一段）\n第三段：纯粹的环境描写或心理描写（绝对不含任何对话）\n- 【格式红线】：对话必须用双引号 "" 包裹，且必须单独成段！禁止在对话段落中夹杂动作！`;
             }
 
             let translationRule = '';
@@ -4006,8 +4019,10 @@ ${modeRules}
             
             alert(`⚠️ AI 回复中断/报错！\n\n【错误信息】\n${err.message}\n\n【解决方案】\n${solution}`);
         } finally {
-            window.isAiResponding = false;
-            if (typeof hideGlobalTyping === 'function') hideGlobalTyping();
+            window.isAiResponding[targetRoleId] = false;
+            if (currentChatRoleId === targetRoleId && typeof hideGlobalTyping === 'function') {
+                hideGlobalTyping();
+            }
         }
     }
     
@@ -4940,6 +4955,7 @@ function updateRoleWbPreview() {
         $('#role-user-bubble-color').value = isEditing && role.userBubbleColor ? role.userBubbleColor : '#000000';
         $('#role-ai-text-color').value = isEditing && role.aiTextColor ? role.aiTextColor : '#ffffff';
         $('#role-user-text-color').value = isEditing && role.userTextColor ? role.userTextColor : '#ffffff';
+        $('#role-input-text-color').value = isEditing && role.inputTextColor ? role.inputTextColor : (settings.theme === 'dark' ? '#ffffff' : '#000000');
         $('#role-bubble-style').value = isEditing && role.bubbleStyle ? role.bubbleStyle : 'flat';
         $('#role-accent-color').value = isEditing && role.accentColor ? role.accentColor : (settings.theme === 'dark' ? '#ffffff' : '#000000');
         $('#role-attachment-color').value = isEditing && role.attachmentColor ? role.attachmentColor : (settings.theme === 'dark' ? '#ffffff' : '#000000');
@@ -5036,6 +5052,7 @@ window.newRoleTempWbs = null;
             userBubbleColor: $('#role-user-bubble-color').value, 
             aiTextColor: $('#role-ai-text-color').value,
             userTextColor: $('#role-user-text-color').value,
+            inputTextColor: $('#role-input-text-color').value,
             bubbleStyle: $('#role-bubble-style').value,
             accentColor: $('#role-accent-color').value,
             attachmentColor: $('#role-attachment-color').value,
