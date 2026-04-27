@@ -14339,7 +14339,7 @@ document.addEventListener('visibilitychange', () => {
         });
     }
 });
-function openTokenInspector() {
+window.openTokenInspector = function() {
     const roleId = $('#role-realname').dataset.id;
     if (!roleId || !chats[roleId]) return alert("暂无聊天记录");
     
@@ -14359,16 +14359,16 @@ function openTokenInspector() {
                 </div>
                 <div style="font-size: 11px; color: var(--text-color); display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; margin-bottom: 8px;">${escapeHTML(m.content)}</div>
                 <div style="display: flex; gap: 5px;">
-                    <button class="action-btn" style="flex: 1; margin: 0; padding: 4px; font-size: 9px;" onclick="compressMessageToken(${m.originalIndex}, this)">AI 压缩</button>
-                    <button class="action-btn" style="flex: 1; margin: 0; padding: 4px; font-size: 9px; border-color: #ff4d4d; color: #ff4d4d;" onclick="deleteMessageToken(${m.originalIndex})">删除</button>
+                    <button class="action-btn" style="flex: 1; margin: 0; padding: 4px; font-size: 9px;" onclick="window.compressMessageToken(${m.originalIndex}, this)">AI 压缩</button>
+                    <button class="action-btn" style="flex: 1; margin: 0; padding: 4px; font-size: 9px; border-color: #ff4d4d; color: #ff4d4d;" onclick="window.deleteMessageToken(${m.originalIndex})">删除</button>
                 </div>
             </div>
         `).join('');
     }
     openModal('modal-token-inspector');
-}
+};
 
-async function compressMessageToken(index, btn) {
+window.compressMessageToken = async function(index, btn) {
     const roleId = $('#role-realname').dataset.id;
     const msg = chats[roleId][index];
     if (!msg || !msg.content) return;
@@ -14395,20 +14395,20 @@ async function compressMessageToken(index, btn) {
         DB.set('chats', chats);
         
         alert("压缩成功！");
-        openTokenInspector(); 
+        window.openTokenInspector(); 
         if (currentChatRoleId === roleId) renderMessages();
     } catch (e) {
         alert("压缩失败: " + e.message);
         btn.innerText = origText;
         btn.disabled = false;
     }
-}
+};
 
-function deleteMessageToken(index) {
+window.deleteMessageToken = function(index) {
     if (!confirm("确定删除这条长消息吗？")) return;
     const roleId = $('#role-realname').dataset.id;
     chats[roleId].splice(index, 1);
     DB.set('chats', chats);
-    openTokenInspector();
+    window.openTokenInspector();
     if (currentChatRoleId === roleId) renderMessages();
-}
+};
