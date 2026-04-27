@@ -3817,6 +3817,9 @@ ${modeRules}
                 text = text.replace(/\[TICKET:(.*?)\]/g, (match, p1) => {
                     try { const data = JSON.parse(decodeURIComponent(p1)); return `[系统提示：用户向你分享了一张票根：${data.title} (${data.subtitle})]`; } catch(e) { return '[收到一张票根]'; }
                 });
+                text = text.replace(/\[FORUM_CARD:(.*?)\]/g, (match, p1) => {
+                    try { const data = JSON.parse(decodeURIComponent(p1)); return `[系统提示：用户向你分享了一个暗网论坛帖子，标题：${data.title}，作者：${data.author}，内容：${data.content}。请根据你的人设对这个帖子发表看法或做出反应。]`; } catch(e) { return '[分享了一个论坛帖子]'; }
+                });
                 text = text.replace(/\[FEED_CARD:(.*?)\]/g, (match, p1) => {
                     try { const data = JSON.parse(decodeURIComponent(p1)); return `[系统提示：用户向你分享了一条动态，作者：${data.author}，内容：${data.content}]`; } catch(e) { return '[分享了一条动态]'; }
                 });
@@ -6706,6 +6709,39 @@ window.newRoleTempWbs = null;
         }
     }
 
+    function toggleForumPostEdit(id) {
+        const titleEl = document.getElementById('forum-thread-title-edit');
+        const contentEl = document.getElementById('forum-thread-content-edit');
+        const btn = document.getElementById('btn-edit-forum-post');
+        
+        if (titleEl.isContentEditable) {
+            titleEl.contentEditable = "false";
+            contentEl.contentEditable = "false";
+            titleEl.style.border = "none";
+            contentEl.style.border = "none";
+            titleEl.style.padding = "0";
+            contentEl.style.padding = "0";
+            btn.innerText = "EDIT";
+            
+            updateForumPost(id, 'title', titleEl.innerText);
+            updateForumPost(id, 'content', contentEl.innerText);
+            renderForumThread(id);
+        } else {
+            const post = forumPosts.find(p => p.id === id);
+            if (post) {
+                contentEl.innerText = post.content;
+            }
+            titleEl.contentEditable = "true";
+            contentEl.contentEditable = "true";
+            titleEl.style.border = "1px dashed var(--border-color)";
+            contentEl.style.border = "1px dashed var(--border-color)";
+            titleEl.style.padding = "5px";
+            contentEl.style.padding = "5px";
+            btn.innerText = "SAVE";
+            titleEl.focus();
+        }
+    }
+
     function closeForumThread() {
         $('#view-forum-thread').classList.remove('active');
         currentThreadId = null;
@@ -6742,8 +6778,11 @@ window.newRoleTempWbs = null;
         `).join('');
 
         $('#forum-thread-full-content').innerHTML = `
-            <div style="font-size: 10px; color: var(--text-secondary); margin-bottom: 10px; font-weight:600; letter-spacing:1px;">[${post.category}]</div>
-            <div style="font-family: var(--font-serif); font-size: 24px; font-weight: 600; margin-bottom: 15px; line-height:1.2;" contenteditable="true" onblur="updateForumPost('${post.id}', 'title', this.innerText)">${post.title}</div>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                <div style="font-size: 10px; color: var(--text-secondary); font-weight:600; letter-spacing:1px;">[${post.category}]</div>
+                <button id="btn-edit-forum-post" class="text-btn" style="padding: 0; font-size: 10px;" onclick="toggleForumPostEdit('${post.id}')">EDIT</button>
+            </div>
+            <div id="forum-thread-title-edit" style="font-family: var(--font-serif); font-size: 24px; font-weight: 600; margin-bottom: 15px; line-height:1.2;">${post.title}</div>
             <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 20px;">
                 <img src="${post.avatar || DEFAULT_AVATAR}" style="width: 36px; height: 36px; border-radius: 50%; border: 1px solid var(--border-color); object-fit:cover; cursor:pointer;" onclick="alert('进入主页功能开发中')">
                 <div>
@@ -6751,7 +6790,7 @@ window.newRoleTempWbs = null;
                     <div style="font-size: 9px; color: var(--text-secondary); margin-top:2px;">${post.time}</div>
                 </div>
             </div>
-            <div style="font-size: 14px; line-height: 1.8; color: var(--text-color); white-space: pre-wrap;" contenteditable="true" onblur="updateForumPost('${post.id}', 'content', this.innerText)">
+            <div id="forum-thread-content-edit" style="font-size: 14px; line-height: 1.8; color: var(--text-color); white-space: pre-wrap;">
     ${post.content.replace(/\[VIRTUAL_IMG:(.*?)\]/g, `<div class="virtual-img-box" data-text="$1" onclick="event.stopPropagation(); revealVirtualText(this)" style="width:100%; height:180px; margin-top:10px; border-radius:0;" contenteditable="false">【图片被小猫吃掉啦】</div>`)}
 </div>
             
@@ -7147,15 +7186,16 @@ ${extraLorePrompt}
         }
 
         const knowUser = document.getElementById('forum-know-user') && document.getElementById('forum-know-user').checked;
+        const userName = settings.userName || 'ME';
         const prompt = `
 你是一个暗网论坛的用户 "${post.author}"。
 你之前发了一个帖子：
 标题：${post.title}
 内容：${post.content}
 
-现在有一个用户回复了你："${userText}"
+现在，${knowUser ? `你现实中认识的人（名字叫 ${userName}）` : `一个陌生的论坛网友`} 回复了你："${userText}"
 请以楼主的身份回复他。语气符合你发帖时的人设（可能是高傲的Dom，也可能是求助的Sub，或者是分享经验的网黄）。
-${knowUser ? '注意：你认识回复你的用户，可以带入你们的关系。' : '注意：你完全不认识回复你的用户，只是一个陌生的看客，绝对不要表现出认识对方。'}
+${knowUser ? `注意：你清楚地知道回复你的人就是 ${userName}，请在回复中自然地带入你们现实中的关系和情感，不要装作不认识。` : '注意：你完全不认识回复你的用户，只是一个陌生的看客，绝对不要表现出认识对方。'}
 只输出回复的正文，不要加引号，不要超过100字。务必严格遵守格式，不要输出多余的解释。
 `;
         try {
@@ -8899,10 +8939,13 @@ async function generateAutoMsg(roleId) {
             textContent = textContent.replace(/$$MUSIC_CARD:(.*?)$$/g, (match, p1) => {
                 try { const data = JSON.parse(decodeURIComponent(p1)); return `[系统提示：用户邀请你一起听歌：《${data.name}》- ${data.artist}]`; } catch(e) { return '[收到一起听歌邀请]'; }
             });
-            textContent = textContent.replace(/$$TICKET:(.*?)$$/g, (match, p1) => {
+            textContent = textContent.replace(/\[TICKET:(.*?)\]/g, (match, p1) => {
                 try { const data = JSON.parse(decodeURIComponent(p1)); return `[系统提示：用户向你分享了一张票根：${data.title} (${data.subtitle})]`; } catch(e) { return '[收到一张票根]'; }
             });
-            textContent = textContent.replace(/$$FEED_CARD:(.*?)$$/g, (match, p1) => {
+            textContent = textContent.replace(/\[FORUM_CARD:(.*?)\]/g, (match, p1) => {
+                try { const data = JSON.parse(decodeURIComponent(p1)); return `[系统提示：用户向你分享了一个暗网论坛帖子，标题：${data.title}，作者：${data.author}，内容：${data.content}。请根据你的人设对这个帖子发表看法或做出反应。]`; } catch(e) { return '[分享了一个论坛帖子]'; }
+            });
+            textContent = textContent.replace(/\[FEED_CARD:(.*?)\]/g, (match, p1) => {
                 try { const data = JSON.parse(decodeURIComponent(p1)); return `[系统提示：用户向你分享了一条动态，作者：${data.author}，内容：${data.content}]`; } catch(e) { return '[分享了一条动态]'; }
             });
             textContent = textContent.replace(/<div class="virtual-img-box" data-text="(.*?)".*?<\/div>/g, '[图片: $1]');
@@ -9705,6 +9748,7 @@ ${extraLorePrompt}
 3. **细节描写**：直接描写身体反应、体液、深度、力度、以及你想要如何折磨或宠幸对方的细节。
 4. **人设统一**：虽然露骨，但必须符合你的性格。高冷者应是闷骚且带有侵略性的，温柔者应是沉溺且带有渴求的，以此类推。
 5. **字数要求**：200-500字，像一个真实的暗网用户在深夜发泄欲望。
+6. **多媒体附件**：如果你想在帖子中附带图片或视频，请在正文合适的位置加上 [VIRTUAL_IMG:这里写图片或视频的详细文字描述]。
 
 必须返回严格的 JSON 格式：
 {
@@ -9737,8 +9781,7 @@ ${extraLorePrompt}
                 title: result.title || "无题",
                 content: result.content || "...",
                 author: getDisplayName(role),
-                avatar: role.avatar || DEFAULT_AVATAR,
-                time: now.toLocaleString('en-US', { month:'short', day:'numeric', hour: '2-digit', minute: '2-digit', hour12: false }),
+                avatar: role.avatar || DEFAULT_AVATAR,                time: now.toLocaleString('en-US', { month:'short', day:'numeric', hour: '2-digit', minute: '2-digit', hour12: false }),
                 rawTime: now.getTime(),
                 likes: Math.floor(Math.random() * 500 + 50),
                 liked: false,
