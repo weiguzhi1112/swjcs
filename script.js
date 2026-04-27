@@ -5174,6 +5174,15 @@ function updateRoleWbPreview() {
         const streakEl = document.getElementById('role-streak-display');
         if (streakEl) streakEl.innerText = streakDays > 0 ? `🔥 已连续对话 ${streakDays} 天` : '尚未开始连续对话';
         
+        const tokenCountEl = document.getElementById('role-token-count');
+        if (tokenCountEl) {
+            let tokenCount = 0;
+            if (isEditing && chats[id]) {
+                tokenCount = chats[id].reduce((acc, msg) => acc + (msg.content ? msg.content.length : 0), 0);
+            }
+            tokenCountEl.innerText = `当前聊天总计 Token: 约 ${tokenCount}`;
+        }
+
         $('#btn-del-role').style.display = isEditing ? 'block' : 'none'; 
         const chatActions = $('#role-chat-actions');
         if (chatActions) chatActions.style.display = isEditing ? 'flex' : 'none';
@@ -5671,7 +5680,23 @@ window.newRoleTempWbs = null;
     });
     DB.set('walletData', walletData);
 
-    alert(`修复完成！共修复了 ${fixCount} 处数据异常（包含多行气泡分割）。`);
+    forumPosts.forEach(post => {
+        if (post.content && post.content.includes('```json')) {
+            post.content = post.content.replace(/```json/g, '').replace(/```/g, '').trim();
+            fixCount++;
+        }
+        if (post.replies) {
+            post.replies.forEach(reply => {
+                if (reply.content && reply.content.includes('```')) {
+                    reply.content = reply.content.replace(/```/g, '').trim();
+                    fixCount++;
+                }
+            });
+        }
+    });
+    DB.set('forumPosts', forumPosts);
+
+    alert(`修复完成！共修复了 ${fixCount} 处数据异常（包含多行气泡分割和论坛格式）。`);
     if (currentChatRoleId) renderMessages();
 }
 
@@ -6654,8 +6679,8 @@ window.newRoleTempWbs = null;
                             ${(p.views > 5000 || p.likes > 300) ? '<span style="font-size: 7px; background: #ff3b30; color: #fff; padding: 1px 5px; text-transform: uppercase; font-weight: 600; letter-spacing: 0.5px; border-radius: 2px;">HOT</span>' : ''}
                             <span style="font-size: 8px; color: var(--text-secondary); margin-left: auto;">${p.time}</span>
                         </div>
-                        <div style="font-family: var(--font-serif); font-size: 15px; font-weight: 600; color: var(--text-color); margin-bottom: 4px; line-height: 1.3;">${p.title}</div>
-                        <div style="font-size: 10px; color: var(--text-secondary); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; line-height: 1.5;">${p.content.replace(/\[VIRTUAL_IMG:(.*?)\]/g, '[图片]')}</div>
+                        <div style="font-family: var(--font-serif); font-size: 15px; font-weight: 600; color: var(--text-color); margin-bottom: 4px; line-height: 1.3;" contenteditable="true" onblur="updateForumPost('${p.id}', 'title', this.innerText)" onclick="event.stopPropagation()">${p.title}</div>
+                        <div style="font-size: 10px; color: var(--text-secondary); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; line-height: 1.5;" contenteditable="true" onblur="updateForumPost('${p.id}', 'content', this.innerText)" onclick="event.stopPropagation()">${p.content.replace(/\[VIRTUAL_IMG:(.*?)\]/g, '[图片]')}</div>
                         <div style="display: flex; gap: 15px; margin-top: 8px; color: var(--text-secondary); font-size: 9px;">
                             <span style="display: flex; gap: 3px; align-items: center;">${iconView} ${p.views || Math.floor(Math.random()*5000 + 100)}</span>
                             <span style="display: flex; gap: 3px; align-items: center;">${iconLike} ${p.likes || 0}</span>
@@ -6671,6 +6696,14 @@ window.newRoleTempWbs = null;
         currentThreadId = id;
         renderForumThread(id);
         $('#view-forum-thread').classList.add('active');
+    }
+
+    function updateForumPost(id, field, value) {
+        const post = forumPosts.find(p => p.id === id);
+        if (post) {
+            post[field] = value;
+            DB.set('forumPosts', forumPosts);
+        }
     }
 
     function closeForumThread() {
@@ -6710,16 +6743,16 @@ window.newRoleTempWbs = null;
 
         $('#forum-thread-full-content').innerHTML = `
             <div style="font-size: 10px; color: var(--text-secondary); margin-bottom: 10px; font-weight:600; letter-spacing:1px;">[${post.category}]</div>
-            <div style="font-family: var(--font-serif); font-size: 24px; font-weight: 600; margin-bottom: 15px; line-height:1.2;">${post.title}</div>
+            <div style="font-family: var(--font-serif); font-size: 24px; font-weight: 600; margin-bottom: 15px; line-height:1.2;" contenteditable="true" onblur="updateForumPost('${post.id}', 'title', this.innerText)">${post.title}</div>
             <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 20px;">
-                <img src="${post.avatar || DEFAULT_AVATAR}" style="width: 36px; height: 36px; border-radius: 50%; border: 1px solid var(--border-color); object-fit:cover;">
+                <img src="${post.avatar || DEFAULT_AVATAR}" style="width: 36px; height: 36px; border-radius: 50%; border: 1px solid var(--border-color); object-fit:cover; cursor:pointer;" onclick="alert('进入主页功能开发中')">
                 <div>
-                    <div style="font-size: 12px; font-weight: 600;">${post.author}</div>
+                    <div style="font-size: 12px; font-weight: 600; cursor:pointer;" onclick="alert('进入主页功能开发中')">${post.author}</div>
                     <div style="font-size: 9px; color: var(--text-secondary); margin-top:2px;">${post.time}</div>
                 </div>
             </div>
-            <div style="font-size: 14px; line-height: 1.8; color: var(--text-color); white-space: pre-wrap;">
-    ${post.content.replace(/$$VIRTUAL_IMG:(.*?)$$/g, `<div class="virtual-img-box" data-text="$1" onclick="event.stopPropagation(); revealVirtualText(this)" style="width:100%; height:180px; margin-top:10px; border-radius:0;">【图片被小猫吃掉啦】</div>`)}
+            <div style="font-size: 14px; line-height: 1.8; color: var(--text-color); white-space: pre-wrap;" contenteditable="true" onblur="updateForumPost('${post.id}', 'content', this.innerText)">
+    ${post.content.replace(/\[VIRTUAL_IMG:(.*?)\]/g, `<div class="virtual-img-box" data-text="$1" onclick="event.stopPropagation(); revealVirtualText(this)" style="width:100%; height:180px; margin-top:10px; border-radius:0;" contenteditable="false">【图片被小猫吃掉啦】</div>`)}
 </div>
             
             <div style="display: flex; gap: 8px; margin-top: 30px; border-bottom: 1px solid var(--border-color); padding-bottom: 20px; position: relative; z-index: 10; flex-wrap: wrap;">
@@ -6804,10 +6837,12 @@ function toggleForumLike(id) {
         const btn = document.getElementById('btn-gen-comment');
         if (btn) { btn.innerText = 'GENERATING...'; btn.disabled = true; }
 
+        const knowUser = document.getElementById('forum-know-user') && document.getElementById('forum-know-user').checked;
         const prompt = `你是一个暗网论坛的匿名用户。请根据以下帖子内容，生成一条符合暗网/字母圈风格的简短评论（可以是吐槽、捧场、接任务、或者发情）。
         帖子标题：${post.title}
         帖子内容：${post.content}
-        要求：只输出评论正文，不要加引号，字数在10-50字之间。语言风格要符合圈内黑话。`;
+        ${knowUser ? '注意：你认识发帖人，可以带入你们的关系。' : '注意：你完全不认识发帖人，只是一个陌生的看客，绝对不要表现出认识对方。'}
+        要求：只输出评论正文，不要加引号，字数在10-50字之间。语言风格要符合圈内黑话。务必严格遵守格式，不要输出多余的解释。`;
 
         try {
             const endpoint = getChatEndpoint(api.url);
@@ -7105,6 +7140,13 @@ ${extraLorePrompt}
         const post = forumPosts.find(p => p.id === threadId);
         if (!post) return;
 
+        const statusEl = document.getElementById('forum-reply-status');
+        if (statusEl) {
+            statusEl.innerText = `${post.author} 正在输入...`;
+            statusEl.style.display = 'block';
+        }
+
+        const knowUser = document.getElementById('forum-know-user') && document.getElementById('forum-know-user').checked;
         const prompt = `
 你是一个暗网论坛的用户 "${post.author}"。
 你之前发了一个帖子：
@@ -7113,7 +7155,8 @@ ${extraLorePrompt}
 
 现在有一个用户回复了你："${userText}"
 请以楼主的身份回复他。语气符合你发帖时的人设（可能是高傲的Dom，也可能是求助的Sub，或者是分享经验的网黄）。
-只输出回复的正文，不要加引号，不要超过100字。
+${knowUser ? '注意：你认识回复你的用户，可以带入你们的关系。' : '注意：你完全不认识回复你的用户，只是一个陌生的看客，绝对不要表现出认识对方。'}
+只输出回复的正文，不要加引号，不要超过100字。务必严格遵守格式，不要输出多余的解释。
 `;
         try {
             const endpoint = getChatEndpoint(api.url);
@@ -7142,6 +7185,9 @@ ${extraLorePrompt}
             renderForum();
         } catch (e) {
             console.log("AI回复失败", e);
+        } finally {
+            const statusEl = document.getElementById('forum-reply-status');
+            if (statusEl) statusEl.style.display = 'none';
         }
     }
     

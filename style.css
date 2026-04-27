@@ -962,8 +962,8 @@ html, body {
 .msg-row.ai .msg-status { color: var(--timestamp-color, var(--text-secondary)) !important; justify-content: center !important; padding: 0 12px !important; }
 .msg-row.me .msg-status::after { display: none !important; }
 .msg-delivery-text { font-size: 10px; font-weight: 400; letter-spacing: 0.3px; }
-.msg-delivery-text.status-delivered { color: var(--text-secondary); }
-.msg-delivery-text.status-read { color: var(--text-secondary); }
+.msg-delivery-text.status-delivered { color: var(--timestamp-color, var(--text-secondary)); }
+.msg-delivery-text.status-read { color: var(--timestamp-color, var(--text-secondary)); }
 .msg-delivery-text.status-failed { color: #ef4444; }
 
 /* =========================================
