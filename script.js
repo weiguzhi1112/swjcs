@@ -859,7 +859,6 @@ async function checkDiscordCallback() {
     updateNotifyInChatUI();
     updateSingleTimestampUI();
     updateCoTDisplayUI();
-    updateChatHeaderOpaqueUI();
     setupKeyboardShortcuts(); 
     setupAudioPlayer();
 
@@ -1530,19 +1529,10 @@ document.addEventListener('DOMContentLoaded', () => {
             chatHeader.style.top = '0';
             chatHeader.style.left = '0';
             chatHeader.style.right = '0';
-            if (settings.chatHeaderOpaque) {
-                // 开启：完全透明，无背景，无边框，显示聊天背景
-                chatHeader.style.background = 'transparent';
-                chatHeader.style.backdropFilter = 'none';
-                chatHeader.style.webkitBackdropFilter = 'none';
-                chatHeader.style.borderBottom = 'none';
-            } else {
-                // 关闭：默认的毛玻璃效果
-                chatHeader.style.background = 'var(--glass-bg)';
-                chatHeader.style.backdropFilter = 'blur(20px)';
-                chatHeader.style.webkitBackdropFilter = 'blur(20px)';
-                chatHeader.style.borderBottom = '1px solid var(--border-color)';
-            }
+            chatHeader.style.background = 'transparent';
+            chatHeader.style.backdropFilter = 'none';
+            chatHeader.style.webkitBackdropFilter = 'none';
+            chatHeader.style.borderBottom = 'none';
             chatMessages.style.paddingTop = 'calc(70px + env(safe-area-inset-top))';
         }
     }
@@ -5805,37 +5795,13 @@ window.newRoleTempWbs = null;
     function renderTimeAwarenessStatus() {
     const statusEl = $('#time-awareness-status');
     if (settings.timeAware) {
-        statusEl.innerText = 'ENHANCED · 每条消息带时间戳';
+        statusEl.innerText = 'ENHANCED · 感知时间';
         statusEl.style.color = 'var(--text-color)';
     } else {
         statusEl.innerText = 'INACTIVE · AI不感知时间';
         statusEl.style.color = 'var(--text-secondary)';
     }
 }
-    function toggleChatHeaderOpaque() { 
-        settings.chatHeaderOpaque = !settings.chatHeaderOpaque; 
-        DB.set('settings', settings); 
-        updateChatHeaderOpaqueUI(); 
-        applySettings(); 
-    } 
-    function updateChatHeaderOpaqueUI() { 
-        const isOn = settings.chatHeaderOpaque || false; 
-        const track = document.getElementById('chat-header-opaque-track'); 
-        const thumb = document.getElementById('chat-header-opaque-thumb'); 
-        const status = document.getElementById('chat-header-opaque-status'); 
-        if (!track || !thumb) return; 
-        if (isOn) { 
-            track.style.background = 'var(--text-color)'; 
-            thumb.style.left = '20px'; 
-            thumb.style.background = 'var(--bg-color)'; 
-            if (status) status.innerText = '已开启：顶栏完全透明，显示聊天背景'; 
-        } else { 
-            track.style.background = 'var(--gray-light)'; 
-            thumb.style.left = '2px'; 
-            thumb.style.background = 'var(--text-color)'; 
-            if (status) status.innerText = '已关闭：顶栏毛玻璃效果，文字更清晰'; 
-        } 
-    }
 
        const DESKTOP_APPS = { ourspace: { name: 'OURSPACE', sub: '心动日常', defaultIconUrl: 'https://img.heliar.top/file/1774013511285_1774013431400.png' }, wallet: { name: 'WALLET', sub: '钱包', defaultIconUrl: 'https://img.heliar.top/file/1775254950249_1775254906961.png' }, messages: { name: 'WECHAT', sub: '信息', defaultIconUrl: 'https://image.uglycat.cc/06gh2h.png' }, contacts: { name: 'DIRECTORY', sub: '通讯录', defaultIconUrl: 'https://img.heliar.top/file/1775255175970_1775255073802.png' }, feed: { name: 'FEED', sub: '动态', defaultIconUrl: 'https://img.heliar.top/file/1775255165794_1775255083124.png' }, music: { name: 'MUSIC', sub: '音乐', defaultIconUrl: 'https://img.heliar.top/file/1775254958459_1775254915365.png' }, masks: { name: 'PERSONAS', sub: '面具', defaultIconUrl: 'https://img.heliar.top/file/1775255165280_1775255099496.png' }, worldbook: { name: 'LORE', sub: '世界书', defaultIconUrl: 'https://img.heliar.top/file/1775255160509_1775255104547.png' }, album: { name: 'GALLERY', sub: '相册', defaultIconUrl: 'https://img.heliar.top/file/1775255167459_1775255109998.png' }, stickers: { name: 'STICKERS', sub: '表情包', defaultIconUrl: 'https://img.heliar.top/file/1775255317084_1775255272600.png' }, weather: { name: 'CLIMATE', sub: '天气', defaultIconUrl: 'https://img.heliar.top/file/1775255315347_1775255278680.png' }, memory: { name: 'MEMORY', sub: '记忆', defaultIconUrl: 'https://img.heliar.top/file/1775255305211_1775255288213.png' }, profile: { name: 'SYSTEM', sub: '设置', defaultIconUrl: 'https://img.heliar.top/file/1775255312935_1775255292122.png' }, appearance: { name: 'VISUALS', sub: '外观', defaultIconUrl: 'https://img.heliar.top/file/1775255539359_1775255395114.png' }, calendar: { name: 'CALENDAR', sub: '日历', defaultIconUrl: 'https://img.heliar.top/file/1775255530103_1775255398416.png' }, forum: { name: 'BBS', sub: '叙欲', defaultIconUrl: 'https://img.heliar.top/file/1775255533786_1775255403609.png' }, cipher: { name: 'CIPHER', sub: '情绪密码', defaultIconUrl: 'https://img.heliar.top/file/1775255548068_1775255406864.png' }, reincarnation: { name: 'PASTLIFE', sub: '前世今生', defaultIconUrl: 'https://img.heliar.top/file/1775255431218_1775255413469.png' }, takeout: { name: 'TAKEOUT', sub: '外卖', defaultIconUrl: 'https://img.heliar.top/file/1775254945792_1775254925975.png' }, map: { name: 'MAP', sub: '地图', defaultIconUrl: 'https://img.heliar.top/file/1775255724786_1772884815291.png' }, grimoire: { name: 'GRIMOIRE', sub: '命之书', defaultIconUrl: 'https://img.heliar.top/file/1775255160509_1775255104547.png' }, beauty: { name: 'BEAUTY', sub: '美容院', defaultIconUrl: 'https://img.heliar.top/file/1775255312935_1775255292122.png' } };
 
@@ -6822,25 +6788,6 @@ function toggleForumLike(id) {
         triggerForumAiReply(currentThreadId, text);
     }
 
-    async function generateForumPosts() {
-        const api = getSubApi('forum');
-        if (!api.url) return alert('请先在 System -> Engine 中配置 API。');
-        
-        const countSelect = document.getElementById('forum-generate-count');
-        const postCount = countSelect ? countSelect.value : 3;
-
-        const selectedWbIds = settings.forumSelectedWbIds || [];
-        let extraLorePrompt = "";
-        if (selectedWbIds.length > 0) {
-            const selectedWbs = worldbooks.filter(w => selectedWbIds.includes(w.id));
-            const wbTexts = selectedWbs.map(w => `设定名称：${w.title || w.keyword || '未命名设定'}\n设定内容：${w.content}`).join('\n\n');
-            extraLorePrompt = `\n\n【特别注意：本次生成的帖子必须严格基于以下世界书设定】：\n${wbTexts}\n请务必让生成的帖子内容符合这些设定的背景！`;
-        }
-        
-        const btn = document.querySelector('#view-forum .view-header .text-btn:last-child');
-        btn.innerText = 'SYNCING...';
-        btn.disabled = true;
-        
     async function generateForumPosts() {
         const api = getSubApi('forum');
         if (!api.url) return alert('请先在 System -> Engine 中配置 API。');
