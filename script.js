@@ -1898,13 +1898,15 @@ function updateKeepAliveUI(isOn) {
         let lastRole = null; 
         container.innerHTML = msgs.map((m, i) => { 
             const realIndex = startIndex + i;
+
             if (m.role === 'system') {
                 const isJoinMsg = m.content === '对方已加入一起听';
                 const exitBtn = isJoinMsg && listenTogetherSession.isActive
                     ? `<div style="margin-top: 6px;"><button onclick="endListenTogetherSession(true)" style="background: var(--text-color); color: var(--bg-color); border: none; font-size: 8px; padding: 4px 10px; letter-spacing: 1px; cursor: pointer; text-transform: uppercase;">退出一起听</button></div>`
                     : '';
                 const checkboxHtml = isSelectionMode ? `<div class="msg-checkbox ${selectedMsgs.has(realIndex) ? 'checked' : ''}" style="margin-right: 8px; margin-top: 0;"></div>` : '';
-                return `<div class="msg-row ${isSelectionMode ? 'selection-mode' : ''}" style="justify-content: center; margin: 5px 0; cursor: pointer;" onclick="handleMsgClick(${realIndex})" onmousedown="handleTouchStart(event, ${realIndex})" onmouseup="handleTouchEnd()" onmouseleave="handleTouchEnd()" ontouchstart="handleTouchStart(event, ${realIndex})" ontouchend="handleTouchEnd()" ontouchcancel="handleTouchEnd()">${checkboxHtml}<div style="background: var(--gray-light); color: var(--text-secondary); font-size: 9px; padding: 4px 10px; border-radius: 10px; text-transform: uppercase; letter-spacing: 1px; text-align: center;">${m.content}${exitBtn}</div></div>`;
+                const sysColor = role.systemTextColor || 'var(--text-secondary)';
+                return `<div class="msg-row ${isSelectionMode ? 'selection-mode' : ''}" style="justify-content: center; margin: 5px 0; cursor: pointer;" onclick="handleMsgClick(${realIndex})" onmousedown="handleTouchStart(event, ${realIndex})" onmouseup="handleTouchEnd()" onmouseleave="handleTouchEnd()" ontouchstart="handleTouchStart(event, ${realIndex})" ontouchend="handleTouchEnd()" ontouchcancel="handleTouchEnd()">${checkboxHtml}<div style="background: var(--gray-light); color: ${sysColor}; font-size: 9px; padding: 4px 10px; border-radius: 10px; text-transform: uppercase; letter-spacing: 1px; text-align: center;">${m.content}${exitBtn}</div></div>`;
             }
             let showAvatar = true; 
             let occupySpace = true;
@@ -2813,12 +2815,19 @@ let currentCallAudioId = null;
             editingMsgIndex = contextMenuTargetIndex; 
             const msg = chats[currentChatRoleId][editingMsgIndex];
             
-            // 优化：将长长的图片 URL 替换为 [图片1] 占位符，方便编辑
             window.editingImageUrls = [];
             let textToEdit = msg.content;
             textToEdit = textToEdit.replace(/<img src="(.*?)" class="chat-inline-img">/g, (match, url) => {
                 window.editingImageUrls.push(url);
-                return `[图片${window.editingImageUrls.length}]`;
+                let desc = '图片';
+                for (let group of stickers) {
+                    let item = group.items.find(i => i.url === url);
+                    if (item && item.virtual) {
+                        desc = item.virtual;
+                        break;
+                    }
+                }
+                return `[VIRTUAL_IMG:${desc}]`;
             });
             
             $('#edit-msg-content').value = textToEdit; 
@@ -2841,10 +2850,14 @@ let currentCallAudioId = null;
         const newTimeStr = $('#edit-msg-timestamp').value;
         
         if(newText) { 
-            // 优化：将 [图片1] 还原回真实的图片 URL
             if (window.editingImageUrls && window.editingImageUrls.length > 0) {
-                window.editingImageUrls.forEach((url, i) => {
-                    newText = newText.replace(`[图片${i+1}]`, `<img src="${url}" class="chat-inline-img">`);
+                let imgIndex = 0;
+                newText = newText.replace(/\[VIRTUAL_IMG:(.*?)\]/g, (match, desc) => {
+                    if (imgIndex < window.editingImageUrls.length) {
+                        const url = window.editingImageUrls[imgIndex++];
+                        return `<img src="${url}" class="chat-inline-img">`;
+                    }
+                    return match;
                 });
             }
 
@@ -5147,6 +5160,7 @@ function updateRoleWbPreview() {
         $('#role-ai-text-color').value = isEditing && role.aiTextColor ? role.aiTextColor : '#ffffff';
         $('#role-user-text-color').value = isEditing && role.userTextColor ? role.userTextColor : '#ffffff';
         $('#role-input-text-color').value = isEditing && role.inputTextColor ? role.inputTextColor : (settings.theme === 'dark' ? '#ffffff' : '#000000');
+        $('#role-system-text-color').value = isEditing && role.systemTextColor ? role.systemTextColor : '#888888';
         $('#role-bubble-style').value = isEditing && role.bubbleStyle ? role.bubbleStyle : 'flat';
         $('#role-accent-color').value = isEditing && role.accentColor ? role.accentColor : (settings.theme === 'dark' ? '#ffffff' : '#000000');
         $('#role-attachment-color').value = isEditing && role.attachmentColor ? role.attachmentColor : (settings.theme === 'dark' ? '#ffffff' : '#000000');
@@ -5254,6 +5268,7 @@ window.newRoleTempWbs = null;
             aiTextColor: $('#role-ai-text-color').value,
             userTextColor: $('#role-user-text-color').value,
             inputTextColor: $('#role-input-text-color').value,
+            systemTextColor: $('#role-system-text-color').value,
             bubbleStyle: $('#role-bubble-style').value,
             accentColor: $('#role-accent-color').value,
             attachmentColor: $('#role-attachment-color').value,
@@ -14324,3 +14339,76 @@ document.addEventListener('visibilitychange', () => {
         });
     }
 });
+function openTokenInspector() {
+    const roleId = $('#role-realname').dataset.id;
+    if (!roleId || !chats[roleId]) return alert("暂无聊天记录");
+    
+    const msgs = chats[roleId].map((m, i) => ({ ...m, originalIndex: i, length: (m.content || '').length }));
+    msgs.sort((a, b) => b.length - a.length);
+    const topMsgs = msgs.slice(0, 20);
+    
+    const list = $('#token-inspector-list');
+    if (topMsgs.length === 0) {
+        list.innerHTML = '<div style="text-align:center; color:var(--text-secondary); font-size:10px;">无数据</div>';
+    } else {
+        list.innerHTML = topMsgs.map(m => `
+            <div style="background: var(--gray-light); padding: 10px; border-radius: 8px; border: 1px solid var(--border-color);">
+                <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                    <span style="font-size: 10px; font-weight: bold;">${m.role === 'user' ? 'ME' : 'AI'} | 长度: ${m.length}</span>
+                    <span style="font-size: 9px; color: var(--text-secondary);">${m.time}</span>
+                </div>
+                <div style="font-size: 11px; color: var(--text-color); display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; margin-bottom: 8px;">${escapeHTML(m.content)}</div>
+                <div style="display: flex; gap: 5px;">
+                    <button class="action-btn" style="flex: 1; margin: 0; padding: 4px; font-size: 9px;" onclick="compressMessageToken(${m.originalIndex}, this)">AI 压缩</button>
+                    <button class="action-btn" style="flex: 1; margin: 0; padding: 4px; font-size: 9px; border-color: #ff4d4d; color: #ff4d4d;" onclick="deleteMessageToken(${m.originalIndex})">删除</button>
+                </div>
+            </div>
+        `).join('');
+    }
+    openModal('modal-token-inspector');
+}
+
+async function compressMessageToken(index, btn) {
+    const roleId = $('#role-realname').dataset.id;
+    const msg = chats[roleId][index];
+    if (!msg || !msg.content) return;
+    
+    if (!apiConfig.url) return alert("请先配置 API");
+    
+    const origText = btn.innerText;
+    btn.innerText = "压缩中...";
+    btn.disabled = true;
+    
+    const prompt = `请将以下长文本压缩为简短的摘要（保留核心信息和关键动作），字数控制在原文本的30%以内。直接输出压缩后的文本，不要加任何解释：\n\n${msg.content}`;
+    
+    try {
+        const endpoint = getChatEndpoint(apiConfig.url);
+        const res = await fetch(endpoint, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiConfig.key}` },
+            body: JSON.stringify({ model: apiConfig.model, messages: [{ role: 'user', content: prompt }], max_tokens: 500, temperature: 0.5 })
+        });
+        const data = await res.json();
+        const compressed = data.choices[0].message.content.trim();
+        
+        chats[roleId][index].content = compressed;
+        DB.set('chats', chats);
+        
+        alert("压缩成功！");
+        openTokenInspector(); 
+        if (currentChatRoleId === roleId) renderMessages();
+    } catch (e) {
+        alert("压缩失败: " + e.message);
+        btn.innerText = origText;
+        btn.disabled = false;
+    }
+}
+
+function deleteMessageToken(index) {
+    if (!confirm("确定删除这条长消息吗？")) return;
+    const roleId = $('#role-realname').dataset.id;
+    chats[roleId].splice(index, 1);
+    DB.set('chats', chats);
+    openTokenInspector();
+    if (currentChatRoleId === roleId) renderMessages();
+}

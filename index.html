@@ -1525,6 +1525,10 @@
             <div style="flex: 1; min-width: 0;"><label>USER TEXT / 用户文字色</label><input type="color" id="role-user-text-color" value="#ffffff" style="width: 100%; height: 40px; padding: 0; border: 1px solid var(--border-color); background: transparent; outline: none; cursor: pointer;"></div>
             <div style="flex: 1; min-width: 0;"><label>INPUT TEXT / 输入框文字色</label><input type="color" id="role-input-text-color" value="#ffffff" style="width: 100%; height: 40px; padding: 0; border: 1px solid var(--border-color); background: transparent; outline: none; cursor: pointer;"></div>
         </div>
+        <div class="setting-group" style="border:none; padding:0; margin-top: 10px;">
+            <label>SYSTEM TEXT COLOR / 系统提示文字色</label>
+            <input type="color" id="role-system-text-color" value="#888888" style="width: 100%; height: 40px; padding: 0; border: 1px solid var(--border-color); background: transparent; outline: none; cursor: pointer;">
+        </div>
         
         <div class="setting-group" style="border:none; padding:0; margin-top: 10px;">
             <label>BUBBLE STYLE / 气泡风格</label>
@@ -1608,7 +1612,10 @@
             </div>
         </div>
 
-        <div style="font-size: 10px; color: var(--text-secondary); margin-top: 10px; text-align: center;" id="role-token-count">当前聊天总计 Token: 0</div>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 10px; padding: 0 10px;">
+            <div style="font-size: 10px; color: var(--text-secondary);" id="role-token-count">当前聊天总计 Token: 0</div>
+            <button class="text-btn" style="padding: 0; font-size: 10px; color: var(--text-color); text-decoration: underline;" onclick="openTokenInspector()">排查面板</button>
+        </div>
         <div style="display: flex; gap: 10px; margin-top: 10px;" id="role-chat-actions">
             <button class="action-btn" style="flex: 1; margin: 0;" onclick="exportCurrentChat()">EXPORT<span>导出记录</span></button>
             <button class="action-btn" style="flex: 1; margin: 0;" onclick="document.getElementById('import-chat-file').click()">IMPORT<span>导入记录</span></button>
@@ -2509,6 +2516,17 @@
         <div id="netease-playlists-container" style="flex: 1; overflow-y: auto; margin-bottom: 10px; min-height: 200px; display: flex; flex-direction: column; gap: 10px;"></div>
         <div class="modal-btns">
             <button class="btn-confirm" style="width: 100%;" onclick="closeModal('modal-netease-playlists')">CLOSE<span>关闭</span></button>
+        </div>
+    </div>
+</div>
+<!-- Token 排查面板弹窗 -->
+<div class="modal-overlay" id="modal-token-inspector">
+    <div class="modal" style="max-height: 80vh;">
+        <h3>Token Inspector <span>消息长度排查</span></h3>
+        <div style="font-size: 9px; color: var(--text-secondary); margin-bottom: 10px; text-align: center;">列出当前聊天中最长的 20 条消息</div>
+        <div id="token-inspector-list" style="flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; min-height: 200px;"></div>
+        <div class="modal-btns">
+            <button class="btn-confirm" style="width: 100%;" onclick="closeModal('modal-token-inspector')">CLOSE<span>关闭</span></button>
         </div>
     </div>
 </div>
