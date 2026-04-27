@@ -300,15 +300,25 @@
             <div class="view-content">
                 
                 <div class="setting-group">
-                    <label>GLOBAL FONT / 全局字体</label>
-                    <div style="display: flex; gap: 15px; align-items: center; margin-top: 8px;">
+                    <label>GLOBAL FONT / 全局字体与颜色</label>
+                    <div style="display: flex; gap: 15px; align-items: center; margin-top: 8px; margin-bottom: 10px;">
                         <div style="flex: 1;">
-                            <label style="font-size: 9px; color: var(--text-secondary);">COLOR / 颜色</label>
+                            <label style="font-size: 9px; color: var(--text-secondary);">MAIN COLOR / 主文本(英文)</label>
                             <input type="color" id="beauty-global-color" value="#000000" oninput="applyBeautyStyles()" style="width: 100%; height: 36px; padding: 2px; border: 1px solid var(--border-color); background: transparent; border-radius: 8px;">
                         </div>
-                        <div style="flex: 2;">
-                            <label style="font-size: 9px; color: var(--text-secondary);">SIZE: <span id="beauty-global-size-label">13</span>px</label>
+                        <div style="flex: 1;">
+                            <label style="font-size: 9px; color: var(--text-secondary);">SUB COLOR / 副文本(中文)</label>
+                            <input type="color" id="beauty-sub-color" value="#666666" oninput="applyBeautyStyles()" style="width: 100%; height: 36px; padding: 2px; border: 1px solid var(--border-color); background: transparent; border-radius: 8px;">
+                        </div>
+                    </div>
+                    <div style="display: flex; gap: 15px; align-items: center;">
+                        <div style="flex: 1;">
+                            <label style="font-size: 9px; color: var(--text-secondary);">GLOBAL SIZE: <span id="beauty-global-size-label">13</span>px</label>
                             <input type="range" id="beauty-global-size" min="10" max="18" step="0.5" value="13" oninput="applyBeautyStyles()">
+                        </div>
+                        <div style="flex: 1;">
+                            <label style="font-size: 9px; color: var(--text-secondary);">BUBBLE SIZE: <span id="beauty-bubble-size-label">14</span>px</label>
+                            <input type="range" id="beauty-bubble-size" min="10" max="20" step="0.5" value="14" oninput="applyBeautyStyles()">
                         </div>
                     </div>
                 </div>
@@ -734,7 +744,7 @@
             <div class="to-scroll" style="flex: 1; overflow-y: auto;">
                 <div id="to-cart-items"></div>
             </div>
-            <div id="to-cart-summary" style="padding:15px 20px; padding-bottom: 90px; background: var(--bg-color); border-top: 1px solid var(--gray-light); flex-shrink: 0;"></div>
+            <div id="to-cart-summary" style="padding:15px 20px; padding-bottom: 20px; background: var(--bg-color); border-top: 1px solid var(--gray-light); flex-shrink: 0;"></div>
         </div>
 
         <!-- 订单确认 -->
@@ -748,7 +758,7 @@
                 <div class="to-order-section"><div class="to-order-section-title">PAYMENT METHOD / 支付方式</div><div id="to-payment-methods"></div></div>
                 <div class="to-order-section" style="border-bottom:none;"><div class="to-order-section-title">SUMMARY / 支付明细</div><div id="to-order-summary"></div></div>
             </div>
-            <div style="padding: 10px 20px 40px 20px; background: var(--bg-color); border-top: 1px solid var(--gray-light); flex-shrink: 0;">
+            <div style="padding: 10px 20px 20px 20px; background: var(--bg-color); border-top: 1px solid var(--gray-light); flex-shrink: 0;">
                 <button class="to-pay-btn" onclick="toSubmitOrder()">确认支付 · ¥<span id="to-pay-total">0</span></button>
             </div>
         </div>

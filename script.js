@@ -1524,13 +1524,21 @@ document.addEventListener('DOMContentLoaded', () => {
         if (typeof applyChatButtons === 'function') applyChatButtons();
         
         const chatHeader = document.getElementById('chat-header');
-        if (chatHeader) {
+        const chatMessages = document.getElementById('chat-messages');
+        if (chatHeader && chatMessages) {
             if (settings.chatHeaderOpaque) {
+                chatHeader.style.position = 'relative';
                 chatHeader.style.background = 'var(--bg-color)';
                 chatHeader.style.borderBottom = '1px solid var(--border-color)';
+                chatMessages.style.paddingTop = '15px';
             } else {
+                chatHeader.style.position = 'absolute';
+                chatHeader.style.top = '0';
+                chatHeader.style.left = '0';
+                chatHeader.style.right = '0';
                 chatHeader.style.background = 'transparent';
                 chatHeader.style.borderBottom = 'none';
+                chatMessages.style.paddingTop = 'calc(70px + env(safe-area-inset-top))';
             }
         }
     }
@@ -1616,7 +1624,12 @@ document.addEventListener('DOMContentLoaded', () => {
         openModal('modal-music-invite'); 
     }
     function closeMusicInviteModal() { currentMusicInvite = null; closeModal('modal-music-invite'); }
-    function playInviteTrack() { if (!currentMusicInvite?.trackId) return; closeMusicInviteModal(); playMusicById(currentMusicInvite.trackId); }
+    function playInviteTrack() { 
+        if (!currentMusicInvite || !currentMusicInvite.trackId) return; 
+        const trackIdToPlay = currentMusicInvite.trackId;
+        closeMusicInviteModal(); 
+        playMusicById(trackIdToPlay); 
+    }
 
     function requestNotificationPermission() {
         if (!("Notification" in window)) {
@@ -1684,7 +1697,7 @@ function showSystemNotification(roleId, title, body, icon) {
     if (!cleanBody.trim()) return;
 
     const now = Date.now();
-    if (now - lastNotifTime < 2000 && lastNotifBody === cleanBody) {
+    if (now - lastNotifTime < 500 && lastNotifBody === cleanBody) {
         return; 
     }
     lastNotifTime = now;
@@ -1696,15 +1709,9 @@ function showSystemNotification(roleId, title, body, icon) {
         return; 
     }
 
-    showInAppNotification(roleId, title, cleanBody, icon);
+    let systemNotifSent = false;
 
-    if (isCurrentChat) return;
-
-    if (!("Notification" in window) || Notification.permission === "denied" || Notification.permission === "default") {
-        return;
-    }
-
-    if (Notification.permission === "granted") {
+    if (!isCurrentChat && "Notification" in window && Notification.permission === "granted") {
         const uniqueTag = 'msg_' + (roleId || 'test') + '_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6);
         const options = { body: cleanBody, icon: icon || DEFAULT_AVATAR, badge: icon || DEFAULT_AVATAR, tag: uniqueTag, renotify: true, silent: false, requireInteraction: false, data: { roleId: roleId } };
 
@@ -1714,15 +1721,22 @@ function showSystemNotification(roleId, title, body, icon) {
                     console.log("SW Notification failed", err);
                 });
             });
+            systemNotifSent = true;
         } else {
             try {
                 const sysNotif = new Notification(title, options);
                 sysNotif.onclick = function(e) { e.preventDefault(); window.focus(); if (roleId) openChat(roleId); sysNotif.close(); };
                 setTimeout(function() { sysNotif.close(); }, 8000);
+                systemNotifSent = true;
             } catch (e) {
                 console.log("Notification API failed", e);
             }
         }
+    }
+
+    // 如果系统通知发送成功，就不再弹局内通知，避免重复打扰
+    if (!systemNotifSent) {
+        showInAppNotification(roleId, title, cleanBody, icon);
     }
 }
 
@@ -1854,7 +1868,7 @@ function updateKeepAliveUI(isOn) {
         chatInput.style.setProperty('--placeholder-color', pColor);
         
         const inputTextColor = role.inputTextColor || (settings.theme === 'dark' ? '#ffffff' : '#000000');
-        chatInput.style.color = inputTextColor;
+        chatInput.style.setProperty('color', inputTextColor, 'important'); // 强化优先级
         
         chatInput.value = chatInput.value; 
 
@@ -3764,7 +3778,8 @@ ${modeRules}
             addApiLog('Chat Request', JSON.stringify(logBody, null, 2));
 
             const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 300000); 
+            // 将超时时间延长至 600 秒 (10分钟)，防止线下模式长文本被截断
+            const timeoutId = setTimeout(() => controller.abort(), 600000); 
 
             let response;
             try {
@@ -3778,7 +3793,7 @@ ${modeRules}
             } catch (fetchErr) {
                 clearTimeout(timeoutId);
                 if (fetchErr.name === 'AbortError') {
-                    throw new Error("请求超时 (300秒未响应)，请检查网络或更换 API 节点。");
+                    throw new Error("请求超时 (600秒未响应)，可能是模型生成太慢或 API 节点中断。");
                 }
                 throw fetchErr;
             }
@@ -3940,6 +3955,13 @@ ${modeRules}
                     rawTime: now.getTime() + 1, 
                     mode: 'online' 
                 });
+
+                // 修复：扣除角色余额并写入角色账单明细
+                if (!walletData[targetRoleId]) walletData[targetRoleId] = { balance: 0, huabei: 0, bankCards: [], familyCards: [], bills: [] };
+                walletData[targetRoleId].balance -= amount;
+                const nowStr = new Date().toLocaleString('zh-CN');
+                walletData[targetRoleId].bills.unshift({ time: nowStr, location: '线上交易', merchant: `转账给 ${settings.userName || 'ME'}`, amount: -amount, method: '钱包余额' });
+                DB.set('walletData', walletData);
             }
 
             // 拦截 AI 生成的票根指令 (修复 AI 混合文字导致票根变乱码的毒瘤)
@@ -3983,11 +4005,44 @@ ${modeRules}
                 });
             }
             
+            // 修复：AI 回复时，自动接收用户发起的转账，并写入角色账单
+            for (let i = chats[targetRoleId].length - 1; i >= 0; i--) {
+                let m = chats[targetRoleId][i];
+                if (m.role === 'user' && m.content.startsWith('[TRANSFER:')) {
+                    try {
+                        let raw = m.content.match(/\[TRANSFER:(.*?)\]/)[1];
+                        let card = JSON.parse(decodeURIComponent(raw));
+                        if (card.status === '待接收') {
+                            card.status = '已接收';
+                            m.content = `[TRANSFER:${encodeURIComponent(JSON.stringify(card))}]`;
+                            
+                            // 角色钱包加钱并记录账单
+                            if (!walletData[targetRoleId]) walletData[targetRoleId] = { balance: 0, huabei: 0, bankCards: [], familyCards: [], bills: [] };
+                            walletData[targetRoleId].balance += card.amount;
+                            const nowStr = new Date().toLocaleString('zh-CN');
+                            walletData[targetRoleId].bills.unshift({ time: nowStr, location: '线上交易', merchant: `收到 ${settings.userName || 'ME'} 转账`, amount: card.amount, method: '转入余额' });
+                            DB.set('walletData', walletData);
+                        }
+                    } catch(e) {}
+                }
+                // 只往回找最近的10条，避免遍历太深
+                if (chats[targetRoleId].length - i > 10) break;
+            }
+
             DB.set('chats', chats);
             if (currentChatRoleId === targetRoleId) renderMessages();
             
             if (document.hidden) {
-                showSystemNotification(targetRoleId, getDisplayName(role), finalChatMode === 'offline' ? formattedReply : finalSentences.join(' '), role.avatar);
+                if (finalChatMode === 'offline' || fullReply.includes('===TRANSLATION===')) {
+                    showSystemNotification(targetRoleId, getDisplayName(role), formattedReply, role.avatar);
+                } else {
+                    // 线上模式：每个气泡单独弹一次通知，错开时间
+                    finalSentences.forEach((sentence, idx) => {
+                        setTimeout(() => {
+                            showSystemNotification(targetRoleId, getDisplayName(role), sentence, role.avatar);
+                        }, idx * 1200); 
+                    });
+                }
             }
 
         } catch (err) {
@@ -5370,6 +5425,7 @@ window.newRoleTempWbs = null;
         }
         settings.bgImage = bgVal; 
         
+        settings.appTextColor = $('#beauty-app-text-color').value; // 修复：保存桌面图标文字颜色
         settings.fontSize = $('#beauty-font').value; 
         settings.bubblePadding = $('#beauty-pad').value; 
         settings.avatarSize = $('#beauty-avatar').value; 
@@ -5571,7 +5627,18 @@ window.newRoleTempWbs = null;
     }
         function refreshStorageVisual() {
         function getByteSize(obj) {
-            try { return new Blob([JSON.stringify(obj)]).size; } catch(e) { return 0; }
+            try { 
+                // 避免循环引用导致 JSON.stringify 报错崩溃
+                const cache = new Set();
+                const str = JSON.stringify(obj, (key, value) => {
+                    if (typeof value === 'object' && value !== null) {
+                        if (cache.has(value)) return;
+                        cache.add(value);
+                    }
+                    return value;
+                });
+                return new Blob([str]).size; 
+            } catch(e) { return 0; }
         }
         function formatBytes(bytes) {
             if (bytes < 1024) return bytes + ' B';
@@ -11282,7 +11349,8 @@ function onAiAvatarDblClick() {
     }
 
     function confirmWalletBg() {
-        const url = $('#wallet-bg-url').value.trim();
+        let url = $('#wallet-bg-url').value.trim();
+        if (url === '已上传本地图片 (重新上传覆盖)') url = $('#wallet-bg-url').dataset.realValue || '';
         if (!url) return alert('请输入或上传图片');
         if (currentWalletBgTarget.type === 'main') {
             walletData[currentWalletAccount].mainBg = url;
@@ -11694,7 +11762,9 @@ function onAiAvatarDblClick() {
         
         const role = roles.find(r => r.id === currentChatRoleId);
         const roleName = role ? getDisplayName(role) : '未知角色';
-        addWalletBill(`转账给 ${roleName}`, -amount, methodName);
+        
+        const nowStr = new Date().toLocaleString('zh-CN');
+        walletData['ME'].bills.unshift({ time: nowStr, location: '线上交易', merchant: `转账给 ${roleName}`, amount: -amount, method: methodName });
         DB.set('walletData', walletData);
         
         const activeMask = masks.find(m => m.id === role.activeMaskId) || masks.find(m => m.id === 'default') || masks[0];
@@ -11927,7 +11997,9 @@ function onAiAvatarDblClick() {
             
             if (!walletData['ME']) walletData['ME'] = { balance: 0, huabei: 0, bankCards: [], familyCards: [], bills: [] };
             walletData['ME'].balance += card.amount;
-            addWalletBill(`收到 ${card.senderName} 转账`, card.amount, '转入余额');
+            
+            const nowStr = new Date().toLocaleString('zh-CN');
+            walletData['ME'].bills.unshift({ time: nowStr, location: '线上交易', merchant: `收到 ${card.senderName} 转账`, amount: card.amount, method: '转入余额' });
             DB.set('walletData', walletData);
             
             const now = new Date();
@@ -13810,14 +13882,19 @@ async function playGrimoireBGM(level, keywordContext) {
 function openBeautyApp() {
     const lastSettings = DB.get('lastActiveBeautySettings', {
         color: '#000000',
+        subColor: '#666666',
         size: 13,
+        bubbleSize: 14,
         chatCss: '',
         bubbleCss: ''
     });
     
     $('#beauty-global-color').value = lastSettings.color;
+    $('#beauty-sub-color').value = lastSettings.subColor || '#666666';
     $('#beauty-global-size').value = lastSettings.size;
     $('#beauty-global-size-label').innerText = lastSettings.size;
+    $('#beauty-bubble-size').value = lastSettings.bubbleSize || 14;
+    $('#beauty-bubble-size-label').innerText = lastSettings.bubbleSize || 14;
     $('#beauty-chat-css').value = lastSettings.chatCss;
     $('#beauty-bubble-css').value = lastSettings.bubbleCss;
 
@@ -13826,11 +13903,14 @@ function openBeautyApp() {
 
 function applyBeautyStyles() {
     const color = $('#beauty-global-color').value;
+    const subColor = $('#beauty-sub-color').value;
     const size = $('#beauty-global-size').value;
+    const bubbleSize = $('#beauty-bubble-size').value;
     const chatCss = $('#beauty-chat-css').value;
     const bubbleCss = $('#beauty-bubble-css').value;
 
     $('#beauty-global-size-label').innerText = size;
+    $('#beauty-bubble-size-label').innerText = bubbleSize;
 
     let globalStyleEl = document.getElementById('dynamic-global-style');
     if (!globalStyleEl) {
@@ -13839,9 +13919,16 @@ function applyBeautyStyles() {
         document.head.appendChild(globalStyleEl);
     }
     globalStyleEl.innerHTML = `
-        :root { --text-color: ${color} !important; --font-size: ${size}px !important; }
-        [data-theme="dark"] { --text-color: ${color} !important; }
-        .msg-bubble { font-size: ${size}px !important; }
+        :root { 
+            --text-color: ${color} !important; 
+            --text-secondary: ${subColor} !important;
+            --font-size: ${size}px !important; 
+        }
+        [data-theme="dark"] { 
+            --text-color: ${color} !important; 
+            --text-secondary: ${subColor} !important;
+        }
+        .msg-bubble { font-size: ${bubbleSize}px !important; }
         #chat-input { font-size: ${size}px !important; }
     `;
 
@@ -13861,7 +13948,7 @@ function applyBeautyStyles() {
     }
     bubbleStyleEl.innerHTML = bubbleCss;
 
-    DB.set('lastActiveBeautySettings', { color, size, chatCss, bubbleCss });
+    DB.set('lastActiveBeautySettings', { color, subColor, size, bubbleSize, chatCss, bubbleCss });
 }
 
 function renderBeautyPresets() {
@@ -13896,7 +13983,9 @@ function saveBeautyPreset() {
         name: name,
         styles: {
             color: $('#beauty-global-color').value,
+            subColor: $('#beauty-sub-color').value,
             size: $('#beauty-global-size').value,
+            bubbleSize: $('#beauty-bubble-size').value,
             chatCss: $('#beauty-chat-css').value,
             bubbleCss: $('#beauty-bubble-css').value
         }
@@ -13912,7 +14001,9 @@ function loadBeautyPreset(id) {
     if (!preset) return;
 
     $('#beauty-global-color').value = preset.styles.color;
+    $('#beauty-sub-color').value = preset.styles.subColor || '#666666';
     $('#beauty-global-size').value = preset.styles.size;
+    $('#beauty-bubble-size').value = preset.styles.bubbleSize || 14;
     $('#beauty-chat-css').value = preset.styles.chatCss;
     $('#beauty-bubble-css').value = preset.styles.bubbleCss;
     
