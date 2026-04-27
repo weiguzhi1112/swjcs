@@ -957,9 +957,9 @@ html, body {
 
 /* ==================== 时间戳在气泡外部 + 纯文字消息状态 ==================== */
 .msg-wrapper { position: relative; }
-.msg-status { position: relative !important; bottom: auto !important; font-size: 10px !important; font-weight: 400 !important; margin-top: 4px !important; margin-bottom: 4px !important; display: inline-flex !important; align-items: center !important; gap: 6px !important; white-space: nowrap !important; letter-spacing: 0 !important; text-transform: none !important; color: var(--text-secondary) !important; padding: 0 4px !important; }
-.msg-row.me .msg-status { color: var(--text-secondary) !important; justify-content: center !important; }
-.msg-row.ai .msg-status { color: var(--text-secondary) !important; justify-content: center !important; padding: 0 12px !important; }
+.msg-status { position: relative !important; bottom: auto !important; font-size: 10px !important; font-weight: 400 !important; margin-top: 4px !important; margin-bottom: 4px !important; display: inline-flex !important; align-items: center !important; gap: 6px !important; white-space: nowrap !important; letter-spacing: 0 !important; text-transform: none !important; color: var(--timestamp-color, var(--text-secondary)) !important; padding: 0 4px !important; }
+.msg-row.me .msg-status { color: var(--timestamp-color, var(--text-secondary)) !important; justify-content: center !important; }
+.msg-row.ai .msg-status { color: var(--timestamp-color, var(--text-secondary)) !important; justify-content: center !important; padding: 0 12px !important; }
 .msg-row.me .msg-status::after { display: none !important; }
 .msg-delivery-text { font-size: 10px; font-weight: 400; letter-spacing: 0.3px; }
 .msg-delivery-text.status-delivered { color: var(--text-secondary); }

@@ -1343,7 +1343,29 @@
             </div>
         </div>
 
-<div id="context-menu-overlay" onclick="closeContextMenu()"><div id="context-menu" onclick="event.stopPropagation()"><button class="ctx-btn" onclick="quoteMessage()">QUOTE <span>引用回复</span></button><button class="ctx-btn" onclick="enterSelectionMode()">SELECT <span>多选操作</span></button><button class="ctx-btn" onclick="editMessageFromMenu()">EDIT <span>编辑内容</span></button><button class="ctx-btn" onclick="debugMessageFromMenu()">DEBUG <span>调试/源码</span></button><button class="ctx-btn" onclick="regenerateFromMenu()">REGENERATE <span>重新生成</span></button><button class="ctx-btn danger" onclick="deleteSingleMessage()">DELETE <span>删除此条</span></button></div></div>
+<div id="context-menu-overlay" onclick="closeContextMenu()"><div id="context-menu" onclick="event.stopPropagation()"><button class="ctx-btn" onclick="quoteMessage()">QUOTE <span>引用回复</span></button><button class="ctx-btn" onclick="enterSelectionMode()">SELECT <span>多选操作</span></button><button class="ctx-btn" onclick="editMessageFromMenu()">EDIT <span>编辑内容</span></button><button class="ctx-btn" onclick="quickFixFromMenu()">QUICK FIX <span>快捷修复格式</span></button><button class="ctx-btn" onclick="debugMessageFromMenu()">DEBUG <span>调试/源码</span></button><button class="ctx-btn" onclick="regenerateFromMenu()">REGENERATE <span>重新生成</span></button><button class="ctx-btn danger" onclick="deleteSingleMessage()">DELETE <span>删除此条</span></button></div></div>
+
+<!-- 快捷修复弹窗 -->
+<div class="modal-overlay" id="modal-quick-fix">
+    <div class="modal">
+        <h3>Quick Fix <span>快捷修复消息格式</span></h3>
+        <div class="setting-group" style="border:none; padding:0;">
+            <label>MESSAGE TYPE / 消息类型</label>
+            <select id="qf-type" onchange="updateQfFields()" style="margin-bottom:10px;">
+                <option value="voice">语音消息</option>
+                <option value="image">虚拟图片/表情包</option>
+                <option value="transfer">转账卡片</option>
+                <option value="pay_req">代付请求</option>
+                <option value="text">纯文本 (清除所有格式)</option>
+            </select>
+        </div>
+        <div id="qf-fields" class="setting-group" style="border:none; padding:0;"></div>
+        <div class="modal-btns">
+            <button class="btn-cancel" onclick="closeModal('modal-quick-fix')">CANCEL<span>取消</span></button>
+            <button class="btn-confirm" onclick="saveQuickFix()">APPLY<span>应用修复</span></button>
+        </div>
+    </div>
+</div>
 <div class="modal-overlay" id="modal-feed-profile"><div class="modal"><h3>My Space <span>个人空间</span></h3><div class="setting-group" style="border:none; padding:0;"><h4>Post Update <span>发布动态</span></h4><textarea id="feed-post-content" placeholder="What's on your mind?..." style="height: 60px;"></textarea><input type="text" id="feed-post-img" placeholder="IMAGE URL OR VIRTUAL TEXT (OPTIONAL)" style="margin-top:10px;"><label class="file-upload-btn" style="margin-top:5px;">LOCAL UPLOAD<input type="file" style="display:none" accept="image/*" onchange="handleImageUpload(this, 'feed-post-img')"></label><button class="action-btn primary" style="width:100%; margin-top:10px;" onclick="postUserFeed()">POST <span>发布</span></button></div><div class="setting-group" style="border:none; padding:0; border-top: 1px solid var(--border-color); padding-top: 20px;"><h4>Profile <span>资料修改</span></h4><input type="text" id="feed-user-name-input" placeholder="USERNAME"><input type="text" id="feed-user-avatar-input" placeholder="AVATAR URL" style="margin-top:10px;"><label class="file-upload-btn" style="margin-top:5px;">LOCAL AVATAR<input type="file" style="display:none" accept="image/*" onchange="handleImageUpload(this, 'feed-user-avatar-input')"></label></div><div class="modal-btns"><button class="btn-cancel" onclick="closeModal('modal-feed-profile')">CLOSE<span>关闭</span></button><button class="btn-confirm" onclick="saveFeedProfile()">SAVE<span>保存资料</span></button></div></div></div>
 <!-- 导出数据多选弹窗 -->
 <div class="modal-overlay" id="modal-export-select">
@@ -1537,6 +1559,11 @@
         <div class="setting-group" style="border:none; padding:0; margin-top: 10px;">
             <label>PLACEHOLDER COLOR / 提示文字颜色</label>
             <input type="color" id="role-placeholder-color" value="#bbbbbb" style="width: 100%; height: 40px; padding: 0; border: 1px solid var(--border-color); background: transparent; outline: none; cursor: pointer;">
+        </div>
+
+        <div class="setting-group" style="border:none; padding:0; margin-top: 10px;">
+            <label>TIMESTAMP COLOR / 时间戳颜色</label>
+            <input type="color" id="role-timestamp-color" value="#888888" style="width: 100%; height: 40px; padding: 0; border: 1px solid var(--border-color); background: transparent; outline: none; cursor: pointer;">
         </div>
 
         <div style="margin-top: 20px; padding: 15px; border: 1px solid var(--border-color); background: var(--gray-light); border-radius: 12px;">

@@ -1858,6 +1858,7 @@ function updateKeepAliveUI(isOn) {
         
         const pColor = role.placeholderColor || '#bbbbbb';
         chatInput.style.setProperty('--placeholder-color', pColor);
+        $('#chat-view').style.setProperty('--timestamp-color', role.timestampColor || 'var(--text-secondary)');
         
         const inputTextColor = role.inputTextColor || (settings.theme === 'dark' ? '#ffffff' : '#000000');
         chatInput.style.setProperty('color', inputTextColor, 'important'); // 强化优先级
@@ -2313,6 +2314,78 @@ function updateKeepAliveUI(isOn) {
     }
     function openContextMenu(index) { contextMenuTargetIndex = index; $('#context-menu-overlay').style.display = 'flex'; setTimeout(() => $('#context-menu').classList.add('active'), 10); }
     function closeContextMenu() { $('#context-menu').classList.remove('active'); $('#context-menu-overlay').style.display = 'none'; }
+
+    function quickFixFromMenu() {
+        if(contextMenuTargetIndex > -1) {
+            editingMsgIndex = contextMenuTargetIndex;
+            const msg = chats[currentChatRoleId][editingMsgIndex];
+            const content = msg.content || '';
+            
+            if (content.includes('[VOICE:') || content.includes('语音')) $('#qf-type').value = 'voice';
+            else if (content.includes('[VIRTUAL_IMG:') || content.includes('图片') || content.includes('表情')) $('#qf-type').value = 'image';
+            else if (content.includes('[TRANSFER:') || content.includes('转账')) $('#qf-type').value = 'transfer';
+            else if (content.includes('[PAY_REQUEST:') || content.includes('代付')) $('#qf-type').value = 'pay_req';
+            else $('#qf-type').value = 'text';
+            
+            updateQfFields(content);
+            openModal('modal-quick-fix');
+        }
+        closeContextMenu();
+    }
+    
+    function updateQfFields(originalContent = '') {
+        const type = $('#qf-type').value;
+        const fields = $('#qf-fields');
+        let html = '';
+        const cleanText = originalContent.replace(/\[.*?\]/g, '').replace(/<[^>]*>/g, '').trim();
+
+        if (type === 'voice') {
+            html = `<label>VOICE DURATION / 语音时长(秒)</label><input type="number" id="qf-voice-dur" placeholder="例如: 5" value="5" style="margin-bottom:10px;"><label>VOICE TEXT / 语音文本</label><textarea id="qf-voice-text" placeholder="输入语音转文字的内容...">${cleanText}</textarea>`;
+        } else if (type === 'image') {
+            html = `<label>IMAGE DESCRIPTION / 图片或表情包描述</label><input type="text" id="qf-img-desc" placeholder="例如: 一只可爱的小猫" value="${cleanText}">`;
+        } else if (type === 'transfer') {
+            html = `<label>TRANSFER AMOUNT / 转账金额 (¥)</label><input type="number" id="qf-tx-amount" placeholder="例如: 520" value="520">`;
+        } else if (type === 'pay_req') {
+            html = `<label>ITEM NAME / 商品名称</label><input type="text" id="qf-pay-shop" placeholder="例如: 奶茶/礼物" value="礼物" style="margin-bottom:10px;"><label>AMOUNT / 代付金额 (¥)</label><input type="number" id="qf-pay-amount" placeholder="例如: 1314" value="1314">`;
+        } else {
+            html = `<label>TEXT CONTENT / 纯文本内容</label><textarea id="qf-text-content" placeholder="输入纯文本...">${cleanText}</textarea>`;
+        }
+        fields.innerHTML = html;
+    }
+    
+    function saveQuickFix() {
+        const type = $('#qf-type').value;
+        let newContent = '';
+        const role = roles.find(r => r.id === currentChatRoleId);
+        const isAi = chats[currentChatRoleId][editingMsgIndex].role === 'ai';
+        const senderName = isAi ? getDisplayName(role) : (settings.userName || 'ME');
+        const senderAvatar = isAi ? (role.avatar || DEFAULT_AVATAR) : (settings.userAvatar || DEFAULT_AVATAR);
+
+        if (type === 'voice') {
+            const dur = $('#qf-voice-dur').value || 5;
+            const txt = $('#qf-voice-text').value.trim();
+            newContent = `[VOICE:${dur}s|${txt}]`;
+        } else if (type === 'image') {
+            const desc = $('#qf-img-desc').value.trim();
+            newContent = `[VIRTUAL_IMG:${desc}]`;
+        } else if (type === 'transfer') {
+            const amt = parseFloat($('#qf-tx-amount').value) || 0;
+            const payload = { id: 'TX_FIX_' + Date.now(), amount: amt, senderName: senderName, senderAvatar: senderAvatar, status: '待接收', time: Date.now() };
+            newContent = `[TRANSFER:${encodeURIComponent(JSON.stringify(payload))}]`;
+        } else if (type === 'pay_req') {
+            const shop = $('#qf-pay-shop').value.trim() || '未知商品';
+            const amt = parseFloat($('#qf-pay-amount').value) || 0;
+            const payload = { shopName: shop, total: amt, emoji: '🛍️', orderId: 'TO_FIX_' + Date.now() };
+            newContent = `[PAY_REQUEST:${encodeURIComponent(JSON.stringify(payload))}]`;
+        } else {
+            newContent = $('#qf-text-content').value.trim();
+        }
+        
+        chats[currentChatRoleId][editingMsgIndex].content = newContent;
+        DB.set('chats', chats);
+        closeModal('modal-quick-fix');
+        renderMessages();
+    }
     function quoteMessage() { if(contextMenuTargetIndex > -1) { const msg = chats[currentChatRoleId][contextMenuTargetIndex]; quotedMsgText = msg.content; $('#quote-preview-text').innerText = quotedMsgText; $('#quote-preview-bar').style.display = 'flex'; } closeContextMenu(); }
     function cancelQuote() { quotedMsgText = null; $('#quote-preview-bar').style.display = 'none'; }
     function enterSelectionMode() { isSelectionMode = true; selectedMsgs.clear(); if(contextMenuTargetIndex > -1) selectedMsgs.add(contextMenuTargetIndex); $('#selection-action-bar').style.display = 'flex'; $('#input-area-container').style.display = 'none'; closeContextMenu(); renderMessages(); }
@@ -5053,6 +5126,7 @@ function updateRoleWbPreview() {
         $('#role-tts-voice-id').value = isEditing && role.ttsVoiceId ? role.ttsVoiceId : '';
         $('#role-placeholder-text').value = isEditing && role.placeholderText ? role.placeholderText : 'iMessage信息';
         $('#role-placeholder-color').value = isEditing && role.placeholderColor ? role.placeholderColor : '#bbbbbb';
+        $('#role-timestamp-color').value = isEditing && role.timestampColor ? role.timestampColor : '#888888';
         $('#role-location-city').value = isEditing && role.locationCity ? role.locationCity : '';
         $('#role-location-real').value = isEditing && role.locationReal ? role.locationReal : '';
         
@@ -5150,6 +5224,7 @@ window.newRoleTempWbs = null;
             ttsVoiceId: $('#role-tts-voice-id').value.trim(),
             placeholderText: $('#role-placeholder-text').value.trim(),
             placeholderColor: $('#role-placeholder-color').value,
+            timestampColor: $('#role-timestamp-color').value,
             locationCity: $('#role-location-city').value.trim(),
             locationReal: $('#role-location-real').value.trim(),
             weatherInfo: document.getElementById('role-weather-preview').dataset.rawInfo || '',
@@ -6488,6 +6563,7 @@ window.newRoleTempWbs = null;
 
         const iconComment = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>`;
         const iconLike = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>`;
+        const iconView = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>`;
 
                 if (currentForumFilter === 'PROFILE') {
             let myPosts = forumPosts.filter(p => p.author === (settings.userName || 'ME'));
@@ -6502,6 +6578,7 @@ window.newRoleTempWbs = null;
                         <div class="msg-checkbox ${selectedForumPosts.has(p.id) ? 'checked' : ''}" style="display: ${isForumSelectionMode ? 'block' : 'none'}; position: absolute; right: 20px; top: 20px;"></div>
                         <div style="font-family: var(--font-serif); font-size: 16px; font-weight: 600; color: var(--text-color); margin-bottom: 5px;">${p.title}</div>
                         <div style="font-size: 9px; color: var(--text-secondary); display:flex; gap:10px; align-items:center;">
+                            <span style="display:flex; gap:3px; align-items:center;">${iconView} ${p.views || Math.floor(Math.random()*5000 + 100)}</span>
                             <span style="display:flex; gap:3px; align-items:center;">${iconComment} ${p.replies ? p.replies.length : 0}</span> 
                             <span style="display:flex; gap:3px; align-items:center;">${iconLike} ${p.likes || 0}</span> 
                             <span>${p.time}</span>
@@ -6573,12 +6650,14 @@ window.newRoleTempWbs = null;
                     <div style="flex: 1; min-width: 0; padding-right: ${isForumSelectionMode ? '20px' : '0'};">
                         <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 4px;">
                             <span style="font-size: 11px; font-weight: 600; color: var(--text-color);">${p.author}</span>
-                            <span style="font-size: 7px; background: var(--text-color); color: var(--bg-color); padding: 1px 5px; text-transform: uppercase; font-weight: 600; letter-spacing: 0.5px;">${p.category}</span>
+                            <span style="font-size: 7px; background: var(--text-color); color: var(--bg-color); padding: 1px 5px; text-transform: uppercase; font-weight: 600; letter-spacing: 0.5px; border-radius: 2px;">${p.category}</span>
+                            ${(p.views > 5000 || p.likes > 300) ? '<span style="font-size: 7px; background: #ff3b30; color: #fff; padding: 1px 5px; text-transform: uppercase; font-weight: 600; letter-spacing: 0.5px; border-radius: 2px;">HOT</span>' : ''}
                             <span style="font-size: 8px; color: var(--text-secondary); margin-left: auto;">${p.time}</span>
                         </div>
                         <div style="font-family: var(--font-serif); font-size: 15px; font-weight: 600; color: var(--text-color); margin-bottom: 4px; line-height: 1.3;">${p.title}</div>
-                        <div style="font-size: 10px; color: var(--text-secondary); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; line-height: 1.5;">${p.content.replace(/$$VIRTUAL_IMG:(.*?)$$/g, '[图片]')}</div>
+                        <div style="font-size: 10px; color: var(--text-secondary); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; line-height: 1.5;">${p.content.replace(/\[VIRTUAL_IMG:(.*?)\]/g, '[图片]')}</div>
                         <div style="display: flex; gap: 15px; margin-top: 8px; color: var(--text-secondary); font-size: 9px;">
+                            <span style="display: flex; gap: 3px; align-items: center;">${iconView} ${p.views || Math.floor(Math.random()*5000 + 100)}</span>
                             <span style="display: flex; gap: 3px; align-items: center;">${iconLike} ${p.likes || 0}</span>
                             <span style="display: flex; gap: 3px; align-items: center;">${iconComment} ${p.replies ? p.replies.length : 0}</span>
                         </div>
@@ -6999,6 +7078,7 @@ ${extraLorePrompt}
                     time: now.toLocaleString('en-US', { month:'short', day:'numeric', hour: '2-digit', minute: '2-digit', hour12: false }),
                     rawTime: now.getTime(),
                     likes: p.initial_likes || Math.floor(Math.random() * 300 + 10),
+                    views: Math.floor(Math.random() * 10000 + 500),
                     liked: false,
                     boundWbId: selectedWbIds.length > 0 ? selectedWbIds[0] : null,
                     replies: generatedReplies
@@ -9715,6 +9795,7 @@ ${extraLorePrompt}
             time: now.toLocaleString('en-US', { month:'short', day:'numeric', hour: '2-digit', minute: '2-digit', hour12: false }),
             rawTime: now.getTime(),
             likes: 0,
+            views: 0,
             liked: false,
             tips: 0,
             replies: []
