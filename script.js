@@ -357,7 +357,7 @@ cipherState = DB.get('cipherState', {score:0,created:0,solved:0,collection:[], h
         currentForumFilter = 'ALL';
         isForumSelectionMode = false;
         selectedForumPosts = new Set();
-        settings = DB.get('settings', { theme: 'light', bgImage: '', fontSize: 13, bubblePadding: 10, showStatusBar: true, userAvatar: '', timeAware: true, memoirStyleId: 'default', memoirMaxLength: 400, avatarDisplay: 'all', activeFontId: null, showHeart: true, userName: 'ME', feedBg: '', notificationSound: '', translationMode: false, translationSourceLang: '日语', translationTargetLang: '中文', imageQuality: 0.8 });
+        settings = DB.get('settings', { theme: 'light', bgImage: '', fontSize: 13, bubblePadding: 10, showStatusBar: true, userAvatar: '', timeAware: true, memoirStyleId: 'default', memoirMaxLength: 400, avatarDisplay: 'all', activeFontId: null, showHeart: true, userName: 'ME', feedBg: '', notificationSound: '', translationMode: false, translationSourceLang: '日语', translationTargetLang: '中文', imageQuality: 0.8, chatHeaderOpaque: false });
         advancedMemories = DB.get('advancedMemories', {}); 
         chatStreaks = DB.get('chatStreaks', {}); 
         memorySettings = DB.get('memorySettings', { autoSummarizeCount: 150, autoSummarizeEnabled: false });
@@ -859,6 +859,7 @@ async function checkDiscordCallback() {
     updateNotifyInChatUI();
     updateSingleTimestampUI();
     updateCoTDisplayUI();
+    updateChatHeaderOpaqueUI();
     setupKeyboardShortcuts(); 
     setupAudioPlayer();
 
@@ -1519,6 +1520,17 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         
         if (typeof applyChatButtons === 'function') applyChatButtons();
+        
+        const chatHeader = document.getElementById('chat-header');
+        if (chatHeader) {
+            if (settings.chatHeaderOpaque) {
+                chatHeader.style.background = 'var(--bg-color)';
+                chatHeader.style.borderBottom = '1px solid var(--border-color)';
+            } else {
+                chatHeader.style.background = 'transparent';
+                chatHeader.style.borderBottom = 'none';
+            }
+        }
     }
 
     let sysBatteryLevel = '未知';
@@ -1572,7 +1584,35 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         }
     }
-    function openMusicInviteModal(messageIndex) { if (!currentChatRoleId) return; const message = (chats[currentChatRoleId] || [])[messageIndex]; if (!message) return; const invite = parseMusicCardContent(message.content); if (!invite) return; const role = roles.find(r => r.id === (invite.contactRoleId || currentChatRoleId)); currentMusicInvite = invite; $('#music-invite-cover').src = invite.picUrl || ''; $('#music-invite-title').innerText = invite.name || '\u672a\u77e5\u6b4c\u66f2'; $('#music-invite-artist').innerText = invite.artist || '\u672a\u77e5\u6b4c\u624b'; $('#music-invite-contact').innerText = role ? getDisplayName(role) : '\u672a\u77e5\u8054\u7cfb\u4eba'; $('#music-invite-status').innerText = invite.status || '\u5f85\u56de\u590d'; $('#music-invite-id').innerText = invite.inviteId || '--'; $('#music-invite-created').innerText = formatInviteTime(invite.createdAt || message.rawTime); $('#music-invite-updated').innerText = formatInviteTime(invite.updatedAt || message.rawTime); openModal('modal-music-invite'); }
+    function openMusicInviteModal(messageIndex) { 
+        if (!currentChatRoleId) return; 
+        const message = (chats[currentChatRoleId] || [])[messageIndex]; 
+        if (!message) return; 
+        const invite = parseMusicCardContent(message.content); 
+        if (!invite) return; 
+        const role = roles.find(r => r.id === (invite.contactRoleId || currentChatRoleId)); 
+        currentMusicInvite = invite; 
+        
+        // 动态修改标题
+        const modalTitle = document.querySelector('#modal-music-invite .music-invite-header h3');
+        if (modalTitle) {
+            if (invite.inviteId && invite.inviteId.startsWith('share_')) {
+                modalTitle.innerText = '分享歌曲详情';
+            } else {
+                modalTitle.innerText = '一起听邀请详情';
+            }
+        }
+
+        $('#music-invite-cover').src = invite.picUrl || ''; 
+        $('#music-invite-title').innerText = invite.name || '\u672a\u77e5\u6b4c\u66f2'; 
+        $('#music-invite-artist').innerText = invite.artist || '\u672a\u77e5\u6b4c\u624b'; 
+        $('#music-invite-contact').innerText = role ? getDisplayName(role) : '\u672a\u77e5\u8054\u7cfb\u4eba'; 
+        $('#music-invite-status').innerText = invite.status || '\u5f85\u56de\u590d'; 
+        $('#music-invite-id').innerText = invite.inviteId || '--'; 
+        $('#music-invite-created').innerText = formatInviteTime(invite.createdAt || message.rawTime); 
+        $('#music-invite-updated').innerText = formatInviteTime(invite.updatedAt || message.rawTime); 
+        openModal('modal-music-invite'); 
+    }
     function closeMusicInviteModal() { currentMusicInvite = null; closeModal('modal-music-invite'); }
     function playInviteTrack() { if (!currentMusicInvite?.trackId) return; closeMusicInviteModal(); playMusicById(currentMusicInvite.trackId); }
 
@@ -5366,6 +5406,7 @@ window.newRoleTempWbs = null;
     const timeStampRegex = /\[\d{1,2}月\d{1,2}日\s\d{2}:\d{2}\]\s*/g;
     
     Object.keys(chats).forEach(roleId => {
+        let newChatHistory = [];
         chats[roleId].forEach(msg => {
             if (msg.content) {
                 let newContent = msg.content.replace(timeStampRegex, '').trim();
@@ -5414,7 +5455,28 @@ window.newRoleTempWbs = null;
                     }
                 } catch(e) {}
             }
+
+            // 自动分割多行 AI 消息气泡
+            if (msg.role === 'ai' && msg.mode === 'online' && msg.content.includes('\n') && !msg.content.includes('===TRANSLATION===')) {
+                const sentences = msg.content.split('\n').map(s => s.trim()).filter(s => s);
+                if (sentences.length > 1) {
+                    sentences.forEach((sentence, idx) => {
+                        newChatHistory.push({
+                            ...msg,
+                            id: msg.id ? `${msg.id}_${idx}` : undefined,
+                            content: sentence,
+                            rawTime: msg.rawTime + idx // 保证顺序
+                        });
+                    });
+                    fixCount++;
+                } else {
+                    newChatHistory.push(msg);
+                }
+            } else {
+                newChatHistory.push(msg);
+            }
         });
+        chats[roleId] = newChatHistory;
     });
     DB.set('chats', chats);
 
@@ -5425,7 +5487,7 @@ window.newRoleTempWbs = null;
     });
     DB.set('walletData', walletData);
 
-    alert(`修复完成！共修复了 ${fixCount} 处数据异常。`);
+    alert(`修复完成！共修复了 ${fixCount} 处数据异常（包含多行气泡分割）。`);
     if (currentChatRoleId) renderMessages();
 }
 
@@ -5618,6 +5680,30 @@ window.newRoleTempWbs = null;
         statusEl.style.color = 'var(--text-secondary)';
     }
 }
+    function toggleChatHeaderOpaque() { 
+        settings.chatHeaderOpaque = !settings.chatHeaderOpaque; 
+        DB.set('settings', settings); 
+        updateChatHeaderOpaqueUI(); 
+        applySettings(); 
+    } 
+    function updateChatHeaderOpaqueUI() { 
+        const isOn = settings.chatHeaderOpaque || false; 
+        const track = document.getElementById('chat-header-opaque-track'); 
+        const thumb = document.getElementById('chat-header-opaque-thumb'); 
+        const status = document.getElementById('chat-header-opaque-status'); 
+        if (!track || !thumb) return; 
+        if (isOn) { 
+            track.style.background = 'var(--text-color)'; 
+            thumb.style.left = '20px'; 
+            thumb.style.background = 'var(--bg-color)'; 
+            if (status) status.innerText = '已开启：顶栏不透明，不遮挡聊天记录'; 
+        } else { 
+            track.style.background = 'var(--gray-light)'; 
+            thumb.style.left = '2px'; 
+            thumb.style.background = 'var(--text-color)'; 
+            if (status) status.innerText = '已关闭：顶栏透明，沉浸式体验'; 
+        } 
+    }
 
        const DESKTOP_APPS = { ourspace: { name: 'OURSPACE', sub: '心动日常', defaultIconUrl: 'https://img.heliar.top/file/1774013511285_1774013431400.png' }, wallet: { name: 'WALLET', sub: '钱包', defaultIconUrl: 'https://img.heliar.top/file/1775254950249_1775254906961.png' }, messages: { name: 'WECHAT', sub: '信息', defaultIconUrl: 'https://image.uglycat.cc/06gh2h.png' }, contacts: { name: 'DIRECTORY', sub: '通讯录', defaultIconUrl: 'https://img.heliar.top/file/1775255175970_1775255073802.png' }, feed: { name: 'FEED', sub: '动态', defaultIconUrl: 'https://img.heliar.top/file/1775255165794_1775255083124.png' }, music: { name: 'MUSIC', sub: '音乐', defaultIconUrl: 'https://img.heliar.top/file/1775254958459_1775254915365.png' }, masks: { name: 'PERSONAS', sub: '面具', defaultIconUrl: 'https://img.heliar.top/file/1775255165280_1775255099496.png' }, worldbook: { name: 'LORE', sub: '世界书', defaultIconUrl: 'https://img.heliar.top/file/1775255160509_1775255104547.png' }, album: { name: 'GALLERY', sub: '相册', defaultIconUrl: 'https://img.heliar.top/file/1775255167459_1775255109998.png' }, stickers: { name: 'STICKERS', sub: '表情包', defaultIconUrl: 'https://img.heliar.top/file/1775255317084_1775255272600.png' }, weather: { name: 'CLIMATE', sub: '天气', defaultIconUrl: 'https://img.heliar.top/file/1775255315347_1775255278680.png' }, memory: { name: 'MEMORY', sub: '记忆', defaultIconUrl: 'https://img.heliar.top/file/1775255305211_1775255288213.png' }, profile: { name: 'SYSTEM', sub: '设置', defaultIconUrl: 'https://img.heliar.top/file/1775255312935_1775255292122.png' }, appearance: { name: 'VISUALS', sub: '外观', defaultIconUrl: 'https://img.heliar.top/file/1775255539359_1775255395114.png' }, calendar: { name: 'CALENDAR', sub: '日历', defaultIconUrl: 'https://img.heliar.top/file/1775255530103_1775255398416.png' }, forum: { name: 'BBS', sub: '叙欲', defaultIconUrl: 'https://img.heliar.top/file/1775255533786_1775255403609.png' }, cipher: { name: 'CIPHER', sub: '情绪密码', defaultIconUrl: 'https://img.heliar.top/file/1775255548068_1775255406864.png' }, reincarnation: { name: 'PASTLIFE', sub: '前世今生', defaultIconUrl: 'https://img.heliar.top/file/1775255431218_1775255413469.png' }, takeout: { name: 'TAKEOUT', sub: '外卖', defaultIconUrl: 'https://img.heliar.top/file/1775254945792_1775254925975.png' }, map: { name: 'MAP', sub: '地图', defaultIconUrl: 'https://img.heliar.top/file/1775255724786_1772884815291.png' }, grimoire: { name: 'GRIMOIRE', sub: '命之书', defaultIconUrl: 'https://img.heliar.top/file/1775255160509_1775255104547.png' }, beauty: { name: 'BEAUTY', sub: '美容院', defaultIconUrl: 'https://img.heliar.top/file/1775255312935_1775255292122.png' } };
 
@@ -9142,9 +9228,21 @@ async function checkCalendarNotifications() {
             
             if (!chats[roleId]) chats[roleId] = [];
             const nowTime = new Date();
-            chats[roleId].push({ role: 'ai', content: msg, time: nowTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }), rawTime: nowTime.getTime(), mode: 'online' });
+            
+            // 自动分割气泡
+            const sentences = msg.split('\n').map(s => s.trim()).filter(s => s);
+            sentences.forEach((sentence, idx) => {
+                chats[roleId].push({ 
+                    role: 'ai', 
+                    content: sentence, 
+                    time: nowTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }), 
+                    rawTime: nowTime.getTime() + idx, 
+                    mode: 'online' 
+                });
+            });
+            
             DB.set('chats', chats);
-            showSystemNotification(roleId, getDisplayName(role), msg, role.avatar);
+            showSystemNotification(roleId, getDisplayName(role), sentences.join(' '), role.avatar);
         } catch (e) { console.log('日历通知生成失败:', e); }
     }
 }
@@ -9187,18 +9285,26 @@ async function checkCalendarNotifications() {
         const lastSessionRoleId = listenTogetherSession.roleId;
         listenTogetherSession = { isActive: false, roleId: null, startTime: null, inviteId: null };
         DB.set('listenTogetherSession', listenTogetherSession);
-        if (notify && currentChatRoleId === roleId) {
-            const durationSec = Math.floor(durationMs / 1000);
-            const durationString = `${Math.floor(durationSec/60)}分 ${durationSec%60}秒`;
-            const now = new Date();
-            const role = roles.find(r => r.id === roleId);
-            const activeMask = masks.find(m => m.id === role.activeMaskId) || masks.find(m => m.id === 'default') || masks[0];
-            const maskName = activeMask ? activeMask.name : (settings.userName || 'ME');
-            chats[roleId].push({ role: 'system', content: `${maskName}已退出一起听,这次一起听时长：${durationString}`, time: now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }), rawTime: now.getTime() });
-            DB.set('chats', chats);
+        
+        const durationSec = Math.floor(durationMs / 1000);
+        const durationString = `${Math.floor(durationSec/60)}分 ${durationSec%60}秒`;
+        const now = new Date();
+        const role = roles.find(r => r.id === roleId);
+        const activeMask = masks.find(m => m.id === role.activeMaskId) || masks.find(m => m.id === 'default') || masks[0];
+        const maskName = activeMask ? activeMask.name : (settings.userName || 'ME');
+        
+        if (!chats[roleId]) chats[roleId] = [];
+        chats[roleId].push({ role: 'system', content: `${maskName}已退出一起听,这次一起听时长：${durationString}`, time: now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }), rawTime: now.getTime() });
+        DB.set('chats', chats);
+        
+        if (currentChatRoleId === roleId) {
             renderMessages();
+        }
+        
+        if (notify) {
             triggerAiAskAboutExit(roleId, durationString);
         }
+        
         if (currentChatRoleId === lastSessionRoleId) updateMusicPlayerForSession();
     }
 
@@ -9222,12 +9328,24 @@ async function checkCalendarNotifications() {
 
             if (!chats[roleId]) chats[roleId] = [];
             const now = new Date();
-            chats[roleId].push({ role: 'ai', content: msg, time: now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }), rawTime: now.getTime(), mode: 'online' });
+            
+            // 自动分割气泡
+            const sentences = msg.split('\n').map(s => s.trim()).filter(s => s);
+            sentences.forEach((sentence, idx) => {
+                chats[roleId].push({ 
+                    role: 'ai', 
+                    content: sentence, 
+                    time: now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }), 
+                    rawTime: now.getTime() + idx, 
+                    mode: 'online' 
+                });
+            });
+            
             DB.set('chats', chats);
             
             if (currentChatRoleId === roleId) renderMessages();
             renderRecent();
-            showSystemNotification(roleId, getDisplayName(role), msg, role.avatar);
+            showSystemNotification(roleId, getDisplayName(role), sentences.join(' '), role.avatar);
         } catch (e) {
             console.error(e);
         }
@@ -11347,12 +11465,24 @@ function onAiAvatarDblClick() {
 
             if (!chats[role.id]) chats[role.id] = [];
             const now = new Date();
-            chats[role.id].push({ role: 'ai', content: msg, time: now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }), rawTime: now.getTime(), mode: 'online' });
+            
+            // 自动分割气泡
+            const sentences = msg.split('\n').map(s => s.trim()).filter(s => s);
+            sentences.forEach((sentence, idx) => {
+                chats[role.id].push({ 
+                    role: 'ai', 
+                    content: sentence, 
+                    time: now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }), 
+                    rawTime: now.getTime() + idx, 
+                    mode: 'online' 
+                });
+            });
+            
             DB.set('chats', chats);
             
             if (currentChatRoleId === role.id) renderMessages();
             renderRecent();
-            showSystemNotification(role.id, getDisplayName(role), msg, role.avatar);
+            showSystemNotification(role.id, getDisplayName(role), sentences.join(' '), role.avatar);
         } catch (e) {
             console.error("钱包问候生成失败", e);
         } finally {
