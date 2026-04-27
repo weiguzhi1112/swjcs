@@ -1517,6 +1517,8 @@ document.addEventListener('DOMContentLoaded', () => {
         } else {
             phoneShell.style.paddingTop = '0';
         }
+        
+        if (typeof applyChatButtons === 'function') applyChatButtons();
     }
 
     let sysBatteryLevel = '未知';
@@ -3626,6 +3628,7 @@ ${memories[role.id] ? `<shared_memory>\n${memories[role.id]}\n</shared_memory>` 
 4. 你的头像URL: "${role.avatar || '默认'}"。换头像回复 [CHANGE_AVATAR:图片URL]。保存图片回复 [SAVE_PHOTO:图片URL|相册名]。
 5. 【票根生成】当你们约定去看电影、演唱会、展览或旅行时，你必须在回复中包含隐藏指令生成票根：[TICKET:{"type":"movie/concert/travel/exhibit","title":"活动名称","subtitle":"副标题","label1":"地点","value1":"具体地点","label2":"座位/时间","value2":"具体信息","label3":"时间","value3":"具体时间"}]
 6. 【主动转账】当你想给用户转账时，在回复中包含：[转账 ¥金额]${translationRule}
+7. 【记忆提取】如果用户在聊天中提到了喜欢的歌曲、食物等，请自然地记住并在后续对话中提及。
 ${modeRules}
 </rules>
 
@@ -5880,7 +5883,7 @@ window.newRoleTempWbs = null;
         document.addEventListener('mouseup', endDrag);
         document.addEventListener('touchend', endDrag);
     }
-    function renderAppearanceApp() { const list = $('#app-customization-list'); list.innerHTML = Object.entries(DESKTOP_APPS).map(([id, defaults]) => { const custom = appCustomizations[id] || {}; const name = custom.name || defaults.name; const icon = custom.icon || defaults.defaultIconUrl; const style = `background-image: url('${icon}')`; return ` <div style="margin-bottom:20px; border-bottom:1px solid var(--border-color); padding-bottom:15px;"> <div class="app-customize-header" style="display:flex; align-items:center; gap:15px; margin-bottom:10px;"> <div class="icon app-icon" style="cursor:default; margin:0;"><div id="preview-icon-${id}" class="icon" style="margin:0; width:40px; height:40px; ${style}"></div></div> <input type="text" id="app-name-${id}" value="${name.replace(/"/g, '&quot;')}" onchange="saveAppCustomization('${id}')" style="padding:10px; border:1px solid var(--border-color); background:transparent; color:var(--text-color); outline:none; font-family:var(--font-sans); font-size:12px; text-transform:uppercase; letter-spacing:1px; flex:1;"> </div> <div class="app-customize-body"> <input type="text" id="app-icon-${id}" placeholder="ICON URL OR UPLOAD" value="${icon.replace(/"/g, '&quot;')}" onchange="saveAppCustomization('${id}')" style="padding:10px; border:1px solid var(--border-color); background:transparent; color:var(--text-color); outline:none; font-family:var(--font-sans); font-size:10px; width:100%; margin-bottom:10px;"> <label class="file-upload-btn">LOCAL UPLOAD<input type="file" style="display:none" accept="image/*" onchange="handleImageUpload(this, 'app-icon-${id}');"></label> </div> </div>`; }).join(''); renderFontPresets(); }
+    function renderAppearanceApp() { const list = $('#app-customization-list'); list.innerHTML = Object.entries(DESKTOP_APPS).map(([id, defaults]) => { const custom = appCustomizations[id] || {}; const name = custom.name || defaults.name; const icon = custom.icon || defaults.defaultIconUrl; const style = `background-image: url('${icon}')`; return ` <div style="margin-bottom:20px; border-bottom:1px solid var(--border-color); padding-bottom:15px;"> <div class="app-customize-header" style="display:flex; align-items:center; gap:15px; margin-bottom:10px;"> <div class="icon app-icon" style="cursor:default; margin:0;"><div id="preview-icon-${id}" class="icon" style="margin:0; width:40px; height:40px; ${style}"></div></div> <input type="text" id="app-name-${id}" value="${name.replace(/"/g, '&quot;')}" onchange="saveAppCustomization('${id}')" style="padding:10px; border:1px solid var(--border-color); background:transparent; color:var(--text-color); outline:none; font-family:var(--font-sans); font-size:12px; text-transform:uppercase; letter-spacing:1px; flex:1;"> </div> <div class="app-customize-body"> <input type="text" id="app-icon-${id}" placeholder="ICON URL OR UPLOAD" value="${icon.replace(/"/g, '&quot;')}" onchange="saveAppCustomization('${id}')" style="padding:10px; border:1px solid var(--border-color); background:transparent; color:var(--text-color); outline:none; font-family:var(--font-sans); font-size:10px; width:100%; margin-bottom:10px;"> <label class="file-upload-btn">LOCAL UPLOAD<input type="file" style="display:none" accept="image/*" onchange="handleImageUpload(this, 'app-icon-${id}');"></label> </div> </div>`; }).join(''); renderFontPresets(); $('#chat-btn-return').value = settings.chatBtnReturn || ''; $('#chat-btn-detail').value = settings.chatBtnDetail || ''; $('#chat-btn-attach').value = settings.chatBtnAttach || ''; $('#chat-btn-send').value = settings.chatBtnSend || ''; }
     function saveAppCustomization(appId) { const name = $(`#app-name-${appId}`).value.trim(); const icon = $(`#app-icon-${appId}`).value.trim(); if (!appCustomizations[appId]) appCustomizations[appId] = {}; appCustomizations[appId].name = name || DESKTOP_APPS[appId].name; appCustomizations[appId].icon = icon || DESKTOP_APPS[appId].defaultIconUrl; DB.set('appCustomizations', appCustomizations); renderDesktop(); const previewEl = $(`#preview-icon-${appId}`); if (previewEl) { previewEl.style.backgroundImage = `url('${appCustomizations[appId].icon}')`; } }
     function updateFontPreviewText(text) { $('#font-preview').innerText = text || 'The quick brown fox jumps over the lazy dog.'; }
     function saveFontPreset() { 
@@ -9188,11 +9191,147 @@ async function checkCalendarNotifications() {
             const durationSec = Math.floor(durationMs / 1000);
             const durationString = `${Math.floor(durationSec/60)}分 ${durationSec%60}秒`;
             const now = new Date();
-            chats[roleId].push({ role: 'system', content: `你已退出一起听。本次时长: ${durationString}`, time: now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }), rawTime: now.getTime() });
+            const role = roles.find(r => r.id === roleId);
+            const activeMask = masks.find(m => m.id === role.activeMaskId) || masks.find(m => m.id === 'default') || masks[0];
+            const maskName = activeMask ? activeMask.name : (settings.userName || 'ME');
+            chats[roleId].push({ role: 'system', content: `${maskName}已退出一起听,这次一起听时长：${durationString}`, time: now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }), rawTime: now.getTime() });
             DB.set('chats', chats);
             renderMessages();
+            triggerAiAskAboutExit(roleId, durationString);
         }
         if (currentChatRoleId === lastSessionRoleId) updateMusicPlayerForSession();
+    }
+
+    async function triggerAiAskAboutExit(roleId, durationString) {
+        const api = getSubApi('music');
+        if (!api.url) return;
+        const role = roles.find(r => r.id === roleId);
+        if (!role) return;
+
+        const prompt = `[CORE DIRECTIVE]\n你现在是${role.realName}。你和用户刚刚一起听歌听了 ${durationString}，然后用户退出了。\n请根据你的人设（${role.persona}），发一条消息询问用户怎么退出了/为什么要退出。\n要求：\n1. 语气自然，符合人设。\n2. 简短口语化，不超过50字。\n3. 必须提到你们刚才一起听歌的事情。\n4. 直接输出回复内容，不要加引号。`;
+
+        try {
+            const endpoint = getChatEndpoint(api.url);
+            const response = await fetch(endpoint, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${api.key}` },
+                body: JSON.stringify({ model: api.model, messages: [{ role: 'user', content: prompt }], max_tokens: 150, temperature: 0.85 })
+            });
+            const data = await response.json();
+            const msg = data.choices[0].message.content.trim();
+
+            if (!chats[roleId]) chats[roleId] = [];
+            const now = new Date();
+            chats[roleId].push({ role: 'ai', content: msg, time: now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }), rawTime: now.getTime(), mode: 'online' });
+            DB.set('chats', chats);
+            
+            if (currentChatRoleId === roleId) renderMessages();
+            renderRecent();
+            showSystemNotification(roleId, getDisplayName(role), msg, role.avatar);
+        } catch (e) {
+            console.error(e);
+        }
+    }
+
+    function saveChatButtons() {
+        let btnReturn = $('#chat-btn-return').value.trim();
+        if (btnReturn === '已上传本地图片 (重新上传覆盖)') btnReturn = $('#chat-btn-return').dataset.realValue || '';
+        
+        let btnDetail = $('#chat-btn-detail').value.trim();
+        if (btnDetail === '已上传本地图片 (重新上传覆盖)') btnDetail = $('#chat-btn-detail').dataset.realValue || '';
+        
+        let btnAttach = $('#chat-btn-attach').value.trim();
+        if (btnAttach === '已上传本地图片 (重新上传覆盖)') btnAttach = $('#chat-btn-attach').dataset.realValue || '';
+        
+        let btnSend = $('#chat-btn-send').value.trim();
+        if (btnSend === '已上传本地图片 (重新上传覆盖)') btnSend = $('#chat-btn-send').dataset.realValue || '';
+
+        settings.chatBtnReturn = btnReturn;
+        settings.chatBtnDetail = btnDetail;
+        settings.chatBtnAttach = btnAttach;
+        settings.chatBtnSend = btnSend;
+        
+        DB.set('settings', settings);
+        applyChatButtons();
+        alert('聊天按钮样式已应用！');
+    }
+
+    function resetChatButtons() {
+        settings.chatBtnReturn = '';
+        settings.chatBtnDetail = '';
+        settings.chatBtnAttach = '';
+        settings.chatBtnSend = '';
+        
+        $('#chat-btn-return').value = '';
+        $('#chat-btn-detail').value = '';
+        $('#chat-btn-attach').value = '';
+        $('#chat-btn-send').value = '';
+        
+        DB.set('settings', settings);
+        applyChatButtons();
+        alert('聊天按钮样式已恢复默认！');
+    }
+
+    function applyChatButtons() {
+        let styleEl = document.getElementById('dynamic-chat-buttons-style');
+        if (!styleEl) {
+            styleEl = document.createElement('style');
+            styleEl.id = 'dynamic-chat-buttons-style';
+            document.head.appendChild(styleEl);
+        }
+        
+        let css = '';
+        
+        if (settings.chatBtnReturn) {
+            css += `
+                #chat-header .glass-icon-btn[onclick="closeChat()"] svg { display: none !important; }
+                #chat-header .glass-icon-btn[onclick="closeChat()"] {
+                    background-image: url('\${settings.chatBtnReturn}') !important;
+                    background-size: cover !important;
+                    background-position: center !important;
+                    background-repeat: no-repeat !important;
+                }
+            `;
+        }
+        
+        if (settings.chatBtnDetail) {
+            css += `
+                #chat-header .glass-icon-btn[onclick="openCurrentRoleInfo()"] svg { display: none !important; }
+                #chat-header .glass-icon-btn[onclick="openCurrentRoleInfo()"] {
+                    background-image: url('\${settings.chatBtnDetail}') !important;
+                    background-size: cover !important;
+                    background-position: center !important;
+                    background-repeat: no-repeat !important;
+                }
+            `;
+        }
+        
+        if (settings.chatBtnAttach) {
+            css += `
+                .standalone-icon-btn::after { display: none !important; }
+                .standalone-icon-btn {
+                    background-image: url('\${settings.chatBtnAttach}') !important;
+                    background-size: cover !important;
+                    background-position: center !important;
+                    background-repeat: no-repeat !important;
+                }
+            `;
+        }
+        
+        if (settings.chatBtnSend) {
+            css += `
+                .standalone-send-btn::before { display: none !important; }
+                .standalone-send-btn {
+                    background-image: url('\${settings.chatBtnSend}') !important;
+                    background-size: cover !important;
+                    background-position: center !important;
+                    background-repeat: no-repeat !important;
+                    background-color: transparent !important;
+                }
+            `;
+        }
+        
+        styleEl.innerHTML = css;
     }
 
     function updateMusicPlayerForSession() {

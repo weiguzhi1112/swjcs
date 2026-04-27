@@ -1155,7 +1155,7 @@ html, body {
     opacity: 1 !important; /* 必须设置 opacity 为 1，否则颜色会发灰 */
 }
 
-/* 融合雪花发送按钮：极致透明化，严禁任何背景 */
+/* 发送按钮：极致透明化，严禁任何背景 */
 .standalone-send-btn {
     position: absolute !important;
     right: 6px !important;
@@ -1168,7 +1168,7 @@ html, body {
     outline: none !important;
     backdrop-filter: none !important;
     -webkit-backdrop-filter: none !important;
-    color: var(--role-accent-color, var(--text-color)) !important;
+    color: var(--placeholder-color, #bbbbbb) !important;
     cursor: pointer !important;
     display: flex !important;
     align-items: center !important;
