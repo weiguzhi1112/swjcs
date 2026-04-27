@@ -181,7 +181,7 @@ document.addEventListener('touchmove', function(e) {
                         localStorage.setItem('suowu_' + key, dataStr); 
                     }
                 } catch (e) {
-                    console.warn('LocalStorage quota exceeded, relying on IndexedDB.');
+                    // 静默处理 LocalStorage 满的警告，依赖 IndexedDB 即可
                     if (e.name === 'QuotaExceededError') {
                         localStorage.removeItem('suowu_settings');
                     }
@@ -1531,15 +1531,17 @@ document.addEventListener('DOMContentLoaded', () => {
             chatHeader.style.left = '0';
             chatHeader.style.right = '0';
             if (settings.chatHeaderOpaque) {
-                chatHeader.style.background = 'var(--glass-bg)';
-                chatHeader.style.backdropFilter = 'blur(20px)';
-                chatHeader.style.webkitBackdropFilter = 'blur(20px)';
-                chatHeader.style.borderBottom = '1px solid var(--border-color)';
-            } else {
+                // 开启：完全透明，无背景，无边框，显示聊天背景
                 chatHeader.style.background = 'transparent';
                 chatHeader.style.backdropFilter = 'none';
                 chatHeader.style.webkitBackdropFilter = 'none';
                 chatHeader.style.borderBottom = 'none';
+            } else {
+                // 关闭：默认的毛玻璃效果
+                chatHeader.style.background = 'var(--glass-bg)';
+                chatHeader.style.backdropFilter = 'blur(20px)';
+                chatHeader.style.webkitBackdropFilter = 'blur(20px)';
+                chatHeader.style.borderBottom = '1px solid var(--border-color)';
             }
             chatMessages.style.paddingTop = 'calc(70px + env(safe-area-inset-top))';
         }
@@ -3717,7 +3719,12 @@ ${modeRules}
 
 请根据以上设定，直接输出你的回复。`;
 
-            const apiMessages = [{ role: 'system', content: systemPrompt }];
+            let finalSystemPrompt = systemPrompt;
+            const statusSuffix = getStatusPromptSuffix(targetRoleId);
+            if (statusSuffix) {
+                finalSystemPrompt += `\n\n【强制状态感知】\n你必须在回复的最后，严格按照以下格式输出你当前的状态，不允许遗漏：\n${statusSuffix}`;
+            }
+            const apiMessages = [{ role: 'system', content: finalSystemPrompt }];
             const contextLimit = role.contextLimit || 30;
 
             const cleanHistoryContent = (content) => {
@@ -3894,6 +3901,14 @@ ${modeRules}
                 fullReply = fullReply.replace(/<thought>[\s\S]*?<\/thought>/gi, '').replace(/思考：[\s\S]*?(?=\n\n|$)/gi, '').trim();
             } else {
                 fullReply = fullReply.replace(/<thought>([\s\S]*?)<\/thought>/gi, '<div style="opacity:0.6; font-size:0.85em; border-left:2px solid currentColor; padding-left:8px; margin-bottom:8px; font-style:italic;">$1</div>').trim();
+            }
+            
+            // 提取并保存状态感知
+            const statusEntry = extractStatusFromReply(targetRoleId, fullReply);
+            if (statusEntry) {
+                saveStatusHistory(targetRoleId, statusEntry);
+                fullReply = cleanStatusFromText(targetRoleId, fullReply);
+                updateStatusBarButton();
             }
             
             const avatarMatch = fullReply.match(/\[CHANGE_AVATAR:(.*?)\]/);
@@ -5813,12 +5828,12 @@ window.newRoleTempWbs = null;
             track.style.background = 'var(--text-color)'; 
             thumb.style.left = '20px'; 
             thumb.style.background = 'var(--bg-color)'; 
-            if (status) status.innerText = '已开启：顶栏毛玻璃效果，显示背景且文字清晰'; 
+            if (status) status.innerText = '已开启：顶栏完全透明，显示聊天背景'; 
         } else { 
             track.style.background = 'var(--gray-light)'; 
             thumb.style.left = '2px'; 
             thumb.style.background = 'var(--text-color)'; 
-            if (status) status.innerText = '已关闭：顶栏完全透明，沉浸式体验'; 
+            if (status) status.innerText = '已关闭：顶栏毛玻璃效果，文字更清晰'; 
         } 
     }
 
@@ -10673,6 +10688,9 @@ function openStatusConfigModal() {
     if (!roleId) return alert('请先选择一个角色');
     const config = initStatusBarData(roleId);
     $('#status-enabled-check').checked = config.enabled;
+    $('#status-prompt-suffix').value = config.promptSuffix || '';
+    $('#status-regex-pattern').value = config.regex || '';
+    $('#status-html-template').value = config.htmlTemplate || '';
     $('#status-custom-css').value = config.customCss || '';
     openModal('modal-status-config');
 }
@@ -10682,6 +10700,9 @@ function saveStatusConfig() {
     if (!roleId) return;
     const config = initStatusBarData(roleId);
     config.enabled = $('#status-enabled-check').checked;
+    config.promptSuffix = $('#status-prompt-suffix').value.trim();
+    config.regex = $('#status-regex-pattern').value.trim();
+    config.htmlTemplate = $('#status-html-template').value.trim();
     config.customCss = $('#status-custom-css').value.trim();
     statusBarData[roleId] = config;
     DB.set('statusBarData', statusBarData);
@@ -11723,6 +11744,13 @@ function onAiAvatarDblClick() {
             } else {
                 mergedBills = [...realBills, ...(result.bills || [])];
             }
+
+            // 修复：按时间降序排序（最新的在最前面）
+            mergedBills.sort((a, b) => {
+                const timeA = new Date(a.time.replace(/-/g, '/')).getTime();
+                const timeB = new Date(b.time.replace(/-/g, '/')).getTime();
+                return (timeB || 0) - (timeA || 0);
+            });
 
             walletData[currentWalletAccount] = {
                 ...currentData,
@@ -13918,16 +13946,12 @@ async function playGrimoireBGM(level, keywordContext) {
 
 function openBeautyApp() {
     const lastSettings = DB.get('lastActiveBeautySettings', {
-        color: '#000000',
-        subColor: '#666666',
         size: 13,
         bubbleSize: 14,
         chatCss: '',
         bubbleCss: ''
     });
     
-    $('#beauty-global-color').value = lastSettings.color;
-    $('#beauty-sub-color').value = lastSettings.subColor || '#666666';
     $('#beauty-global-size').value = lastSettings.size;
     $('#beauty-global-size-label').innerText = lastSettings.size;
     $('#beauty-bubble-size').value = lastSettings.bubbleSize || 14;
@@ -13939,8 +13963,6 @@ function openBeautyApp() {
 }
 
 function applyBeautyStyles() {
-    const color = $('#beauty-global-color').value;
-    const subColor = $('#beauty-sub-color').value;
     const size = $('#beauty-global-size').value;
     const bubbleSize = $('#beauty-bubble-size').value;
     const chatCss = $('#beauty-chat-css').value;
@@ -13956,27 +13978,15 @@ function applyBeautyStyles() {
         document.head.appendChild(globalStyleEl);
     }
     globalStyleEl.innerHTML = `
-        :root { 
-            --text-color: ${color} !important; 
-            --text-secondary: ${subColor} !important;
-            --font-size: ${size}px !important; 
-        }
-        [data-theme="dark"] { 
-            --text-color: ${color} !important; 
-            --text-secondary: ${subColor} !important;
-        }
+        :root { --font-size: ${size}px !important; }
         .msg-bubble { font-size: ${bubbleSize}px !important; }
         #chat-input { font-size: ${size}px !important; }
     `;
 
-    // 修复：强制覆盖桌面图标的中英文颜色
     let appTextStyle = document.getElementById('app-text-style');
-    if (!appTextStyle) {
-        appTextStyle = document.createElement('style');
-        appTextStyle.id = 'app-text-style';
-        document.head.appendChild(appTextStyle);
+    if (appTextStyle) {
+        appTextStyle.innerHTML = ''; // 清除之前强制覆盖的颜色
     }
-    appTextStyle.innerHTML = `.app-icon span { color: ${color} !important; } .app-icon .sub-name { color: ${subColor} !important; }`;
 
     let chatStyleEl = document.getElementById('dynamic-chat-style');
     if (!chatStyleEl) {
@@ -13994,7 +14004,7 @@ function applyBeautyStyles() {
     }
     bubbleStyleEl.innerHTML = bubbleCss;
 
-    DB.set('lastActiveBeautySettings', { color, subColor, size, bubbleSize, chatCss, bubbleCss });
+    DB.set('lastActiveBeautySettings', { size, bubbleSize, chatCss, bubbleCss });
 }
 
 function renderBeautyPresets() {
@@ -14028,8 +14038,6 @@ function saveBeautyPreset() {
         id: 'beauty_' + Date.now(),
         name: name,
         styles: {
-            color: $('#beauty-global-color').value,
-            subColor: $('#beauty-sub-color').value,
             size: $('#beauty-global-size').value,
             bubbleSize: $('#beauty-bubble-size').value,
             chatCss: $('#beauty-chat-css').value,
@@ -14046,8 +14054,6 @@ function loadBeautyPreset(id) {
     const preset = beautyPresets.find(p => p.id === id);
     if (!preset) return;
 
-    $('#beauty-global-color').value = preset.styles.color;
-    $('#beauty-sub-color').value = preset.styles.subColor || '#666666';
     $('#beauty-global-size').value = preset.styles.size;
     $('#beauty-bubble-size').value = preset.styles.bubbleSize || 14;
     $('#beauty-chat-css').value = preset.styles.chatCss;

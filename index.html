@@ -300,18 +300,8 @@
             <div class="view-content">
                 
                 <div class="setting-group">
-                    <label>GLOBAL FONT / 全局字体与颜色</label>
-                    <div style="display: flex; gap: 15px; align-items: center; margin-top: 8px; margin-bottom: 10px;">
-                        <div style="flex: 1;">
-                            <label style="font-size: 9px; color: var(--text-secondary);">MAIN COLOR / 主文本(英文)</label>
-                            <input type="color" id="beauty-global-color" value="#000000" oninput="applyBeautyStyles()" style="width: 100%; height: 36px; padding: 2px; border: 1px solid var(--border-color); background: transparent; border-radius: 8px;">
-                        </div>
-                        <div style="flex: 1;">
-                            <label style="font-size: 9px; color: var(--text-secondary);">SUB COLOR / 副文本(中文)</label>
-                            <input type="color" id="beauty-sub-color" value="#666666" oninput="applyBeautyStyles()" style="width: 100%; height: 36px; padding: 2px; border: 1px solid var(--border-color); background: transparent; border-radius: 8px;">
-                        </div>
-                    </div>
-                    <div style="display: flex; gap: 15px; align-items: center;">
+                    <label>GLOBAL FONT / 全局字体大小</label>
+                    <div style="display: flex; gap: 15px; align-items: center; margin-top: 8px;">
                         <div style="flex: 1;">
                             <label style="font-size: 9px; color: var(--text-secondary);">GLOBAL SIZE: <span id="beauty-global-size-label">13</span>px</label>
                             <input type="range" id="beauty-global-size" min="10" max="18" step="0.5" value="13" oninput="applyBeautyStyles()">
@@ -1768,20 +1758,32 @@
 <!-- 状态栏配置弹窗（含预设管理） -->
 <div class="modal-overlay" id="modal-status-config">
     <div class="modal" style="max-height:85vh;">
-        <h3>Status Bar <span>角色状态栏美化</span></h3>
+        <h3>Status Bar <span>角色状态栏配置</span></h3>
 
         <!-- 启用开关 -->
         <div class="setting-group" style="border:none; padding:0;">
             <label style="display:flex; align-items:center; gap:10px; margin-bottom:10px;">
                 <input type="checkbox" id="status-enabled-check" style="width:auto;">
-                启用自定义CSS美化
+                启用状态感知与自定义CSS
             </label>
         </div>
 
         <!-- 配置表单 -->
         <div class="setting-group" style="border:none; padding:0;">
+            <label>PROMPT SUFFIX / 提示词后缀 (告诉AI如何输出状态)</label>
+            <textarea id="status-prompt-suffix" placeholder="例如：请在回复末尾添加 [状态: 当前心情/动作]" style="width:100%; height:60px; padding:8px; border:1px solid var(--border-color); background:transparent; color:var(--text-color); font-size:11px; outline:none; resize:vertical;"></textarea>
+        </div>
+        <div class="setting-group" style="border:none; padding:0;">
+            <label>REGEX PATTERN / 正则表达式 (用于提取状态)</label>
+            <input type="text" id="status-regex-pattern" placeholder="例如：\\[状态:\\s*(.*?)\\]" style="width:100%; padding:8px; border:1px solid var(--border-color); background:transparent; color:var(--text-color); font-size:11px; outline:none;">
+        </div>
+        <div class="setting-group" style="border:none; padding:0;">
+            <label>HTML TEMPLATE / HTML模板 ($1表示正则第一个括号)</label>
+            <input type="text" id="status-html-template" placeholder="例如：<div class='my-status'>$1</div>" style="width:100%; padding:8px; border:1px solid var(--border-color); background:transparent; color:var(--text-color); font-size:11px; outline:none;">
+        </div>
+        <div class="setting-group" style="border:none; padding:0;">
             <label>CUSTOM CSS / 自定义CSS代码</label>
-            <textarea id="status-custom-css" placeholder="在这里输入CSS代码来美化状态栏..." style="width:100%; min-height:200px; padding:8px; border:1px solid var(--border-color); background:transparent; color:var(--text-color); font-size:11px; outline:none; resize:vertical; font-family:monospace;"></textarea>
+            <textarea id="status-custom-css" placeholder="在这里输入CSS代码来美化状态栏..." style="width:100%; height:80px; padding:8px; border:1px solid var(--border-color); background:transparent; color:var(--text-color); font-size:11px; outline:none; resize:vertical; font-family:monospace;"></textarea>
         </div>
 
         <div class="modal-btns">
