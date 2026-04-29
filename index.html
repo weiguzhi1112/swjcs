@@ -2531,6 +2531,16 @@
         </div>
     </div>
 </div>
+document.addEventListener('DOMContentLoaded', () => {
+    const popup = document.getElementById('attachment-popup');
+    if (popup && !document.getElementById('btn-open-theater')) {
+        const btnHtml = `<button id="btn-open-theater" class="attach-btn" onclick="openTheaterModal()">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12h4l3-9 5 18 3-9h5"/></svg>
+            <span>小剧场</span>
+        </button>`;
+        popup.insertAdjacentHTML('beforeend', btnHtml);
+    }
+});
 <script src="script.js" defer></script>
 </body>
 </html>
