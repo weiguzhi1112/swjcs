@@ -1037,7 +1037,25 @@ function processPendingBgMessages() {
         } 
     });
 }
-    function renderAll() { renderDesktop(); renderRecent(); renderContacts(); renderWorldbooks(); renderMasks(); renderWeather(); renderAlbums(); renderStickers(); renderMemoryView(); renderTimeAwarenessStatus(); renderAppearanceApp(); renderFeeds(); renderMusicApp(); renderBubbleCountStatus(); renderTranslationStatus(); renderForum(); cipherRenderMenu();}
+    function renderAll() { 
+        try { renderDesktop(); } catch(e) { console.error(e); }
+        try { renderRecent(); } catch(e) { console.error(e); }
+        try { renderContacts(); } catch(e) { console.error(e); }
+        try { renderWorldbooks(); } catch(e) { console.error(e); }
+        try { renderMasks(); } catch(e) { console.error(e); }
+        try { renderWeather(); } catch(e) { console.error(e); }
+        try { renderAlbums(); } catch(e) { console.error(e); }
+        try { renderStickers(); } catch(e) { console.error(e); }
+        try { renderMemoryView(); } catch(e) { console.error(e); }
+        try { renderTimeAwarenessStatus(); } catch(e) { console.error(e); }
+        try { renderAppearanceApp(); } catch(e) { console.error(e); }
+        try { renderFeeds(); } catch(e) { console.error(e); }
+        try { renderMusicApp(); } catch(e) { console.error(e); }
+        try { renderBubbleCountStatus(); } catch(e) { console.error(e); }
+        try { renderTranslationStatus(); } catch(e) { console.error(e); }
+        try { renderForum(); } catch(e) { console.error(e); }
+        try { cipherRenderMenu(); } catch(e) { console.error(e); }
+    }
     function updateTime() { 
         const timeEl = $('#time');
         if (timeEl) {
@@ -6716,7 +6734,26 @@ window.newRoleTempWbs = null;
         document.addEventListener('mouseup', endDrag);
         document.addEventListener('touchend', endDrag);
     }
-    function renderAppearanceApp() { const list = $('#app-customization-list'); if (!list) return; list.innerHTML = Object.entries(DESKTOP_APPS).map(([id, defaults]) => { const custom = appCustomizations[id] || {}; const name = custom.name || defaults.name; const icon = custom.icon || defaults.defaultIconUrl; const style = `background-image: url('${icon}')`; return ` <div style="margin-bottom:20px; border-bottom:1px solid var(--border-color); padding-bottom:15px;"> <div class="app-customize-header" style="display:flex; align-items:center; gap:15px; margin-bottom:10px;"> <div class="icon app-icon" style="cursor:default; margin:0;"><div id="preview-icon-${id}" class="icon" style="margin:0; width:40px; height:40px; ${style}"></div></div> <input type="text" id="app-name-${id}" value="${name.replace(/"/g, '&quot;')}" onchange="saveAppCustomization('${id}')" style="padding:10px; border:1px solid var(--border-color); background:transparent; color:var(--text-color); outline:none; font-family:var(--font-sans); font-size:12px; text-transform:uppercase; letter-spacing:1px; flex:1;"> </div> <div class="app-customize-body"> <input type="text" id="app-icon-${id}" placeholder="ICON URL OR UPLOAD" value="${icon.replace(/"/g, '&quot;')}" onchange="saveAppCustomization('${id}')" style="padding:10px; border:1px solid var(--border-color); background:transparent; color:var(--text-color); outline:none; font-family:var(--font-sans); font-size:10px; width:100%; margin-bottom:10px;"> <label class="file-upload-btn">LOCAL UPLOAD<input type="file" style="display:none" accept="image/*" onchange="handleImageUpload(this, 'app-icon-${id}');"></label> </div> </div>`; }).join(''); renderFontPresets(); const btnReturn = $('#chat-btn-return'); if (btnReturn) btnReturn.value = settings.chatBtnReturn || ''; const btnDetail = $('#chat-btn-detail'); if (btnDetail) btnDetail.value = settings.chatBtnDetail || ''; const btnAttach = $('#chat-btn-attach'); if (btnAttach) btnAttach.value = settings.chatBtnAttach || ''; const btnSend = $('#chat-btn-send'); if (btnSend) btnSend.value = settings.chatBtnSend || ''; }
+    function renderAppearanceApp() { 
+        const list = $('#app-customization-list'); 
+        if (!list) return; 
+        list.innerHTML = Object.entries(DESKTOP_APPS).map(([id, defaults]) => { 
+            const custom = appCustomizations[id] || {}; 
+            const name = custom.name || defaults.name; 
+            const icon = custom.icon || defaults.defaultIconUrl; 
+            const style = `background-image: url('${icon}')`; 
+            return ` <div style="margin-bottom:20px; border-bottom:1px solid var(--border-color); padding-bottom:15px;"> <div class="app-customize-header" style="display:flex; align-items:center; gap:15px; margin-bottom:10px;"> <div class="icon app-icon" style="cursor:default; margin:0;"><div id="preview-icon-${id}" class="icon" style="margin:0; width:40px; height:40px; ${style}"></div></div> <input type="text" id="app-name-${id}" value="${name.replace(/"/g, '&quot;')}" onchange="saveAppCustomization('${id}')" style="padding:10px; border:1px solid var(--border-color); background:transparent; color:var(--text-color); outline:none; font-family:var(--font-sans); font-size:12px; text-transform:uppercase; letter-spacing:1px; flex:1;"> </div> <div class="app-customize-body"> <input type="text" id="app-icon-${id}" placeholder="ICON URL OR UPLOAD" value="${icon.replace(/"/g, '&quot;')}" onchange="saveAppCustomization('${id}')" style="padding:10px; border:1px solid var(--border-color); background:transparent; color:var(--text-color); outline:none; font-family:var(--font-sans); font-size:10px; width:100%; margin-bottom:10px;"> <label class="file-upload-btn">LOCAL UPLOAD<input type="file" style="display:none" accept="image/*" onchange="handleImageUpload(this, 'app-icon-${id}');"></label> </div> </div>`; 
+        }).join(''); 
+        renderFontPresets(); 
+        const btnReturn = $('#chat-btn-return'); 
+        if (btnReturn) btnReturn.value = settings.chatBtnReturn || ''; 
+        const btnDetail = $('#chat-btn-detail'); 
+        if (btnDetail) btnDetail.value = settings.chatBtnDetail || ''; 
+        const btnAttach = $('#chat-btn-attach'); 
+        if (btnAttach) btnAttach.value = settings.chatBtnAttach || ''; 
+        const btnSend = $('#chat-btn-send'); 
+        if (btnSend) btnSend.value = settings.chatBtnSend || ''; 
+    }
     function saveAppCustomization(appId) { const name = $(`#app-name-${appId}`).value.trim(); const icon = $(`#app-icon-${appId}`).value.trim(); if (!appCustomizations[appId]) appCustomizations[appId] = {}; appCustomizations[appId].name = name || DESKTOP_APPS[appId].name; appCustomizations[appId].icon = icon || DESKTOP_APPS[appId].defaultIconUrl; DB.set('appCustomizations', appCustomizations); renderDesktop(); const previewEl = $(`#preview-icon-${appId}`); if (previewEl) { previewEl.style.backgroundImage = `url('${appCustomizations[appId].icon}')`; } }
     function updateFontPreviewText(text) { $('#font-preview').innerText = text || 'The quick brown fox jumps over the lazy dog.'; }
     function saveFontPreset() { 
@@ -6781,7 +6818,7 @@ window.newRoleTempWbs = null;
             setTimeout(() => triggerFeedCommentFromAI(safeId, r.id), 2000 + Math.random() * 4000);
         });
     }
-       function renderFeeds() { 
+    function renderFeeds() { 
         const profileEl = $('#feed-user-profile');
         if (!profileEl) return;
         const bgStyle = settings.feedBg ? `background-image: url(${settings.feedBg}); color: #fff; text-shadow: 0 1px 3px rgba(0,0,0,0.8); border-bottom: none;` : `background: var(--bg-color); color: var(--text-color); border-bottom: 1px solid var(--gray-light);`; 
