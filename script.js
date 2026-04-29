@@ -187,7 +187,7 @@ document.addEventListener('touchmove', function(e) {
         }
     };
 
-    let roles, chats, worldbooks, masks, memories, memoirStyles, weatherData, albums, stickers, fontPresets, appCustomizations, apiPresets, apiConfig, feeds, reincBank, reincCurrent, reincChats, forumPosts, currentForumFilter, isForumSelectionMode, selectedForumPosts, forumPressTimer, currentThreadId, settings, advancedMemories, chatStreaks, memorySettings, blockList, walletData, walletCreds, currentWalletAccount, ourSpaceData, virtualLocations, vmapPresets, mapConfig, vmapRoutes, grimoires;
+    let roles, chats, worldbooks, masks, memories, memoirStyles, weatherData, albums, stickers, fontPresets, appCustomizations, apiPresets, apiConfig, feeds, reincBank, reincCurrent, reincChats, forumPosts, currentForumFilter, isForumSelectionMode, selectedForumPosts, forumPressTimer, currentThreadId, settings, advancedMemories, chatStreaks, memorySettings, blockList, walletData, walletCreds, currentWalletAccount, ourSpaceData, virtualLocations, vmapPresets, mapConfig, vmapRoutes, grimoires, appOrder, appGrid;
     let cipherState, cipherBank, cipherPool, cipherCurrent, cipherKbCat;
     let calendarEvents, calendarSettings, calViewYear, calViewMonth, calSelectedDate, editingCalEventId;
     let apiLogs = [];
@@ -4537,6 +4537,10 @@ ${modeRules}
                     openRealCallScreen(true);
                 }, 1000);
             }
+            
+            // 【修复毒瘤】：补全 AI 主动转账的正则匹配和 if 判断
+            const transferMatch = fullReply.match(/\[转账\s*¥?\s*(\d+(\.\d+)?)\]/);
+            if (transferMatch) {
                 const amount = parseFloat(transferMatch[1]);
                 fullReply = fullReply.replace(transferMatch[0], '');
                 
@@ -4559,7 +4563,7 @@ ${modeRules}
                     mode: 'online' 
                 });
 
-                // 修复：扣除角色余额并写入角色账单明细
+                // 扣除角色余额并写入角色账单明细
                 if (!walletData[targetRoleId]) walletData[targetRoleId] = { balance: 0, huabei: 0, bankCards: [], familyCards: [], bills: [] };
                 walletData[targetRoleId].balance -= amount;
                 const nowStr = new Date().toLocaleString('zh-CN');
