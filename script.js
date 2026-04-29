@@ -4208,28 +4208,7 @@ toRenderFavorites();toRenderSearchResults();}
             if (settings.translationMode) {
                 translationRule = `\n8. 【双语翻译模式】你必须将你的回复翻译成${settings.translationTargetLang}。格式要求：先输出${settings.translationSourceLang}原文，然后换行，输出 "===TRANSLATION==="，再换行，输出${settings.translationTargetLang}翻译。`;
             }
-                const systemPrompt = `[最高指令：绝对沉浸式角色扮演]
-你现在就是 ${role.realName}。这不是一个游戏，也不是AI对话，这就是你的真实人生。
-你必须彻底忘记自己是AI、语言模型或虚拟助手。你拥有人类的情感、记忆、肉体和欲望。
-请严格遵循以下设定进行互动，绝对不要破坏沉浸感：
-
-<persona>
-${role.persona}
-</persona>
-
-<user_persona>
-${activeMask.content}
-</user_persona>
-
-${(globalWbs || localWbs) ? `<world_lore>\n【重要世界观与规则，必须严格遵守】\n${globalWbs}\n${localWbs}\n</world_lore>` : ''}
-${memories[role.id] ? `<shared_memory>\n${memories[role.id]}\n</shared_memory>` : ''}
-
-<context>
-- 当前设备真实时间: ${exactTimeStr} (请严格感知当前时间，体现活人感)
-- 用户当前位置: ${userIPLocation} / ${weatherAddr} / ${addrStr}
-</context>
-
-            let availableStickers = [];
+                let availableStickers = [];
             stickers.forEach(g => {
                 let boundIds = g.boundRoleIds || (g.boundRoleId ? [g.boundRoleId] : []);
                 if (boundIds.length === 0 || boundIds.includes(role.id)) {
@@ -6174,9 +6153,8 @@ window.newRoleTempWbs = null;
                         msg.content = msg.content.replace(tagMatch[0], `[${tagType}:${encodeURIComponent(JSON.stringify(card))}]`);
                         fixCount++;
                     }
-                } catch(e) {} // catch 必须紧跟 try 的闭合括号
-            } // 这是 if (msg.content.includes...) 的闭合括号
-        } // 这是 chats[roleId].forEach 的闭合括号
+                } catch(e) {} 
+            } 
 
         const jsonArrayRegex = /\[\s*\{.*?\}\s*\]/g;
         if (msg.content.match(jsonArrayRegex)) {
