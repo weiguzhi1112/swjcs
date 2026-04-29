@@ -1273,7 +1273,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 });
 
-    function openApp(appId) {
+    function openApp(appId, fromNav = false) {
     const appNames = {
         messages: '微信',
         contacts: '通讯录',
@@ -1306,10 +1306,23 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!appView) return;
 
     try {
-        document.querySelectorAll('.view-container').forEach(v => v.classList.remove('active'));
         if (currentChatRoleId) closeChat();
 
-        appView.classList.add('active');
+        if (fromNav) {
+            document.querySelectorAll('.view-container').forEach(v => {
+                v.style.transition = 'none';
+                v.classList.remove('active');
+            });
+            appView.style.transition = 'none';
+            appView.classList.add('active');
+            void appView.offsetWidth; 
+            document.querySelectorAll('.view-container').forEach(v => {
+                v.style.transition = '';
+            });
+        } else {
+            document.querySelectorAll('.view-container').forEach(v => v.classList.remove('active'));
+            appView.classList.add('active');
+        }
 
         setTimeout(() => {
             if (appId === 'messages') renderRecent();
@@ -2165,7 +2178,15 @@ function updateKeepAliveUI(isOn) {
                 } else { contentHtml = parts[0].trim().replace(/\n/g, '<br>'); }
             } else { contentHtml = contentHtml.replace(/\n/g, '<br>'); }
             
-            contentHtml = contentHtml.replace(/\[VIRTUAL_IMG:(.*?)\]/g, `<div class="virtual-img-box" data-text="$1" onclick="revealVirtualText(this)">【图片被小猫吃掉啦】</div>`);
+            contentHtml = contentHtml.replace(/\[VIRTUAL_IMG:(.*?)\]/g, (match, p1) => {
+                let foundUrl = null;
+                for (let g of stickers) {
+                    let item = g.items.find(i => i.virtual === p1);
+                    if (item) { foundUrl = item.url; break; }
+                }
+                if (foundUrl) return `<img src="${foundUrl}" class="chat-inline-img" data-type="sticker" alt="${p1}">`;
+                return `<div class="virtual-img-box" data-text="${p1}" onclick="revealVirtualText(this)">【图片被小猫吃掉啦】</div>`;
+            });
 
                     if (m.role === 'ai') {
                 const aiBubbleC = role.aiBubbleColor || '#333333';
@@ -2854,15 +2875,43 @@ function updateKeepAliveUI(isOn) {
         openModal('modal-call-history');
     }
 
-    function openRealCallScreen() {
+    let currentCallInitiator = 'user';
+    let isCallCameraOpen = false;
+    
+    window.toggleCallCamera = function() {
+        isCallCameraOpen = !isCallCameraOpen;
+        const btn = document.getElementById('btn-toggle-camera');
+        if (isCallCameraOpen) {
+            btn.innerHTML = '📹 摄像头已开启';
+            btn.style.background = 'rgba(255,255,255,0.4)';
+        } else {
+            btn.innerHTML = '📷 开启摄像头';
+            btn.style.background = 'rgba(255,255,255,0.2)';
+        }
+    };
+
+    function openRealCallScreen(isAiInitiated = false) {
         if (!currentChatRoleId) return;
         const role = roles.find(r => r.id === currentChatRoleId);
         if (!role) return;
 
+        currentCallInitiator = isAiInitiated ? 'ai' : 'user';
+        isCallCameraOpen = false;
+        const btn = document.getElementById('btn-toggle-camera');
+        if (btn) {
+            btn.innerHTML = '📷 开启摄像头';
+            btn.style.background = 'rgba(255,255,255,0.2)';
+        }
+
         $('#call-avatar').src = role.avatar || DEFAULT_AVATAR;
         $('#call-name').innerText = getDisplayName(role);
         $('#call-status').innerText = 'CONNECTING...';
-        $('#call-conversation').innerHTML = '<div style="font-size:10px; color:#888; text-align:center; margin-top:auto;">通话已接通...</div>';
+        
+        if (isAiInitiated) {
+            $('#call-conversation').innerHTML = `<div style="font-size:10px; color:#aaa; text-align:center; margin-top:auto;">${getDisplayName(role)} 向你发起了通话...</div>`;
+        } else {
+            $('#call-conversation').innerHTML = '<div style="font-size:10px; color:#aaa; text-align:center; margin-top:auto;">通话已接通...</div>';
+        }
         $('#real-call-input').value = '';
         $('#call-avatar-glow').style.boxShadow = '0 0 30px rgba(255,255,255,0.2)';
         
@@ -2960,14 +3009,14 @@ function renderCallMessage(name, text, isMe) {
     while ((match = regex.exec(text)) !== null) {
         const action = text.substring(lastIndex, match.index).trim();
         if (action) {
-            html += `<div style="color: #888; text-align: center; font-size: 10px; margin: 8px 0; align-self: center; width: 100%;">${action}</div>`;
+            html += `<div style="color: #aaa; text-align: center; font-size: 10px; margin: 8px 0; align-self: center; width: 100%; font-style: italic;">${action}</div>`;
         }
         const spoken = match[1].trim();
         if (spoken) {
             if (isMe) {
-                html += `<div style="color: #aaa; text-align: left; background: rgba(255,255,255,0.05); padding: 8px 12px; border-radius: 12px; align-self: flex-end; max-width: 85%; margin-bottom: 8px;"><span style="font-size:10px; font-weight:bold; color:#888;">${name}</span><br>${spoken}</div>`;
+                html += `<div style="color: #fff; text-align: left; background: rgba(255,255,255,0.2); padding: 10px 14px; border-radius: 16px; align-self: flex-end; max-width: 85%; margin-bottom: 8px; border: 1px solid rgba(255,255,255,0.3); box-shadow: 0 4px 15px rgba(0,0,0,0.1);"><span style="font-size:10px; font-weight:bold; color:#ddd; margin-bottom:4px; display:block;">${name}</span>${spoken}</div>`;
             } else {
-                html += `<div style="color: #fff; text-align: left; background: rgba(34,197,94,0.15); padding: 8px 12px; border-radius: 12px; align-self: flex-start; max-width: 85%; border: 1px solid rgba(34,197,94,0.3); margin-bottom: 8px;"><span style="font-size:10px; font-weight:bold; color:#22c55e;">${name}</span><br>${spoken}</div>`;
+                html += `<div style="color: #fff; text-align: left; background: rgba(255,255,255,0.1); padding: 10px 14px; border-radius: 16px; align-self: flex-start; max-width: 85%; border: 1px solid rgba(255,255,255,0.15); margin-bottom: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.1);"><span style="font-size:10px; font-weight:bold; color:#ccc; margin-bottom:4px; display:block;">${name}</span>${spoken}</div>`;
             }
         }
         lastIndex = regex.lastIndex;
@@ -2976,12 +3025,12 @@ function renderCallMessage(name, text, isMe) {
     if (lastAction) {
         if (lastIndex === 0) {
             if (isMe) {
-                html += `<div style="color: #aaa; text-align: left; background: rgba(255,255,255,0.05); padding: 8px 12px; border-radius: 12px; align-self: flex-end; max-width: 85%; margin-bottom: 8px;"><span style="font-size:10px; font-weight:bold; color:#888;">${name}</span><br>${lastAction}</div>`;
+                html += `<div style="color: #fff; text-align: left; background: rgba(255,255,255,0.2); padding: 10px 14px; border-radius: 16px; align-self: flex-end; max-width: 85%; margin-bottom: 8px; border: 1px solid rgba(255,255,255,0.3); box-shadow: 0 4px 15px rgba(0,0,0,0.1);"><span style="font-size:10px; font-weight:bold; color:#ddd; margin-bottom:4px; display:block;">${name}</span>${lastAction}</div>`;
             } else {
-                html += `<div style="color: #fff; text-align: left; background: rgba(34,197,94,0.15); padding: 8px 12px; border-radius: 12px; align-self: flex-start; max-width: 85%; border: 1px solid rgba(34,197,94,0.3); margin-bottom: 8px;"><span style="font-size:10px; font-weight:bold; color:#22c55e;">${name}</span><br>${lastAction}</div>`;
+                html += `<div style="color: #fff; text-align: left; background: rgba(255,255,255,0.1); padding: 10px 14px; border-radius: 16px; align-self: flex-start; max-width: 85%; border: 1px solid rgba(255,255,255,0.15); margin-bottom: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.1);"><span style="font-size:10px; font-weight:bold; color:#ccc; margin-bottom:4px; display:block;">${name}</span>${lastAction}</div>`;
             }
         } else {
-            html += `<div style="color: #888; text-align: center; font-size: 10px; margin: 8px 0; align-self: center; width: 100%;">${lastAction}</div>`;
+            html += `<div style="color: #aaa; text-align: center; font-size: 10px; margin: 8px 0; align-self: center; width: 100%; font-style: italic;">${lastAction}</div>`;
         }
     }
     return html;
@@ -3013,7 +3062,7 @@ let currentCallAudioId = null;
             };
             
             chats[currentChatRoleId].push({
-                role: 'ai',
+                role: currentCallInitiator === 'ai' ? 'ai' : 'user',
                 content: `[REAL_CALL:${encodeURIComponent(JSON.stringify(callData))}]`,
                 time: timeStr,
                 rawTime: rawTime,
@@ -3091,8 +3140,12 @@ let currentCallAudioId = null;
             // 提取本次通话的上下文
             const callContext = currentCallText ? `\n[本次通话记录]\n${currentCallText}` : '';
 
+            const cameraPrompt = isCallCameraOpen 
+                ? `\n【视频通话模式】用户已开启摄像头。你必须在回复中详细描述你当前的环境、你的动作、神态和穿着（写在引号外面）。绝对不能省略动作描写！` 
+                : `\n【语音通话模式】当前未开启摄像头。你只能听到声音，无法看到对方，也无法被对方看到。绝对不要描写任何视觉动作，只能输出你说的话和声音（如笑声、呼吸声，写在引号外面）。`;
+
             // 将所有上下文整合进 Prompt
-            const prompt = `[CORE DIRECTIVE]\n你是${role.realName}。${role.persona}${memorySummary}${chatContext}${callContext}\n\n用户正在和你打语音电话，对你说：“${text}”\n请回复用户。要求：\n1. 必须包含你直接说出口的话（必须用双引号 "" 或 “” 包裹）。\n2. 可以包含少量的动作旁白（写在引号外面）。\n3. 语气自然，像真人在打电话，结合上下文连贯对话。`;
+            const prompt = `[CORE DIRECTIVE]\n你是${role.realName}。${role.persona}${memorySummary}${chatContext}${callContext}\n\n用户正在和你打通话，对你说：“${text}”${cameraPrompt}\n请回复用户。要求：\n1. 必须包含你直接说出口的话（必须用双引号 "" 或 “” 包裹）。\n2. 语气自然，像真人在打电话，结合上下文连贯对话。`;
             
             const endpoint = getChatEndpoint(apiConfig.url);
             const chatRes = await fetch(endpoint, {
@@ -4171,6 +4224,36 @@ ${memories[role.id] ? `<shared_memory>\n${memories[role.id]}\n</shared_memory>` 
 - 用户当前位置: ${userIPLocation} / ${weatherAddr} / ${addrStr}
 </context>
 
+            let availableStickers = [];
+            stickers.forEach(g => {
+                let boundIds = g.boundRoleIds || (g.boundRoleId ? [g.boundRoleId] : []);
+                if (boundIds.length === 0 || boundIds.includes(role.id)) {
+                    g.items.forEach(item => { if (item.virtual) availableStickers.push(item.virtual); });
+                }
+            });
+            const stickerPrompt = availableStickers.length > 0 ? `\n9. 【表情包】你可以发送表情包，格式为 [VIRTUAL_IMG:表情描述]。你拥有的表情包有：${availableStickers.slice(0, 20).join(', ')}。请在合适的时机使用。` : '';
+
+            const systemPrompt = `[最高指令：绝对沉浸式角色扮演]
+你现在就是 ${role.realName}。这不是一个游戏，也不是AI对话，这就是你的真实人生。
+你必须彻底忘记自己是AI、语言模型或虚拟助手。你拥有人类的情感、记忆、肉体和欲望。
+请严格遵循以下设定进行互动，绝对不要破坏沉浸感：
+
+<persona>
+${role.persona}
+</persona>
+
+<user_persona>
+${activeMask.content}
+</user_persona>
+
+${(globalWbs || localWbs) ? `<world_lore>\n【重要世界观与规则，必须严格遵守】\n${globalWbs}\n${localWbs}\n</world_lore>` : ''}
+${memories[role.id] ? `<shared_memory>\n${memories[role.id]}\n</shared_memory>` : ''}
+
+<context>
+- 当前设备真实时间: ${exactTimeStr} (请严格感知当前时间，体现活人感)
+- 用户当前位置: ${userIPLocation} / ${weatherAddr} / ${addrStr}
+</context>
+
 <rules>
 1. 【去油腻】绝对禁止使用：轻笑、挑眉、眼眸深邃、喉结滚动、丫头、女人、呵、嘴角勾起一抹邪魅的弧度。说话必须口语化、自然。
 2. 【互动反应】对转账、礼物、代付、一起听歌、动态分享等系统提示，必须给出符合人设的真实反应。
@@ -4179,7 +4262,8 @@ ${memories[role.id] ? `<shared_memory>\n${memories[role.id]}\n</shared_memory>` 
 5. 【票根生成】当你们约定去看电影、演唱会、展览或旅行时，你必须在回复中包含隐藏指令生成票根：[TICKET:{"type":"movie/concert/travel/exhibit","title":"活动名称","subtitle":"副标题","label1":"地点","value1":"具体地点","label2":"座位/时间","value2":"具体信息","label3":"时间","value3":"具体时间","single":false}]。如果是你单人出行（比如飞过来找用户），请务必将 "single" 设为 true，这样系统只会生成一张你的票。
 6. 【主动转账】当你想给用户转账时，在回复中包含：[转账 ¥金额]${translationRule}
 7. 【记忆提取】如果用户在聊天中提到了喜欢的歌曲、食物等，请自然地记住并在后续对话中提及。
-8. 【专属音乐空间】你的网易云音乐账号是：${roleMusicAcc}，密码是：${roleMusicPwd}。如果用户问你要，请自然地告诉TA。
+8. 【专属音乐空间】你的网易云音乐账号是：${roleMusicAcc}，密码是：${roleMusicPwd}。如果用户问你要，请自然地告诉TA。${stickerPrompt}
+10. 【主动通话】如果你想主动给用户打语音/视频电话，请在回复的最后加上隐藏指令 [CALL_USER]。
 ${modeRules}
 </rules>
 
@@ -4243,6 +4327,7 @@ ${modeRules}
                     } catch(e) { return ''; }
                 });
                 text = text.replace(/<div class="virtual-img-box" data-text="(.*?)".*?<\/div>/g, '[图片: $1]');
+                text = text.replace(/<img[^>]*data-type="sticker"[^>]*alt="([^"]+)"[^>]*>/g, '[发送了一个表情包: $1]');
                 text = text.replace(/<img[^>]*src="([^"]+)"[^>]*>/g, '[发送了一张图片]');
                 text = text.replace(/<[^>]*>/g, ''); 
                 return text.trim();
@@ -4446,8 +4531,12 @@ ${modeRules}
 
             fullReply = fullReply.trim();
 
-            const transferMatch = fullReply.match(/\[转账\s*[¥￥]?\s*(\d+(\.\d+)?)\]/);
-            if (transferMatch) {
+            if (fullReply.includes('[CALL_USER]')) {
+                fullReply = fullReply.replace(/\[CALL_USER\]/g, '').trim();
+                setTimeout(() => {
+                    openRealCallScreen(true);
+                }, 1000);
+            }
                 const amount = parseFloat(transferMatch[1]);
                 fullReply = fullReply.replace(transferMatch[0], '');
                 
@@ -11611,7 +11700,7 @@ function onAiAvatarDblClick() {
         content.innerHTML = `
             <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; padding-top: 5px;">
                 ${group.items.map(p => `
-                    <div style="padding-bottom: 100%; position: relative; border: 1px solid var(--border-color); border-radius: 8px; overflow: hidden; cursor: pointer; background: var(--gray-light);" onclick="sendStickerFromPicker('${p.url}')">
+                    <div style="padding-bottom: 100%; position: relative; border: 1px solid var(--border-color); border-radius: 8px; overflow: hidden; cursor: pointer; background: var(--gray-light);" onclick="sendStickerFromPicker('${p.url}', '${p.virtual || ''}')">
                         <img src="${p.url}" style="position: absolute; width: 100%; height: 100%; object-fit: cover;">
                         <div style="position: absolute; bottom: 0; left: 0; width: 100%; background: rgba(0,0,0,0.6); color: #fff; font-size: 8px; padding: 3px 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: center; box-sizing: border-box; pointer-events: none;">${p.virtual || '未命名'}</div>
                     </div>
@@ -11620,8 +11709,13 @@ function onAiAvatarDblClick() {
         `;
     }
 
-    function sendStickerFromPicker(url) {
-        sendRealImage(url);
+    function sendStickerFromPicker(url, virtual) {
+        if(!currentChatRoleId) return; 
+        if(!chats[currentChatRoleId]) chats[currentChatRoleId] = []; 
+        const now = new Date(); 
+        chats[currentChatRoleId].push({ role: 'user', content: `<img src="${url}" class="chat-inline-img" data-type="sticker" alt="${virtual || ''}">`, time: now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }), rawTime: now.getTime(), status: 'SENT', mode: currentChatMode }); 
+        DB.set('chats', chats); 
+        renderMessages();
         closeModal('modal-sticker-picker');
     }
 
@@ -12553,7 +12647,10 @@ function onAiAvatarDblClick() {
             DB.set('walletData', walletData);
             
             const now = new Date();
-            chats[currentChatRoleId].push({ role: 'system', content: '你已退回转账', time: now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }), rawTime: now.getTime() });
+            const role = roles.find(r => r.id === currentChatRoleId);
+            const activeMask = masks.find(m => m.id === role.activeMaskId) || masks.find(m => m.id === 'default') || masks[0];
+            const maskName = activeMask ? activeMask.name : (settings.userName || 'ME');
+            chats[currentChatRoleId].push({ role: 'system', content: `${maskName} 已退回转账`, time: now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }), rawTime: now.getTime() });
             DB.set('chats', chats);
             
             closeModal('modal-transaction-detail');
@@ -12578,7 +12675,10 @@ function onAiAvatarDblClick() {
             DB.set('walletData', walletData);
             
             const now = new Date();
-            chats[currentChatRoleId].push({ role: 'system', content: '你已接收转账', time: now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }), rawTime: now.getTime() });
+            const role = roles.find(r => r.id === currentChatRoleId);
+            const activeMask = masks.find(m => m.id === role.activeMaskId) || masks.find(m => m.id === 'default') || masks[0];
+            const maskName = activeMask ? activeMask.name : (settings.userName || 'ME');
+            chats[currentChatRoleId].push({ role: 'system', content: `${maskName} 已接收转账`, time: now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }), rawTime: now.getTime() });
             DB.set('chats', chats);
             
             closeModal('modal-transaction-detail');
