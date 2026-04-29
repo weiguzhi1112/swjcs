@@ -793,7 +793,7 @@ async function checkDiscordCallback() {
                 overlay.classList.remove('active', 'fade-out');
             }, 1200);
 
-        }, 2000);
+        }, 12000);
     }
 
     window.skipAutoLoginAnimation = function() {
@@ -1040,7 +1040,9 @@ function processPendingBgMessages() {
     function renderAll() { renderDesktop(); renderRecent(); renderContacts(); renderWorldbooks(); renderMasks(); renderWeather(); renderAlbums(); renderStickers(); renderMemoryView(); renderTimeAwarenessStatus(); renderAppearanceApp(); renderFeeds(); renderMusicApp(); renderBubbleCountStatus(); renderTranslationStatus(); renderForum(); cipherRenderMenu();}
     function updateTime() { 
         const timeEl = $('#time');
-        if (timeEl) timeEl.innerText = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }); 
+        if (timeEl) {
+            timeEl.innerText = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }); 
+        }
     }
     function setupKeyboardShortcuts() { 
     const chatInput = $('#chat-input');
@@ -1494,11 +1496,9 @@ document.addEventListener('DOMContentLoaded', () => {
         appTextStyle.innerHTML = `.app-icon span { color: ${appTextColor} !important; }`;
 
         document.documentElement.style.setProperty('--status-bar-height', settings.showStatusBar ? '44px' : '0px'); 
-        const statusBar = $('#status-bar');
-        if (statusBar) statusBar.style.display = settings.showStatusBar ? 'flex' : 'none'; 
+        $('#status-bar').style.display = settings.showStatusBar ? 'flex' : 'none'; 
         const bg = settings.bgImage ? `url('${settings.bgImage}')` : 'none'; 
-        const phoneShell = $('#phone-shell');
-        if (phoneShell) phoneShell.style.backgroundImage = bg; 
+        $('#phone-shell').style.backgroundImage = bg; 
         const viewBg = 'var(--bg-color)'; 
         $$('.view-container, #chat-view').forEach(el => { el.style.backgroundColor = viewBg; el.style.backgroundImage = 'none'; }); 
         applyFont(settings.activeFontId, true); 
@@ -4208,7 +4208,28 @@ toRenderFavorites();toRenderSearchResults();}
             if (settings.translationMode) {
                 translationRule = `\n8. 【双语翻译模式】你必须将你的回复翻译成${settings.translationTargetLang}。格式要求：先输出${settings.translationSourceLang}原文，然后换行，输出 "===TRANSLATION==="，再换行，输出${settings.translationTargetLang}翻译。`;
             }
-                let availableStickers = [];
+                const systemPrompt = `[最高指令：绝对沉浸式角色扮演]
+你现在就是 ${role.realName}。这不是一个游戏，也不是AI对话，这就是你的真实人生。
+你必须彻底忘记自己是AI、语言模型或虚拟助手。你拥有人类的情感、记忆、肉体和欲望。
+请严格遵循以下设定进行互动，绝对不要破坏沉浸感：
+
+<persona>
+${role.persona}
+</persona>
+
+<user_persona>
+${activeMask.content}
+</user_persona>
+
+${(globalWbs || localWbs) ? `<world_lore>\n【重要世界观与规则，必须严格遵守】\n${globalWbs}\n${localWbs}\n</world_lore>` : ''}
+${memories[role.id] ? `<shared_memory>\n${memories[role.id]}\n</shared_memory>` : ''}
+
+<context>
+- 当前设备真实时间: ${exactTimeStr} (请严格感知当前时间，体现活人感)
+- 用户当前位置: ${userIPLocation} / ${weatherAddr} / ${addrStr}
+</context>
+
+            let availableStickers = [];
             stickers.forEach(g => {
                 let boundIds = g.boundRoleIds || (g.boundRoleId ? [g.boundRoleId] : []);
                 if (boundIds.length === 0 || boundIds.includes(role.id)) {
@@ -6153,8 +6174,9 @@ window.newRoleTempWbs = null;
                         msg.content = msg.content.replace(tagMatch[0], `[${tagType}:${encodeURIComponent(JSON.stringify(card))}]`);
                         fixCount++;
                     }
-                } catch(e) {} 
-            } 
+                } catch(e) {} // catch 必须紧跟 try 的闭合括号
+            } // 这是 if (msg.content.includes...) 的闭合括号
+        } // 这是 chats[roleId].forEach 的闭合括号
 
         const jsonArrayRegex = /\[\s*\{.*?\}\s*\]/g;
         if (msg.content.match(jsonArrayRegex)) {
@@ -6411,6 +6433,7 @@ window.newRoleTempWbs = null;
     function toggleTimeAwareness() { settings.timeAware = !settings.timeAware; DB.set('settings', settings); renderTimeAwarenessStatus(); }
     function renderTimeAwarenessStatus() {
     const statusEl = $('#time-awareness-status');
+    if (!statusEl) return;
     if (settings.timeAware) {
         statusEl.innerText = 'ENHANCED · 感知时间';
         statusEl.style.color = 'var(--text-color)';
@@ -6684,7 +6707,7 @@ window.newRoleTempWbs = null;
         document.addEventListener('mouseup', endDrag);
         document.addEventListener('touchend', endDrag);
     }
-    function renderAppearanceApp() { const list = $('#app-customization-list'); list.innerHTML = Object.entries(DESKTOP_APPS).map(([id, defaults]) => { const custom = appCustomizations[id] || {}; const name = custom.name || defaults.name; const icon = custom.icon || defaults.defaultIconUrl; const style = `background-image: url('${icon}')`; return ` <div style="margin-bottom:20px; border-bottom:1px solid var(--border-color); padding-bottom:15px;"> <div class="app-customize-header" style="display:flex; align-items:center; gap:15px; margin-bottom:10px;"> <div class="icon app-icon" style="cursor:default; margin:0;"><div id="preview-icon-${id}" class="icon" style="margin:0; width:40px; height:40px; ${style}"></div></div> <input type="text" id="app-name-${id}" value="${name.replace(/"/g, '&quot;')}" onchange="saveAppCustomization('${id}')" style="padding:10px; border:1px solid var(--border-color); background:transparent; color:var(--text-color); outline:none; font-family:var(--font-sans); font-size:12px; text-transform:uppercase; letter-spacing:1px; flex:1;"> </div> <div class="app-customize-body"> <input type="text" id="app-icon-${id}" placeholder="ICON URL OR UPLOAD" value="${icon.replace(/"/g, '&quot;')}" onchange="saveAppCustomization('${id}')" style="padding:10px; border:1px solid var(--border-color); background:transparent; color:var(--text-color); outline:none; font-family:var(--font-sans); font-size:10px; width:100%; margin-bottom:10px;"> <label class="file-upload-btn">LOCAL UPLOAD<input type="file" style="display:none" accept="image/*" onchange="handleImageUpload(this, 'app-icon-${id}');"></label> </div> </div>`; }).join(''); renderFontPresets(); $('#chat-btn-return').value = settings.chatBtnReturn || ''; $('#chat-btn-detail').value = settings.chatBtnDetail || ''; $('#chat-btn-attach').value = settings.chatBtnAttach || ''; $('#chat-btn-send').value = settings.chatBtnSend || ''; }
+    function renderAppearanceApp() { const list = $('#app-customization-list'); if (!list) return; list.innerHTML = Object.entries(DESKTOP_APPS).map(([id, defaults]) => { const custom = appCustomizations[id] || {}; const name = custom.name || defaults.name; const icon = custom.icon || defaults.defaultIconUrl; const style = `background-image: url('${icon}')`; return ` <div style="margin-bottom:20px; border-bottom:1px solid var(--border-color); padding-bottom:15px;"> <div class="app-customize-header" style="display:flex; align-items:center; gap:15px; margin-bottom:10px;"> <div class="icon app-icon" style="cursor:default; margin:0;"><div id="preview-icon-${id}" class="icon" style="margin:0; width:40px; height:40px; ${style}"></div></div> <input type="text" id="app-name-${id}" value="${name.replace(/"/g, '&quot;')}" onchange="saveAppCustomization('${id}')" style="padding:10px; border:1px solid var(--border-color); background:transparent; color:var(--text-color); outline:none; font-family:var(--font-sans); font-size:12px; text-transform:uppercase; letter-spacing:1px; flex:1;"> </div> <div class="app-customize-body"> <input type="text" id="app-icon-${id}" placeholder="ICON URL OR UPLOAD" value="${icon.replace(/"/g, '&quot;')}" onchange="saveAppCustomization('${id}')" style="padding:10px; border:1px solid var(--border-color); background:transparent; color:var(--text-color); outline:none; font-family:var(--font-sans); font-size:10px; width:100%; margin-bottom:10px;"> <label class="file-upload-btn">LOCAL UPLOAD<input type="file" style="display:none" accept="image/*" onchange="handleImageUpload(this, 'app-icon-${id}');"></label> </div> </div>`; }).join(''); renderFontPresets(); const btnReturn = $('#chat-btn-return'); if (btnReturn) btnReturn.value = settings.chatBtnReturn || ''; const btnDetail = $('#chat-btn-detail'); if (btnDetail) btnDetail.value = settings.chatBtnDetail || ''; const btnAttach = $('#chat-btn-attach'); if (btnAttach) btnAttach.value = settings.chatBtnAttach || ''; const btnSend = $('#chat-btn-send'); if (btnSend) btnSend.value = settings.chatBtnSend || ''; }
     function saveAppCustomization(appId) { const name = $(`#app-name-${appId}`).value.trim(); const icon = $(`#app-icon-${appId}`).value.trim(); if (!appCustomizations[appId]) appCustomizations[appId] = {}; appCustomizations[appId].name = name || DESKTOP_APPS[appId].name; appCustomizations[appId].icon = icon || DESKTOP_APPS[appId].defaultIconUrl; DB.set('appCustomizations', appCustomizations); renderDesktop(); const previewEl = $(`#preview-icon-${appId}`); if (previewEl) { previewEl.style.backgroundImage = `url('${appCustomizations[appId].icon}')`; } }
     function updateFontPreviewText(text) { $('#font-preview').innerText = text || 'The quick brown fox jumps over the lazy dog.'; }
     function saveFontPreset() { 
@@ -6750,12 +6773,15 @@ window.newRoleTempWbs = null;
         });
     }
        function renderFeeds() { 
+        const profileEl = $('#feed-user-profile');
+        if (!profileEl) return;
         const bgStyle = settings.feedBg ? `background-image: url(${settings.feedBg}); color: #fff; text-shadow: 0 1px 3px rgba(0,0,0,0.8); border-bottom: none;` : `background: var(--bg-color); color: var(--text-color); border-bottom: 1px solid var(--gray-light);`; 
         const overlayHtml = settings.feedBg ? `<div style="position:absolute; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.4); z-index:1;"></div>` : ''; 
-        $('#feed-user-profile').style.cssText = `position: relative; padding: 30px 20px; display: flex; align-items: center; gap: 15px; background-size: cover; background-position: center; cursor: pointer; ${bgStyle}`; 
-        $('#feed-user-profile').innerHTML = ` ${overlayHtml} <img src="${settings.userAvatar || DEFAULT_AVATAR}" style="width: 64px; height: 64px; border-radius: 50%; border: 2px solid ${settings.feedBg ? '#fff' : 'var(--border-color)'}; object-fit: cover; z-index: 2; position: relative; background: var(--bg-color);"> <div style="z-index: 2; position: relative;" onclick="openFeedProfileModal()"> <div style="font-family: var(--font-serif); font-size: 24px; font-weight: 600;">${settings.userName || 'ME'}</div> <div style="font-size: 9px; letter-spacing: 2px; margin-top: 2px; opacity: 0.9; text-transform: uppercase;">MY SPACE / TAP TO EDIT</div> </div> `; 
+        profileEl.style.cssText = `position: relative; padding: 30px 20px; display: flex; align-items: center; gap: 15px; background-size: cover; background-position: center; cursor: pointer; ${bgStyle}`; 
+        profileEl.innerHTML = ` ${overlayHtml} <img src="${settings.userAvatar || DEFAULT_AVATAR}" style="width: 64px; height: 64px; border-radius: 50%; border: 2px solid ${settings.feedBg ? '#fff' : 'var(--border-color)'}; object-fit: cover; z-index: 2; position: relative; background: var(--bg-color);"> <div style="z-index: 2; position: relative;" onclick="openFeedProfileModal()"> <div style="font-family: var(--font-serif); font-size: 24px; font-weight: 600;">${settings.userName || 'ME'}</div> <div style="font-size: 9px; letter-spacing: 2px; margin-top: 2px; opacity: 0.9; text-transform: uppercase;">MY SPACE / TAP TO EDIT</div> </div> `; 
         
         const list = $('#feed-list'); 
+        if (!list) return;
         if (feeds.length === 0) { list.innerHTML = `<div style="text-align:center; color:var(--text-secondary); padding: 40px; font-size:10px; letter-spacing:2px;">NO UPDATES.</div>`; return; } 
         
         feeds.sort((a, b) => b.rawTime - a.rawTime); 
@@ -10563,10 +10589,14 @@ function cipherNav(id) {
 }
 
 function cipherRenderMenu() {
-    $('#cipher-score-top').textContent = cipherState.score;
-    $('#cp-s-created').textContent = cipherState.created;
-    $('#cp-s-solved').textContent = cipherState.solved;
-    $('#cp-s-unlocked').textContent = cipherState.collection.length;
+    const scoreTop = $('#cipher-score-top');
+    if (scoreTop) scoreTop.textContent = cipherState.score;
+    const created = $('#cp-s-created');
+    if (created) created.textContent = cipherState.created;
+    const solved = $('#cp-s-solved');
+    if (solved) solved.textContent = cipherState.solved;
+    const unlocked = $('#cp-s-unlocked');
+    if (unlocked) unlocked.textContent = cipherState.collection.length;
 }
 
 function cipherStartMode(mode) {
