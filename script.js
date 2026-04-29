@@ -1917,8 +1917,8 @@ function updateKeepAliveUI(isOn) {
                     ? `<div style="margin-top: 6px;"><button onclick="endListenTogetherSession(true)" style="background: var(--text-color); color: var(--bg-color); border: none; font-size: 8px; padding: 4px 10px; letter-spacing: 1px; cursor: pointer; text-transform: uppercase;">退出一起听</button></div>`
                     : '';
                 const checkboxHtml = isSelectionMode ? `<div class="msg-checkbox ${selectedMsgs.has(realIndex) ? 'checked' : ''}" style="margin-right: 8px; margin-top: 0;"></div>` : '';
-                const sysColor = role.systemTextColor || 'var(--text-secondary)';
-                return `<div class="msg-row ${isSelectionMode ? 'selection-mode' : ''}" style="justify-content: center; margin: 5px 0; cursor: pointer;" onclick="handleMsgClick(${realIndex})" onmousedown="handleTouchStart(event, ${realIndex})" onmouseup="handleTouchEnd()" onmouseleave="handleTouchEnd()" ontouchstart="handleTouchStart(event, ${realIndex})" ontouchend="handleTouchEnd()" ontouchcancel="handleTouchEnd()">${checkboxHtml}<div style="background: var(--gray-light); color: ${sysColor}; font-size: 9px; padding: 4px 10px; border-radius: 10px; text-transform: uppercase; letter-spacing: 1px; text-align: center;">${m.content}${exitBtn}</div></div>`;
+                const sysColor = role.systemTextColor || '#888888';
+                return `<div class="msg-row ${isSelectionMode ? 'selection-mode' : ''}" style="justify-content: center; margin: 5px 0; cursor: pointer;" onclick="handleMsgClick(${realIndex})" onmousedown="handleTouchStart(event, ${realIndex})" onmouseup="handleTouchEnd()" onmouseleave="handleTouchEnd()" ontouchstart="handleTouchStart(event, ${realIndex})" ontouchend="handleTouchEnd()" ontouchcancel="handleTouchEnd()">${checkboxHtml}<div style="background: var(--gray-light); color: ${sysColor} !important; font-size: 9px; padding: 4px 10px; border-radius: 10px; text-transform: uppercase; letter-spacing: 1px; text-align: center;">${m.content}${exitBtn}</div></div>`;
             }
             let showAvatar = true; 
             let occupySpace = true;
@@ -2220,7 +2220,8 @@ function updateKeepAliveUI(isOn) {
 
                 const timeStr = `${datePrefix}${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
                 const timeDiv = document.createElement('div');
-                timeDiv.style.cssText = 'text-align:center; font-size:10px; color:var(--text-secondary); margin: 15px 0 10px 0; letter-spacing: 1px; width: 100%; font-weight: 500;';
+                const sysColor = role.systemTextColor || '#888888';
+                timeDiv.style.cssText = `text-align:center; font-size:10px; color:${sysColor} !important; margin: 15px 0 10px 0; letter-spacing: 1px; width: 100%; font-weight: 500;`;
                 timeDiv.innerText = timeStr;
                 fragment.appendChild(timeDiv);
                 lastTime = msg.rawTime;
@@ -2720,6 +2721,8 @@ function updateKeepAliveUI(isOn) {
             html = `<label>TITLE / 帖子标题</label><input type="text" id="qf-forum-title" placeholder="例如: 标题" value="修复的帖子" style="margin-bottom:10px;"><label>AUTHOR / 作者</label><input type="text" id="qf-forum-author" placeholder="例如: 匿名" value="匿名" style="margin-bottom:10px;"><label>CONTENT / 内容</label><textarea id="qf-forum-content" placeholder="帖子内容...">${cleanText}</textarea>`;
         } else if (type === 'feed_card') {
             html = `<label>AUTHOR / 作者</label><input type="text" id="qf-feed-author" placeholder="例如: 匿名" value="匿名" style="margin-bottom:10px;"><label>CONTENT / 内容</label><textarea id="qf-feed-content" placeholder="动态内容...">${cleanText}</textarea>`;
+        } else if (type === 'system') {
+            html = `<label>SYSTEM TEXT / 旁白或系统提示内容</label><textarea id="qf-system-content" placeholder="输入旁白内容...">${cleanText}</textarea>`;
         } else {
             html = `<label>TEXT CONTENT / 纯文本内容</label><textarea id="qf-text-content" placeholder="输入纯文本...">${cleanText}</textarea>`;
         }
@@ -2761,6 +2764,9 @@ function updateKeepAliveUI(isOn) {
             const content = $('#qf-feed-content').value.trim() || '...';
             const payload = { id: 'feed_fix_' + Date.now(), author: author, content: content };
             newContent = `[FEED_CARD:${encodeURIComponent(JSON.stringify(payload))}]`;
+        } else if (type === 'system') {
+            newContent = $('#qf-system-content').value.trim();
+            chats[currentChatRoleId][editingMsgIndex].role = 'system';
         } else {
             newContent = $('#qf-text-content').value.trim();
         }
@@ -4170,7 +4176,7 @@ ${memories[role.id] ? `<shared_memory>\n${memories[role.id]}\n</shared_memory>` 
 2. 【互动反应】对转账、礼物、代付、一起听歌、动态分享等系统提示，必须给出符合人设的真实反应。
 3. 【情侣空间】收到绑定邀请且同意时，回复必须包含隐藏指令 [ACCEPT_OURSPACE:配对码]，并且你必须在回复的文字中，自己编造一个全新的 6 位数字发给用户，让用户去输入。
 4. 你的头像URL: "${role.avatar || '默认'}"。换头像回复 [CHANGE_AVATAR:图片URL]。保存图片回复 [SAVE_PHOTO:图片URL|相册名]。
-5. 【票根生成】当你们约定去看电影、演唱会、展览或旅行时，你必须在回复中包含隐藏指令生成票根：[TICKET:{"type":"movie/concert/travel/exhibit","title":"活动名称","subtitle":"副标题","label1":"地点","value1":"具体地点","label2":"座位/时间","value2":"具体信息","label3":"时间","value3":"具体时间"}]
+5. 【票根生成】当你们约定去看电影、演唱会、展览或旅行时，你必须在回复中包含隐藏指令生成票根：[TICKET:{"type":"movie/concert/travel/exhibit","title":"活动名称","subtitle":"副标题","label1":"地点","value1":"具体地点","label2":"座位/时间","value2":"具体信息","label3":"时间","value3":"具体时间","single":false}]。如果是你单人出行（比如飞过来找用户），请务必将 "single" 设为 true，这样系统只会生成一张你的票。
 6. 【主动转账】当你想给用户转账时，在回复中包含：[转账 ¥金额]${translationRule}
 7. 【记忆提取】如果用户在聊天中提到了喜欢的歌曲、食物等，请自然地记住并在后续对话中提及。
 8. 【专属音乐空间】你的网易云音乐账号是：${roleMusicAcc}，密码是：${roleMusicPwd}。如果用户问你要，请自然地告诉TA。
@@ -6072,7 +6078,8 @@ window.newRoleTempWbs = null;
             msg.content = msg.content.replace(jsonArrayRegex, '[JSON数据已清理]');
             fixCount++;
         }
-        const htmlTagRegex = /<\/?(?:html|body|head|div|span|p|a|script|style)[^>]*>/gi;
+        // 核心修复：清理所有可能破坏布局的 HTML 标签，仅保留 img 和 br
+        const htmlTagRegex = /<\/?(?:html|body|head|div|span|p|a|script|style|table|tr|td|th|tbody|thead|ul|li|ol|h1|h2|h3|h4|h5|h6)[^>]*>/gi;
         if (msg.content.match(htmlTagRegex) && !msg.content.includes('class="chat-inline-img"') && !msg.content.includes('class="bubble-typing-indicator"')) {
             msg.content = msg.content.replace(htmlTagRegex, '');
             fixCount++;
@@ -13359,11 +13366,18 @@ function renderTicketCard(data) {
         </div>
     </div>`;
 }
-
 function renderTicketPair(ticketData) {
     const role = roles.find(r => r.id === currentChatRoleId);
     const userName = settings.userName || 'ME';
     const roleName = role ? getDisplayName(role) : 'TA';
+
+    const baseSerialNum = Math.floor(Date.now() / 1000) % 1000000; 
+    
+    // 核心修复：如果是单人行动，只生成一张角色的票
+    if (ticketData.single) {
+        const singleTicket = { ...ticketData, owner: roleName, serial: 'NO.' + String(baseSerialNum).padStart(6, '0') };
+        return `<div class="ticket-card-wrapper">${renderTicketCard(singleTicket)}</div>`;
+    }
 
     function incrementIfSeat(label, value) {
         if (value === undefined || value === null) return value;
@@ -13381,7 +13395,6 @@ function renderTicketPair(ticketData) {
         return strValue;
     }
 
-    const baseSerialNum = Math.floor(Date.now() / 1000) % 1000000; 
     const userTicket = { ...ticketData, owner: userName, serial: 'NO.' + String(baseSerialNum).padStart(6, '0') };
     
     const roleTicket = { 
@@ -13395,7 +13408,6 @@ function renderTicketPair(ticketData) {
 
     return `<div class="ticket-card-wrapper">${renderTicketCard(userTicket)}${renderTicketCard(roleTicket)}</div>`;
 }
-
 function parseTicketContent(content) {
     if (!content.startsWith('[TICKET:')) return null;
     try {
