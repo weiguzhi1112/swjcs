@@ -6155,8 +6155,9 @@ window.newRoleTempWbs = null;
                             if (tagType === 'PAY_REQUEST') card.status = '待支付';
                             if (tagType === 'ORDER_RECEIPT_CARD') card.status = '已支付';
                             if (tagType === 'TRANSFER' || tagType === 'FAMILY_CARD') card.status = '待接收';
-                        if (tagType === 'OURSPACE_INVITE') card.status = '等待对方回复配对码';
-                        needsFix = true;
+                            if (tagType === 'OURSPACE_INVITE') card.status = '等待对方回复配对码';
+                            needsFix = true;
+                        } // 【修复毒瘤】：这里必须加上这个闭合括号！
                     }
                     if (needsFix) {
                         msg.content = msg.content.replace(tagMatch[0], `[${tagType}:${encodeURIComponent(JSON.stringify(card))}]`);
