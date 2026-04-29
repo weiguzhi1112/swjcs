@@ -2456,6 +2456,38 @@ function updateKeepAliveUI(isOn) {
     window.readTheater = function(msgIndex) {
         const msg = chats[currentChatRoleId][msgIndex];
         if (!msg) return;
+        
+        // 核心修复：确保阅读器的 DOM 元素存在（防止刷新页面后直接点击报错）
+        if (!document.getElementById('view-theater-reader')) {
+            const html = `
+            <div class="view-container" id="view-theater" style="z-index: 1000; background: var(--bg-color);">
+                <div class="view-header">
+                    <button class="glass-icon-btn" onclick="closeTheaterView()"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg></button>
+                    <div class="chat-title-glass"><div id="chat-title" style="font-style:normal;">小剧场生成</div></div>
+                    <div style="width:34px;"></div>
+                </div>
+                <div class="view-content" style="display: flex; flex-direction: column; gap: 15px;">
+                    <div style="font-size: 12px; color: var(--text-secondary);">请输入小剧场指令 / 设定：</div>
+                    <textarea id="theater-prompt" style="flex: 1; width: 100%; padding: 15px; border-radius: 12px; border: 1px solid var(--border-color); background: var(--gray-light); color: var(--text-color); font-size: 14px; resize: none; outline: none;" placeholder="例如：写一段我们去海边看日落的纯爱小剧场，文风要唯美细腻..."></textarea>
+                    <button class="action-btn primary" id="btn-generate-theater" style="padding: 15px; border-radius: 12px; font-size: 14px;" onclick="generateTheater()">开始生成</button>
+                </div>
+            </div>
+            <div class="view-container" id="view-theater-reader" style="z-index: 1000; background: var(--bg-color);">
+                <div class="view-header">
+                    <button class="glass-icon-btn" onclick="closeTheaterReader()"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg></button>
+                    <div class="chat-title-glass"><div id="chat-title" style="font-style:normal;">剧场阅读与编辑</div></div>
+                    <button class="glass-icon-btn" onclick="saveTheaterEdit()"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg></button>
+                </div>
+                <div class="view-content" style="display: flex; flex-direction: column; gap: 10px;">
+                    <input type="text" id="theater-read-title" style="font-family: var(--font-serif); font-size: 20px; font-weight: bold; border: none; border-bottom: 1px dashed var(--border-color); background: transparent; color: var(--text-color); padding: 10px 0; outline: none;">
+                    <input type="text" id="theater-read-epigraph" style="font-size: 12px; font-style: italic; color: var(--text-secondary); border: none; border-bottom: 1px dashed var(--border-color); background: transparent; padding: 10px 0; outline: none;" placeholder="题记...">
+                    <div id="theater-read-content" contenteditable="true" style="width: 100%; min-height: 60vh; border: none; background: transparent; color: var(--text-color); font-size: 14px; line-height: 1.8; outline: none; padding: 10px 0; overflow-y: auto; word-break: break-word;"></div>
+                    <button class="action-btn" style="border-color: #ff4d4d; color: #ff4d4d; padding: 12px; border-radius: 12px;" onclick="deleteTheater()">删除此剧场</button>
+                </div>
+            </div>`;
+            document.body.insertAdjacentHTML('beforeend', html);
+        }
+
         try {
             const raw = msg.content.slice(14, -1);
             const card = JSON.parse(decodeURIComponent(raw));
@@ -2464,7 +2496,10 @@ function updateKeepAliveUI(isOn) {
             $('#theater-read-epigraph').value = card.epigraph || '';
             $('#theater-read-content').innerHTML = card.content || '';
             $('#view-theater-reader').classList.add('active');
-        } catch(e) {}
+        } catch(e) {
+            console.error("解析剧场数据失败:", e);
+            alert("解析剧场数据失败，可能是数据格式损坏。");
+        }
     };
 
     window.saveTheaterEdit = function() {
