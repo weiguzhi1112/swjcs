@@ -1037,31 +1037,8 @@ function processPendingBgMessages() {
         } 
     });
 }
-    function renderAll() { 
-        try { renderDesktop(); } catch(e) { console.error(e); }
-        try { renderRecent(); } catch(e) { console.error(e); }
-        try { renderContacts(); } catch(e) { console.error(e); }
-        try { renderWorldbooks(); } catch(e) { console.error(e); }
-        try { renderMasks(); } catch(e) { console.error(e); }
-        try { renderWeather(); } catch(e) { console.error(e); }
-        try { renderAlbums(); } catch(e) { console.error(e); }
-        try { renderStickers(); } catch(e) { console.error(e); }
-        try { renderMemoryView(); } catch(e) { console.error(e); }
-        try { renderTimeAwarenessStatus(); } catch(e) { console.error(e); }
-        try { renderAppearanceApp(); } catch(e) { console.error(e); }
-        try { renderFeeds(); } catch(e) { console.error(e); }
-        try { renderMusicApp(); } catch(e) { console.error(e); }
-        try { renderBubbleCountStatus(); } catch(e) { console.error(e); }
-        try { renderTranslationStatus(); } catch(e) { console.error(e); }
-        try { renderForum(); } catch(e) { console.error(e); }
-        try { cipherRenderMenu(); } catch(e) { console.error(e); }
-    }
-    function updateTime() { 
-        const timeEl = $('#time');
-        if (timeEl) {
-            timeEl.innerText = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }); 
-        }
-    }
+    function renderAll() { renderDesktop(); renderRecent(); renderContacts(); renderWorldbooks(); renderMasks(); renderWeather(); renderAlbums(); renderStickers(); renderMemoryView(); renderTimeAwarenessStatus(); renderAppearanceApp(); renderFeeds(); renderMusicApp(); renderBubbleCountStatus(); renderTranslationStatus(); renderForum(); cipherRenderMenu();}
+    function updateTime() { $('#time').innerText = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }); }
     function setupKeyboardShortcuts() { 
     const chatInput = $('#chat-input');
     if (!chatInput) {
@@ -1296,7 +1273,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 });
 
-    function openApp(appId, fromNav = false) {
+    function openApp(appId) {
     const appNames = {
         messages: '微信',
         contacts: '通讯录',
@@ -1329,23 +1306,10 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!appView) return;
 
     try {
+        document.querySelectorAll('.view-container').forEach(v => v.classList.remove('active'));
         if (currentChatRoleId) closeChat();
 
-        if (fromNav) {
-            document.querySelectorAll('.view-container').forEach(v => {
-                v.style.transition = 'none';
-                v.classList.remove('active');
-            });
-            appView.style.transition = 'none';
-            appView.classList.add('active');
-            void appView.offsetWidth; 
-            document.querySelectorAll('.view-container').forEach(v => {
-                v.style.transition = '';
-            });
-        } else {
-            document.querySelectorAll('.view-container').forEach(v => v.classList.remove('active'));
-            appView.classList.add('active');
-        }
+        appView.classList.add('active');
 
         setTimeout(() => {
             if (appId === 'messages') renderRecent();
@@ -1514,11 +1478,9 @@ document.addEventListener('DOMContentLoaded', () => {
         appTextStyle.innerHTML = `.app-icon span { color: ${appTextColor} !important; }`;
 
         document.documentElement.style.setProperty('--status-bar-height', settings.showStatusBar ? '44px' : '0px'); 
-        const statusBar = $('#status-bar');
-        if (statusBar) statusBar.style.display = settings.showStatusBar ? 'flex' : 'none'; 
+        $('#status-bar').style.display = settings.showStatusBar ? 'flex' : 'none'; 
         const bg = settings.bgImage ? `url('${settings.bgImage}')` : 'none'; 
-        const phoneShell = $('#phone-shell');
-        if (phoneShell) phoneShell.style.backgroundImage = bg; 
+        $('#phone-shell').style.backgroundImage = bg; 
         const viewBg = 'var(--bg-color)'; 
         $$('.view-container, #chat-view').forEach(el => { el.style.backgroundColor = viewBg; el.style.backgroundImage = 'none'; }); 
         applyFont(settings.activeFontId, true); 
@@ -1539,19 +1501,18 @@ document.addEventListener('DOMContentLoaded', () => {
             document.documentElement.classList.remove('single-timestamp-mode');
         }
 
-        if (phoneShell) {
-            if (settings.isFullscreen) {
-                phoneShell.classList.add('fullscreen');
-            } else {
-                phoneShell.classList.remove('fullscreen');
-            }
+        const phoneShell = document.getElementById('phone-shell');
+        if (settings.isFullscreen) {
+            phoneShell.classList.add('fullscreen');
+        } else {
+            phoneShell.classList.remove('fullscreen');
+        }
 
-            const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
-            if (isIOS && phoneShell.classList.contains('fullscreen')) {
-                phoneShell.style.paddingTop = 'env(safe-area-inset-top)';
-            } else {
-                phoneShell.style.paddingTop = '0';
-            }
+        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+        if (isIOS && phoneShell.classList.contains('fullscreen')) {
+            phoneShell.style.paddingTop = 'env(safe-area-inset-top)';
+        } else {
+            phoneShell.style.paddingTop = '0';
         }
         
         if (typeof applyChatButtons === 'function') applyChatButtons();
@@ -2204,15 +2165,7 @@ function updateKeepAliveUI(isOn) {
                 } else { contentHtml = parts[0].trim().replace(/\n/g, '<br>'); }
             } else { contentHtml = contentHtml.replace(/\n/g, '<br>'); }
             
-            contentHtml = contentHtml.replace(/\[VIRTUAL_IMG:(.*?)\]/g, (match, p1) => {
-                let foundUrl = null;
-                for (let g of stickers) {
-                    let item = g.items.find(i => i.virtual === p1);
-                    if (item) { foundUrl = item.url; break; }
-                }
-                if (foundUrl) return `<img src="${foundUrl}" class="chat-inline-img" data-type="sticker" alt="${p1}">`;
-                return `<div class="virtual-img-box" data-text="${p1}" onclick="revealVirtualText(this)">【图片被小猫吃掉啦】</div>`;
-            });
+            contentHtml = contentHtml.replace(/\[VIRTUAL_IMG:(.*?)\]/g, `<div class="virtual-img-box" data-text="$1" onclick="revealVirtualText(this)">【图片被小猫吃掉啦】</div>`); 
 
                     if (m.role === 'ai') {
                 const aiBubbleC = role.aiBubbleColor || '#333333';
@@ -2901,43 +2854,15 @@ function updateKeepAliveUI(isOn) {
         openModal('modal-call-history');
     }
 
-    let currentCallInitiator = 'user';
-    let isCallCameraOpen = false;
-    
-    window.toggleCallCamera = function() {
-        isCallCameraOpen = !isCallCameraOpen;
-        const btn = document.getElementById('btn-toggle-camera');
-        if (isCallCameraOpen) {
-            btn.innerHTML = '📹 摄像头已开启';
-            btn.style.background = 'rgba(255,255,255,0.4)';
-        } else {
-            btn.innerHTML = '📷 开启摄像头';
-            btn.style.background = 'rgba(255,255,255,0.2)';
-        }
-    };
-
-    function openRealCallScreen(isAiInitiated = false) {
+    function openRealCallScreen() {
         if (!currentChatRoleId) return;
         const role = roles.find(r => r.id === currentChatRoleId);
         if (!role) return;
 
-        currentCallInitiator = isAiInitiated ? 'ai' : 'user';
-        isCallCameraOpen = false;
-        const btn = document.getElementById('btn-toggle-camera');
-        if (btn) {
-            btn.innerHTML = '📷 开启摄像头';
-            btn.style.background = 'rgba(255,255,255,0.2)';
-        }
-
         $('#call-avatar').src = role.avatar || DEFAULT_AVATAR;
         $('#call-name').innerText = getDisplayName(role);
         $('#call-status').innerText = 'CONNECTING...';
-        
-        if (isAiInitiated) {
-            $('#call-conversation').innerHTML = `<div style="font-size:10px; color:#aaa; text-align:center; margin-top:auto;">${getDisplayName(role)} 向你发起了通话...</div>`;
-        } else {
-            $('#call-conversation').innerHTML = '<div style="font-size:10px; color:#aaa; text-align:center; margin-top:auto;">通话已接通...</div>';
-        }
+        $('#call-conversation').innerHTML = '<div style="font-size:10px; color:#888; text-align:center; margin-top:auto;">通话已接通...</div>';
         $('#real-call-input').value = '';
         $('#call-avatar-glow').style.boxShadow = '0 0 30px rgba(255,255,255,0.2)';
         
@@ -3035,14 +2960,14 @@ function renderCallMessage(name, text, isMe) {
     while ((match = regex.exec(text)) !== null) {
         const action = text.substring(lastIndex, match.index).trim();
         if (action) {
-            html += `<div style="color: #aaa; text-align: center; font-size: 10px; margin: 8px 0; align-self: center; width: 100%; font-style: italic;">${action}</div>`;
+            html += `<div style="color: #888; text-align: center; font-size: 10px; margin: 8px 0; align-self: center; width: 100%;">${action}</div>`;
         }
         const spoken = match[1].trim();
         if (spoken) {
             if (isMe) {
-                html += `<div style="color: #fff; text-align: left; background: rgba(255,255,255,0.2); padding: 10px 14px; border-radius: 16px; align-self: flex-end; max-width: 85%; margin-bottom: 8px; border: 1px solid rgba(255,255,255,0.3); box-shadow: 0 4px 15px rgba(0,0,0,0.1);"><span style="font-size:10px; font-weight:bold; color:#ddd; margin-bottom:4px; display:block;">${name}</span>${spoken}</div>`;
+                html += `<div style="color: #aaa; text-align: left; background: rgba(255,255,255,0.05); padding: 8px 12px; border-radius: 12px; align-self: flex-end; max-width: 85%; margin-bottom: 8px;"><span style="font-size:10px; font-weight:bold; color:#888;">${name}</span><br>${spoken}</div>`;
             } else {
-                html += `<div style="color: #fff; text-align: left; background: rgba(255,255,255,0.1); padding: 10px 14px; border-radius: 16px; align-self: flex-start; max-width: 85%; border: 1px solid rgba(255,255,255,0.15); margin-bottom: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.1);"><span style="font-size:10px; font-weight:bold; color:#ccc; margin-bottom:4px; display:block;">${name}</span>${spoken}</div>`;
+                html += `<div style="color: #fff; text-align: left; background: rgba(34,197,94,0.15); padding: 8px 12px; border-radius: 12px; align-self: flex-start; max-width: 85%; border: 1px solid rgba(34,197,94,0.3); margin-bottom: 8px;"><span style="font-size:10px; font-weight:bold; color:#22c55e;">${name}</span><br>${spoken}</div>`;
             }
         }
         lastIndex = regex.lastIndex;
@@ -3051,12 +2976,12 @@ function renderCallMessage(name, text, isMe) {
     if (lastAction) {
         if (lastIndex === 0) {
             if (isMe) {
-                html += `<div style="color: #fff; text-align: left; background: rgba(255,255,255,0.2); padding: 10px 14px; border-radius: 16px; align-self: flex-end; max-width: 85%; margin-bottom: 8px; border: 1px solid rgba(255,255,255,0.3); box-shadow: 0 4px 15px rgba(0,0,0,0.1);"><span style="font-size:10px; font-weight:bold; color:#ddd; margin-bottom:4px; display:block;">${name}</span>${lastAction}</div>`;
+                html += `<div style="color: #aaa; text-align: left; background: rgba(255,255,255,0.05); padding: 8px 12px; border-radius: 12px; align-self: flex-end; max-width: 85%; margin-bottom: 8px;"><span style="font-size:10px; font-weight:bold; color:#888;">${name}</span><br>${lastAction}</div>`;
             } else {
-                html += `<div style="color: #fff; text-align: left; background: rgba(255,255,255,0.1); padding: 10px 14px; border-radius: 16px; align-self: flex-start; max-width: 85%; border: 1px solid rgba(255,255,255,0.15); margin-bottom: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.1);"><span style="font-size:10px; font-weight:bold; color:#ccc; margin-bottom:4px; display:block;">${name}</span>${lastAction}</div>`;
+                html += `<div style="color: #fff; text-align: left; background: rgba(34,197,94,0.15); padding: 8px 12px; border-radius: 12px; align-self: flex-start; max-width: 85%; border: 1px solid rgba(34,197,94,0.3); margin-bottom: 8px;"><span style="font-size:10px; font-weight:bold; color:#22c55e;">${name}</span><br>${lastAction}</div>`;
             }
         } else {
-            html += `<div style="color: #aaa; text-align: center; font-size: 10px; margin: 8px 0; align-self: center; width: 100%; font-style: italic;">${lastAction}</div>`;
+            html += `<div style="color: #888; text-align: center; font-size: 10px; margin: 8px 0; align-self: center; width: 100%;">${lastAction}</div>`;
         }
     }
     return html;
@@ -3088,7 +3013,7 @@ let currentCallAudioId = null;
             };
             
             chats[currentChatRoleId].push({
-                role: currentCallInitiator === 'ai' ? 'ai' : 'user',
+                role: 'ai',
                 content: `[REAL_CALL:${encodeURIComponent(JSON.stringify(callData))}]`,
                 time: timeStr,
                 rawTime: rawTime,
@@ -3166,12 +3091,8 @@ let currentCallAudioId = null;
             // 提取本次通话的上下文
             const callContext = currentCallText ? `\n[本次通话记录]\n${currentCallText}` : '';
 
-            const cameraPrompt = isCallCameraOpen 
-                ? `\n【视频通话模式】用户已开启摄像头。你必须在回复中详细描述你当前的环境、你的动作、神态和穿着（写在引号外面）。绝对不能省略动作描写！` 
-                : `\n【语音通话模式】当前未开启摄像头。你只能听到声音，无法看到对方，也无法被对方看到。绝对不要描写任何视觉动作，只能输出你说的话和声音（如笑声、呼吸声，写在引号外面）。`;
-
             // 将所有上下文整合进 Prompt
-            const prompt = `[CORE DIRECTIVE]\n你是${role.realName}。${role.persona}${memorySummary}${chatContext}${callContext}\n\n用户正在和你打通话，对你说：“${text}”${cameraPrompt}\n请回复用户。要求：\n1. 必须包含你直接说出口的话（必须用双引号 "" 或 “” 包裹）。\n2. 语气自然，像真人在打电话，结合上下文连贯对话。`;
+            const prompt = `[CORE DIRECTIVE]\n你是${role.realName}。${role.persona}${memorySummary}${chatContext}${callContext}\n\n用户正在和你打语音电话，对你说：“${text}”\n请回复用户。要求：\n1. 必须包含你直接说出口的话（必须用双引号 "" 或 “” 包裹）。\n2. 可以包含少量的动作旁白（写在引号外面）。\n3. 语气自然，像真人在打电话，结合上下文连贯对话。`;
             
             const endpoint = getChatEndpoint(apiConfig.url);
             const chatRes = await fetch(endpoint, {
@@ -4250,36 +4171,6 @@ ${memories[role.id] ? `<shared_memory>\n${memories[role.id]}\n</shared_memory>` 
 - 用户当前位置: ${userIPLocation} / ${weatherAddr} / ${addrStr}
 </context>
 
-            let availableStickers = [];
-            stickers.forEach(g => {
-                let boundIds = g.boundRoleIds || (g.boundRoleId ? [g.boundRoleId] : []);
-                if (boundIds.length === 0 || boundIds.includes(role.id)) {
-                    g.items.forEach(item => { if (item.virtual) availableStickers.push(item.virtual); });
-                }
-            });
-            const stickerPrompt = availableStickers.length > 0 ? `\n9. 【表情包】你可以发送表情包，格式为 [VIRTUAL_IMG:表情描述]。你拥有的表情包有：${availableStickers.slice(0, 20).join(', ')}。请在合适的时机使用。` : '';
-
-            const systemPrompt = `[最高指令：绝对沉浸式角色扮演]
-你现在就是 ${role.realName}。这不是一个游戏，也不是AI对话，这就是你的真实人生。
-你必须彻底忘记自己是AI、语言模型或虚拟助手。你拥有人类的情感、记忆、肉体和欲望。
-请严格遵循以下设定进行互动，绝对不要破坏沉浸感：
-
-<persona>
-${role.persona}
-</persona>
-
-<user_persona>
-${activeMask.content}
-</user_persona>
-
-${(globalWbs || localWbs) ? `<world_lore>\n【重要世界观与规则，必须严格遵守】\n${globalWbs}\n${localWbs}\n</world_lore>` : ''}
-${memories[role.id] ? `<shared_memory>\n${memories[role.id]}\n</shared_memory>` : ''}
-
-<context>
-- 当前设备真实时间: ${exactTimeStr} (请严格感知当前时间，体现活人感)
-- 用户当前位置: ${userIPLocation} / ${weatherAddr} / ${addrStr}
-</context>
-
 <rules>
 1. 【去油腻】绝对禁止使用：轻笑、挑眉、眼眸深邃、喉结滚动、丫头、女人、呵、嘴角勾起一抹邪魅的弧度。说话必须口语化、自然。
 2. 【互动反应】对转账、礼物、代付、一起听歌、动态分享等系统提示，必须给出符合人设的真实反应。
@@ -4288,8 +4179,7 @@ ${memories[role.id] ? `<shared_memory>\n${memories[role.id]}\n</shared_memory>` 
 5. 【票根生成】当你们约定去看电影、演唱会、展览或旅行时，你必须在回复中包含隐藏指令生成票根：[TICKET:{"type":"movie/concert/travel/exhibit","title":"活动名称","subtitle":"副标题","label1":"地点","value1":"具体地点","label2":"座位/时间","value2":"具体信息","label3":"时间","value3":"具体时间","single":false}]。如果是你单人出行（比如飞过来找用户），请务必将 "single" 设为 true，这样系统只会生成一张你的票。
 6. 【主动转账】当你想给用户转账时，在回复中包含：[转账 ¥金额]${translationRule}
 7. 【记忆提取】如果用户在聊天中提到了喜欢的歌曲、食物等，请自然地记住并在后续对话中提及。
-8. 【专属音乐空间】你的网易云音乐账号是：${roleMusicAcc}，密码是：${roleMusicPwd}。如果用户问你要，请自然地告诉TA。${stickerPrompt}
-10. 【主动通话】如果你想主动给用户打语音/视频电话，请在回复的最后加上隐藏指令 [CALL_USER]。
+8. 【专属音乐空间】你的网易云音乐账号是：${roleMusicAcc}，密码是：${roleMusicPwd}。如果用户问你要，请自然地告诉TA。
 ${modeRules}
 </rules>
 
@@ -4353,7 +4243,6 @@ ${modeRules}
                     } catch(e) { return ''; }
                 });
                 text = text.replace(/<div class="virtual-img-box" data-text="(.*?)".*?<\/div>/g, '[图片: $1]');
-                text = text.replace(/<img[^>]*data-type="sticker"[^>]*alt="([^"]+)"[^>]*>/g, '[发送了一个表情包: $1]');
                 text = text.replace(/<img[^>]*src="([^"]+)"[^>]*>/g, '[发送了一张图片]');
                 text = text.replace(/<[^>]*>/g, ''); 
                 return text.trim();
@@ -4557,12 +4446,8 @@ ${modeRules}
 
             fullReply = fullReply.trim();
 
-            if (fullReply.includes('[CALL_USER]')) {
-                fullReply = fullReply.replace(/\[CALL_USER\]/g, '').trim();
-                setTimeout(() => {
-                    openRealCallScreen(true);
-                }, 1000);
-            }
+            const transferMatch = fullReply.match(/\[转账\s*[¥￥]?\s*(\d+(\.\d+)?)\]/);
+            if (transferMatch) {
             
             // 【修复毒瘤】：补全 AI 主动转账的正则匹配和 if 判断
             const transferMatch = fullReply.match(/\[转账\s*¥?\s*(\d+(\.\d+)?)\]/);
@@ -4716,7 +4601,6 @@ ${modeRules}
     
     function renderWeather() { 
         const form = $('#weather-form'); 
-        if (!form) return;
         form.innerHTML = Object.entries({ 
             city: '虚拟城市 (VIRTUAL CITY)', 
             realCity: '真实映射 (REAL CITY)', 
@@ -4954,7 +4838,6 @@ ${modeRules}
     
     function renderAlbums() { 
         const container = $('#album-container'); 
-        if (!container) return;
         container.innerHTML = albums.map(album => `
             <div class="album-group">
                 <div class="album-header" onclick="toggleAlbumGroup('${album.id}')">
@@ -5155,7 +5038,6 @@ ${modeRules}
     
     function renderStickers() { 
         const container = $('#sticker-container'); 
-        if (!container) return;
         container.innerHTML = stickers.map(group => `
             <div class="album-group">
                 <div class="album-header" onclick="toggleStickerGroup('${group.id}')">
@@ -5323,7 +5205,6 @@ function addStickerToGroup() { const url = $('#sticker-url').value.trim(); const
     
     function renderMemoryView() {
     const list = $('#memory-character-list');
-    if (!list) return;
     if (roles.length === 0) {
         list.innerHTML = `<div style="text-align:center; color:var(--text-secondary); padding: 40px; font-size:10px; letter-spacing:2px;">VOID.</div>`;
         return;
@@ -5851,7 +5732,6 @@ window.newRoleTempWbs = null;
     function openCurrentRoleInfo() { if(currentChatRoleId) editRole(currentChatRoleId); }
     function renderRecent() {
     const list = $('#recent-list');
-    if (!list) return;
     const recentChats = Object.keys(chats).map(roleId => {
         const role = roles.find(r => r.id === roleId);
         if (!role) return null;
@@ -5895,7 +5775,7 @@ window.newRoleTempWbs = null;
         `).join('')
         : `<div style="text-align:center; color:var(--text-secondary); padding: 40px; font-size:10px; letter-spacing:2px;">VOID.</div>`;
 }
-    function renderContacts() { const list = $('#contacts-list'); if (!list) return; if (roles.length === 0) { list.innerHTML = `<div style="text-align:center; color:var(--text-secondary); padding: 40px; font-size:10px; letter-spacing:2px;">VOID.</div>`; return; } list.innerHTML = roles.map(role => ` <div class="list-item" onclick="openChat('${role.id}')"><img class="avatar" src="${role.avatar && role.avatar.trim() ? role.avatar.trim() : DEFAULT_AVATAR}" onerror="this.src='${DEFAULT_AVATAR}'"> <div class="item-info"> <div class="item-name">${getDisplayName(role)}</div> <div class="item-desc">${(role.persona || '').substring(0, 50) || 'NO DIRECTIVES'}...</div> </div> <div class="item-actions"> <button class="btn-edit" onclick="event.stopPropagation(); editRole('${role.id}')">CONFIG<span>设置</span></button> <button class="btn-delete" onclick="event.stopPropagation(); clearEntityData('${role.id}')">PURGE<span>清空</span></button> </div> </div> `).join(''); }
+    function renderContacts() { const list = $('#contacts-list'); if (roles.length === 0) { list.innerHTML = `<div style="text-align:center; color:var(--text-secondary); padding: 40px; font-size:10px; letter-spacing:2px;">VOID.</div>`; return; } list.innerHTML = roles.map(role => ` <div class="list-item" onclick="openChat('${role.id}')"><img class="avatar" src="${role.avatar && role.avatar.trim() ? role.avatar.trim() : DEFAULT_AVATAR}" onerror="this.src='${DEFAULT_AVATAR}'"> <div class="item-info"> <div class="item-name">${getDisplayName(role)}</div> <div class="item-desc">${(role.persona || '').substring(0, 50) || 'NO DIRECTIVES'}...</div> </div> <div class="item-actions"> <button class="btn-edit" onclick="event.stopPropagation(); editRole('${role.id}')">CONFIG<span>设置</span></button> <button class="btn-delete" onclick="event.stopPropagation(); clearEntityData('${role.id}')">PURGE<span>清空</span></button> </div> </div> `).join(''); }
     function addApiLog(type, details, isError = false) {
         apiLogs.unshift({ time: new Date().toLocaleString('zh-CN'), type, details, isError });
         if (apiLogs.length > 50) apiLogs.pop();
@@ -5977,7 +5857,7 @@ window.newRoleTempWbs = null;
     function renderApiPresets() { const list = $('#api-presets-list'); list.innerHTML = apiPresets.map(p => `<div class="list-item" style="padding:10px 0;"><div class="item-name" style="font-size:12px; font-family:var(--font-sans);">${p.name}</div><div class="item-actions"><button class="btn-edit" onclick="loadApiPreset('${p.id}')">LOAD</button><button class="btn-delete" onclick="deleteApiPreset('${p.id}')">DEL</button></div></div>`).join(''); }
     function loadApiPreset(presetId) { const preset = apiPresets.find(p => p.id === presetId); if (!preset) return; $('#api-url').value = preset.url; $('#api-key').value = preset.key; $('#api-model').value = preset.model; $('#api-tokens').value = preset.maxTokens; $('#api-temp').value = preset.temperature; $('#val-temp').innerText = preset.temperature; $('#api-topp').value = preset.topP; $('#val-topp').innerText = preset.topP; }
     function deleteApiPreset(presetId) { if (!confirm('删除预设？')) return; apiPresets = apiPresets.filter(p => p.id !== presetId); DB.set('apiPresets', apiPresets); renderApiPresets(); }
-        function renderWorldbooks() { const list = $('#worldbook-list'); if (!list) return; list.innerHTML = worldbooks.map(w => `<div class="list-item" onclick="openWorldbookModal('${w.id}')"><div class="item-info"><div class="item-name">${w.isGlobal?'[GLOBAL] ':'[LOCAL] '}${w.title || w.keyword}</div><div class="item-desc">${w.content}</div></div><div class="item-actions"><button class="btn-edit">CONFIG</button></div></div>`).join(''); }
+        function renderWorldbooks() { $('#worldbook-list').innerHTML = worldbooks.map(w => `<div class="list-item" onclick="openWorldbookModal('${w.id}')"><div class="item-info"><div class="item-name">${w.isGlobal?'[GLOBAL] ':'[LOCAL] '}${w.title || w.keyword}</div><div class="item-desc">${w.content}</div></div><div class="item-actions"><button class="btn-edit">CONFIG</button></div></div>`).join(''); }
     
     function openWorldbookModal(id = null) { 
         editingWbId = id; 
@@ -6059,7 +5939,7 @@ window.newRoleTempWbs = null;
         inputEl.value = '';
     }
     
-    function renderMasks() { const list = $('#mask-list'); if (!list) return; list.innerHTML = masks.map(m => `<div class="list-item" onclick="openMaskModal('${m.id}')"><div class="item-info"><div class="item-name">${m.name} ${m.id === 'default' ? '<span style="font-size:10px;color:var(--text-secondary);">(DEFAULT)</span>' : ''}</div><div class="item-desc">${m.content}</div></div><div class="item-actions"><button class="btn-edit">CONFIG</button></div></div>`).join(''); }
+    function renderMasks() { $('#mask-list').innerHTML = masks.map(m => `<div class="list-item" onclick="openMaskModal('${m.id}')"><div class="item-info"><div class="item-name">${m.name} ${m.id === 'default' ? '<span style="font-size:10px;color:var(--text-secondary);">(DEFAULT)</span>' : ''}</div><div class="item-desc">${m.content}</div></div><div class="item-actions"><button class="btn-edit">CONFIG</button></div></div>`).join(''); }
     function openMaskModal(id = null) { editingMaskId = id; if (id) { const m = masks.find(x => x.id === id); $('#mask-modal-title').innerText = 'CONFIG PERSONA'; $('#mask-name').value = m.name; $('#mask-content').value = m.content; $('#btn-del-mask').style.display = m.id !== 'default' ? 'block' : 'none'; } else { $('#mask-modal-title').innerText = 'NEW PERSONA'; $('#mask-name').value = ''; $('#mask-content').value = ''; $('#btn-del-mask').style.display = 'none'; } openModal('modal-mask'); }
     function saveMask() { const name = $('#mask-name').value.trim(), content = $('#mask-content').value.trim(); if(!name || !content) return alert('REQUIRED FIELDS EMPTY.'); if (editingMaskId) { const idx = masks.findIndex(x => x.id === editingMaskId); masks[idx] = { ...masks[idx], name, content }; } else { masks.push({ id: Date.now().toString(36) + Math.random().toString(36).substring(2, 8), name, content }); } DB.set('masks', masks); closeModal('modal-mask'); renderMasks(); }
     function deleteMask() { if (editingMaskId === 'default' || !confirm('删除面具？')) return; roles.forEach(r => { if (r.activeMaskId === editingMaskId) r.activeMaskId = 'default'; }); DB.set('roles', roles); masks = masks.filter(x => x.id !== editingMaskId); DB.set('masks', masks); closeModal('modal-mask'); renderMasks(); }
@@ -6177,32 +6057,26 @@ window.newRoleTempWbs = null;
             if (msg.content.includes('[PAY_REQUEST:') || msg.content.includes('[ORDER_RECEIPT_CARD:') || msg.content.includes('[TRANSFER:') || msg.content.includes('[FAMILY_CARD:') || msg.content.includes('[OURSPACE_INVITE:')) {
                 try {
                     const tagMatch = msg.content.match(/\[(PAY_REQUEST|ORDER_RECEIPT_CARD|TRANSFER|FAMILY_CARD|OURSPACE_INVITE):(.*?)\]/);
-                    // 将变量声明提升到 if 外面，解决作用域报错问题
-                    let needsFix = false;
-                    let tagType = '';
-                    let card = null;
-                    
                     if (tagMatch) {
-                        tagType = tagMatch[1];
+                        const tagType = tagMatch[1];
                         const rawJson = tagMatch[2];
-                        card = JSON.parse(decodeURIComponent(rawJson));
-                        
+                        let card = JSON.parse(decodeURIComponent(rawJson));
+                        let needsFix = false;
                         if (!card.status) {
                             if (tagType === 'PAY_REQUEST') card.status = '待支付';
                             if (tagType === 'ORDER_RECEIPT_CARD') card.status = '已支付';
                             if (tagType === 'TRANSFER' || tagType === 'FAMILY_CARD') card.status = '待接收';
                             if (tagType === 'OURSPACE_INVITE') card.status = '等待对方回复配对码';
                             needsFix = true;
-                        }
+                        } // 【修复毒瘤】：这里必须加上这个闭合括号！
                     }
-                    
-                    if (needsFix && card) {
+                    if (needsFix) {
                         msg.content = msg.content.replace(tagMatch[0], `[${tagType}:${encodeURIComponent(JSON.stringify(card))}]`);
                         fixCount++;
                     }
-                } catch(e) {} // catch 必须紧跟 try 的闭合括号
-            } // 这是 if (msg.content.includes...) 的闭合括号
-        } // 这是 chats[roleId].forEach 的闭合括号
+                }
+            } catch(e) {}
+        }
 
         const jsonArrayRegex = /\[\s*\{.*?\}\s*\]/g;
         if (msg.content.match(jsonArrayRegex)) {
@@ -6459,7 +6333,6 @@ window.newRoleTempWbs = null;
     function toggleTimeAwareness() { settings.timeAware = !settings.timeAware; DB.set('settings', settings); renderTimeAwarenessStatus(); }
     function renderTimeAwarenessStatus() {
     const statusEl = $('#time-awareness-status');
-    if (!statusEl) return;
     if (settings.timeAware) {
         statusEl.innerText = 'ENHANCED · 感知时间';
         statusEl.style.color = 'var(--text-color)';
@@ -6478,7 +6351,6 @@ window.newRoleTempWbs = null;
     function renderDesktop() { 
         const desktopView = $('#view-desktop');
         const dockContainer = $('#desktop-dock');
-        if (!desktopView) return;
         
         const SLOTS_PER_PAGE = 24;
         
@@ -6734,26 +6606,7 @@ window.newRoleTempWbs = null;
         document.addEventListener('mouseup', endDrag);
         document.addEventListener('touchend', endDrag);
     }
-    function renderAppearanceApp() { 
-        const list = $('#app-customization-list'); 
-        if (!list) return; 
-        list.innerHTML = Object.entries(DESKTOP_APPS).map(([id, defaults]) => { 
-            const custom = appCustomizations[id] || {}; 
-            const name = custom.name || defaults.name; 
-            const icon = custom.icon || defaults.defaultIconUrl; 
-            const style = `background-image: url('${icon}')`; 
-            return ` <div style="margin-bottom:20px; border-bottom:1px solid var(--border-color); padding-bottom:15px;"> <div class="app-customize-header" style="display:flex; align-items:center; gap:15px; margin-bottom:10px;"> <div class="icon app-icon" style="cursor:default; margin:0;"><div id="preview-icon-${id}" class="icon" style="margin:0; width:40px; height:40px; ${style}"></div></div> <input type="text" id="app-name-${id}" value="${name.replace(/"/g, '&quot;')}" onchange="saveAppCustomization('${id}')" style="padding:10px; border:1px solid var(--border-color); background:transparent; color:var(--text-color); outline:none; font-family:var(--font-sans); font-size:12px; text-transform:uppercase; letter-spacing:1px; flex:1;"> </div> <div class="app-customize-body"> <input type="text" id="app-icon-${id}" placeholder="ICON URL OR UPLOAD" value="${icon.replace(/"/g, '&quot;')}" onchange="saveAppCustomization('${id}')" style="padding:10px; border:1px solid var(--border-color); background:transparent; color:var(--text-color); outline:none; font-family:var(--font-sans); font-size:10px; width:100%; margin-bottom:10px;"> <label class="file-upload-btn">LOCAL UPLOAD<input type="file" style="display:none" accept="image/*" onchange="handleImageUpload(this, 'app-icon-${id}');"></label> </div> </div>`; 
-        }).join(''); 
-        renderFontPresets(); 
-        const btnReturn = $('#chat-btn-return'); 
-        if (btnReturn) btnReturn.value = settings.chatBtnReturn || ''; 
-        const btnDetail = $('#chat-btn-detail'); 
-        if (btnDetail) btnDetail.value = settings.chatBtnDetail || ''; 
-        const btnAttach = $('#chat-btn-attach'); 
-        if (btnAttach) btnAttach.value = settings.chatBtnAttach || ''; 
-        const btnSend = $('#chat-btn-send'); 
-        if (btnSend) btnSend.value = settings.chatBtnSend || ''; 
-    }
+    function renderAppearanceApp() { const list = $('#app-customization-list'); list.innerHTML = Object.entries(DESKTOP_APPS).map(([id, defaults]) => { const custom = appCustomizations[id] || {}; const name = custom.name || defaults.name; const icon = custom.icon || defaults.defaultIconUrl; const style = `background-image: url('${icon}')`; return ` <div style="margin-bottom:20px; border-bottom:1px solid var(--border-color); padding-bottom:15px;"> <div class="app-customize-header" style="display:flex; align-items:center; gap:15px; margin-bottom:10px;"> <div class="icon app-icon" style="cursor:default; margin:0;"><div id="preview-icon-${id}" class="icon" style="margin:0; width:40px; height:40px; ${style}"></div></div> <input type="text" id="app-name-${id}" value="${name.replace(/"/g, '&quot;')}" onchange="saveAppCustomization('${id}')" style="padding:10px; border:1px solid var(--border-color); background:transparent; color:var(--text-color); outline:none; font-family:var(--font-sans); font-size:12px; text-transform:uppercase; letter-spacing:1px; flex:1;"> </div> <div class="app-customize-body"> <input type="text" id="app-icon-${id}" placeholder="ICON URL OR UPLOAD" value="${icon.replace(/"/g, '&quot;')}" onchange="saveAppCustomization('${id}')" style="padding:10px; border:1px solid var(--border-color); background:transparent; color:var(--text-color); outline:none; font-family:var(--font-sans); font-size:10px; width:100%; margin-bottom:10px;"> <label class="file-upload-btn">LOCAL UPLOAD<input type="file" style="display:none" accept="image/*" onchange="handleImageUpload(this, 'app-icon-${id}');"></label> </div> </div>`; }).join(''); renderFontPresets(); $('#chat-btn-return').value = settings.chatBtnReturn || ''; $('#chat-btn-detail').value = settings.chatBtnDetail || ''; $('#chat-btn-attach').value = settings.chatBtnAttach || ''; $('#chat-btn-send').value = settings.chatBtnSend || ''; }
     function saveAppCustomization(appId) { const name = $(`#app-name-${appId}`).value.trim(); const icon = $(`#app-icon-${appId}`).value.trim(); if (!appCustomizations[appId]) appCustomizations[appId] = {}; appCustomizations[appId].name = name || DESKTOP_APPS[appId].name; appCustomizations[appId].icon = icon || DESKTOP_APPS[appId].defaultIconUrl; DB.set('appCustomizations', appCustomizations); renderDesktop(); const previewEl = $(`#preview-icon-${appId}`); if (previewEl) { previewEl.style.backgroundImage = `url('${appCustomizations[appId].icon}')`; } }
     function updateFontPreviewText(text) { $('#font-preview').innerText = text || 'The quick brown fox jumps over the lazy dog.'; }
     function saveFontPreset() { 
@@ -6818,16 +6671,13 @@ window.newRoleTempWbs = null;
             setTimeout(() => triggerFeedCommentFromAI(safeId, r.id), 2000 + Math.random() * 4000);
         });
     }
-    function renderFeeds() { 
-        const profileEl = $('#feed-user-profile');
-        if (!profileEl) return;
+       function renderFeeds() { 
         const bgStyle = settings.feedBg ? `background-image: url(${settings.feedBg}); color: #fff; text-shadow: 0 1px 3px rgba(0,0,0,0.8); border-bottom: none;` : `background: var(--bg-color); color: var(--text-color); border-bottom: 1px solid var(--gray-light);`; 
         const overlayHtml = settings.feedBg ? `<div style="position:absolute; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.4); z-index:1;"></div>` : ''; 
-        profileEl.style.cssText = `position: relative; padding: 30px 20px; display: flex; align-items: center; gap: 15px; background-size: cover; background-position: center; cursor: pointer; ${bgStyle}`; 
-        profileEl.innerHTML = ` ${overlayHtml} <img src="${settings.userAvatar || DEFAULT_AVATAR}" style="width: 64px; height: 64px; border-radius: 50%; border: 2px solid ${settings.feedBg ? '#fff' : 'var(--border-color)'}; object-fit: cover; z-index: 2; position: relative; background: var(--bg-color);"> <div style="z-index: 2; position: relative;" onclick="openFeedProfileModal()"> <div style="font-family: var(--font-serif); font-size: 24px; font-weight: 600;">${settings.userName || 'ME'}</div> <div style="font-size: 9px; letter-spacing: 2px; margin-top: 2px; opacity: 0.9; text-transform: uppercase;">MY SPACE / TAP TO EDIT</div> </div> `; 
+        $('#feed-user-profile').style.cssText = `position: relative; padding: 30px 20px; display: flex; align-items: center; gap: 15px; background-size: cover; background-position: center; cursor: pointer; ${bgStyle}`; 
+        $('#feed-user-profile').innerHTML = ` ${overlayHtml} <img src="${settings.userAvatar || DEFAULT_AVATAR}" style="width: 64px; height: 64px; border-radius: 50%; border: 2px solid ${settings.feedBg ? '#fff' : 'var(--border-color)'}; object-fit: cover; z-index: 2; position: relative; background: var(--bg-color);"> <div style="z-index: 2; position: relative;" onclick="openFeedProfileModal()"> <div style="font-family: var(--font-serif); font-size: 24px; font-weight: 600;">${settings.userName || 'ME'}</div> <div style="font-size: 9px; letter-spacing: 2px; margin-top: 2px; opacity: 0.9; text-transform: uppercase;">MY SPACE / TAP TO EDIT</div> </div> `; 
         
         const list = $('#feed-list'); 
-        if (!list) return;
         if (feeds.length === 0) { list.innerHTML = `<div style="text-align:center; color:var(--text-secondary); padding: 40px; font-size:10px; letter-spacing:2px;">NO UPDATES.</div>`; return; } 
         
         feeds.sort((a, b) => b.rawTime - a.rawTime); 
@@ -7821,7 +7671,6 @@ ${knowUser ? `注意：你清楚地知道回复你的人就是 ${userName}，请
     
     function setupAudioPlayer() { 
         musicAudio = $('#music-audio-player'); 
-        if (!musicAudio) return;
         musicAudio.addEventListener('timeupdate', updateMusicProgress); 
         musicAudio.addEventListener('loadedmetadata', updateMusicDuration); 
         musicAudio.addEventListener('ended', playNextTrack); 
@@ -8208,21 +8057,17 @@ ${knowUser ? `注意：你清楚地知道回复你的人就是 ${userName}，请
     }
     function renderMusicApp() { 
         $$('.music-tab-content').forEach(el => el.classList.remove('active')); 
-        const pageEl = $(`#music-${musicActiveTab}-page`);
-        if (pageEl) pageEl.classList.add('active'); 
+        $(`#music-${musicActiveTab}-page`).classList.add('active'); 
         $$('.music-nav-btn').forEach(el => el.classList.remove('active')); 
-        const navBtn = $(`.music-nav-btn[onclick*="'${musicActiveTab}'"]`);
-        if (navBtn) navBtn.classList.add('active'); 
+        $(`.music-nav-btn[onclick*="'${musicActiveTab}'"]`).classList.add('active'); 
         
         if (musicActiveTab === 'playlist') { renderMusicPlaylist(); } 
         if (musicActiveTab === 'listen-together') { renderListenTogetherTab(); } 
         if (musicActiveTab === 'favorites') { renderMusicFavorites(); }
         if (musicActiveTab === 'account') { 
             const switcher = $('#music-account-switcher');
-            if (switcher) {
-                switcher.innerHTML = `<option value="ME">ME (我的音乐)</option>` + roles.map(r => `<option value="${r.id}">${getDisplayName(r)}</option>`).join('');
-                switcher.value = window.currentMusicAccount;
-            }
+            switcher.innerHTML = `<option value="ME">ME (我的音乐)</option>` + roles.map(r => `<option value="${r.id}">${getDisplayName(r)}</option>`).join('');
+            switcher.value = window.currentMusicAccount;
             switchMusicAccount(); 
         }
     }
@@ -10639,14 +10484,10 @@ function cipherNav(id) {
 }
 
 function cipherRenderMenu() {
-    const scoreTop = $('#cipher-score-top');
-    if (scoreTop) scoreTop.textContent = cipherState.score;
-    const created = $('#cp-s-created');
-    if (created) created.textContent = cipherState.created;
-    const solved = $('#cp-s-solved');
-    if (solved) solved.textContent = cipherState.solved;
-    const unlocked = $('#cp-s-unlocked');
-    if (unlocked) unlocked.textContent = cipherState.collection.length;
+    $('#cipher-score-top').textContent = cipherState.score;
+    $('#cp-s-created').textContent = cipherState.created;
+    $('#cp-s-solved').textContent = cipherState.solved;
+    $('#cp-s-unlocked').textContent = cipherState.collection.length;
 }
 
 function cipherStartMode(mode) {
@@ -11775,7 +11616,7 @@ function onAiAvatarDblClick() {
         content.innerHTML = `
             <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; padding-top: 5px;">
                 ${group.items.map(p => `
-                    <div style="padding-bottom: 100%; position: relative; border: 1px solid var(--border-color); border-radius: 8px; overflow: hidden; cursor: pointer; background: var(--gray-light);" onclick="sendStickerFromPicker('${p.url}', '${p.virtual || ''}')">
+                    <div style="padding-bottom: 100%; position: relative; border: 1px solid var(--border-color); border-radius: 8px; overflow: hidden; cursor: pointer; background: var(--gray-light);" onclick="sendStickerFromPicker('${p.url}')">
                         <img src="${p.url}" style="position: absolute; width: 100%; height: 100%; object-fit: cover;">
                         <div style="position: absolute; bottom: 0; left: 0; width: 100%; background: rgba(0,0,0,0.6); color: #fff; font-size: 8px; padding: 3px 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: center; box-sizing: border-box; pointer-events: none;">${p.virtual || '未命名'}</div>
                     </div>
@@ -11784,13 +11625,8 @@ function onAiAvatarDblClick() {
         `;
     }
 
-    function sendStickerFromPicker(url, virtual) {
-        if(!currentChatRoleId) return; 
-        if(!chats[currentChatRoleId]) chats[currentChatRoleId] = []; 
-        const now = new Date(); 
-        chats[currentChatRoleId].push({ role: 'user', content: `<img src="${url}" class="chat-inline-img" data-type="sticker" alt="${virtual || ''}">`, time: now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }), rawTime: now.getTime(), status: 'SENT', mode: currentChatMode }); 
-        DB.set('chats', chats); 
-        renderMessages();
+    function sendStickerFromPicker(url) {
+        sendRealImage(url);
         closeModal('modal-sticker-picker');
     }
 
@@ -12722,10 +12558,7 @@ function onAiAvatarDblClick() {
             DB.set('walletData', walletData);
             
             const now = new Date();
-            const role = roles.find(r => r.id === currentChatRoleId);
-            const activeMask = masks.find(m => m.id === role.activeMaskId) || masks.find(m => m.id === 'default') || masks[0];
-            const maskName = activeMask ? activeMask.name : (settings.userName || 'ME');
-            chats[currentChatRoleId].push({ role: 'system', content: `${maskName} 已退回转账`, time: now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }), rawTime: now.getTime() });
+            chats[currentChatRoleId].push({ role: 'system', content: '你已退回转账', time: now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }), rawTime: now.getTime() });
             DB.set('chats', chats);
             
             closeModal('modal-transaction-detail');
@@ -12750,10 +12583,7 @@ function onAiAvatarDblClick() {
             DB.set('walletData', walletData);
             
             const now = new Date();
-            const role = roles.find(r => r.id === currentChatRoleId);
-            const activeMask = masks.find(m => m.id === role.activeMaskId) || masks.find(m => m.id === 'default') || masks[0];
-            const maskName = activeMask ? activeMask.name : (settings.userName || 'ME');
-            chats[currentChatRoleId].push({ role: 'system', content: `${maskName} 已接收转账`, time: now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }), rawTime: now.getTime() });
+            chats[currentChatRoleId].push({ role: 'system', content: '你已接收转账', time: now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }), rawTime: now.getTime() });
             DB.set('chats', chats);
             
             closeModal('modal-transaction-detail');
