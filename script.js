@@ -2058,10 +2058,10 @@ function updateKeepAliveUI(isOn) {
             if (contentHtml.startsWith('[THEATER_CARD:')) {
                 try {
                     const raw = m.content.slice(14, -1);
-                    const card = JSON.parse(decodeURIComponent(raw).replace(/&quot;/g, '"'));
+                    const card = JSON.parse(decodeURIComponent(raw));
                     const isMe = m.role === 'user';
-                    const epigraphHtml = card.epigraph ? `<div style="font-size: 10px; font-style: italic; color: var(--text-secondary); margin-bottom: 6px; border-left: 2px solid #9b59b6; padding-left: 6px;">${escapeHTML(card.epigraph)}</div>` : '';
-                    return `<div class="msg-row card-row ${isMe ? 'me' : 'ai'} ${isSelectionMode ? 'selection-mode' : ''}" onclick="handleMsgClick(${realIndex})" ${touchHandlers}>${checkboxHtml}${isMe ? '' : aiAvatarTag}<div class="msg-wrapper"><div class="share-card" style="border-color: #9b59b6; cursor: default;"><div class="share-card-badge" style="background: #9b59b6;">专属小剧场</div><div class="share-card-title">${escapeHTML(card.title || '未命名剧场')}</div>${epigraphHtml}<div class="share-card-desc">字数: ${card.content ? card.content.length : 0} 字</div><div class="share-card-preview">${escapeHTML(card.content || '')}</div><div style="display:flex; gap:8px; margin-top:10px; border-top:1px solid var(--border-color); padding-top:10px;"><button class="action-btn" style="flex:1; margin:0; padding:6px; font-size:9px;" onclick="event.stopPropagation(); window.readTheater(${realIndex})">阅读/编辑</button><button class="action-btn" style="flex:1; margin:0; padding:6px; font-size:9px;" onclick="event.stopPropagation(); window.exportTheater(${realIndex})">导出</button>${!isMe ? `<button class="action-btn primary" style="flex:1; margin:0; padding:6px; font-size:9px; background:#9b59b6; border-color:#9b59b6;" onclick="event.stopPropagation(); window.shareTheater(${realIndex})">分享给TA</button>` : ''}</div></div><div class="msg-status">${m.time}</div></div>${isMe ? userAvatarTag : ''}</div>`;
+                    const epigraphHtml = card.epigraph ? `<div style="font-size: 10px; font-style: italic; color: var(--text-secondary); margin-bottom: 6px; border-left: 2px solid #9b59b6; padding-left: 6px;">${card.epigraph}</div>` : '';
+                    return `<div class="msg-row card-row ${isMe ? 'me' : 'ai'} ${isSelectionMode ? 'selection-mode' : ''}" onclick="handleMsgClick(${realIndex})" ${touchHandlers}>${checkboxHtml}${isMe ? '' : aiAvatarTag}<div class="msg-wrapper"><div class="share-card" style="border-color: #9b59b6; cursor: default;"><div class="share-card-badge" style="background: #9b59b6;">专属小剧场</div><div class="share-card-title">${card.title || '未命名剧场'}</div>${epigraphHtml}<div class="share-card-desc">字数: ${card.content ? card.content.length : 0} 字</div><div class="share-card-preview" style="pointer-events: auto;" onclick="event.stopPropagation()">${card.content || ''}</div><div style="display:flex; gap:8px; margin-top:10px; border-top:1px solid var(--border-color); padding-top:10px;"><button class="action-btn" style="flex:1; margin:0; padding:6px; font-size:9px;" onclick="event.stopPropagation(); window.readTheater(${realIndex})">阅读/编辑</button><button class="action-btn" style="flex:1; margin:0; padding:6px; font-size:9px;" onclick="event.stopPropagation(); window.exportTheater(${realIndex})">导出</button>${!isMe ? `<button class="action-btn primary" style="flex:1; margin:0; padding:6px; font-size:9px; background:#9b59b6; border-color:#9b59b6;" onclick="event.stopPropagation(); window.shareTheater(${realIndex})">分享给TA</button>` : ''}</div></div><div class="msg-status">${m.time}</div></div>${isMe ? userAvatarTag : ''}</div>`;
                 } catch(e) {}
             }
 
@@ -2324,7 +2324,7 @@ function updateKeepAliveUI(isOn) {
                 <div class="view-content" style="display: flex; flex-direction: column; gap: 10px;">
                     <input type="text" id="theater-read-title" style="font-family: var(--font-serif); font-size: 20px; font-weight: bold; border: none; border-bottom: 1px dashed var(--border-color); background: transparent; color: var(--text-color); padding: 10px 0; outline: none;">
                     <input type="text" id="theater-read-epigraph" style="font-size: 12px; font-style: italic; color: var(--text-secondary); border: none; border-bottom: 1px dashed var(--border-color); background: transparent; padding: 10px 0; outline: none;" placeholder="题记...">
-                    <textarea id="theater-read-content" style="flex: 1; width: 100%; border: none; background: transparent; color: var(--text-color); font-size: 14px; line-height: 1.8; resize: none; outline: none; padding: 10px 0;"></textarea>
+                    <textarea id="theater-read-content" style="width: 100%; min-height: 60vh; border: none; background: transparent; color: var(--text-color); font-size: 14px; line-height: 1.8; resize: vertical; outline: none; padding: 10px 0;"></textarea>
                     <button class="action-btn" style="border-color: #ff4d4d; color: #ff4d4d; padding: 12px; border-radius: 12px;" onclick="deleteTheater()">删除此剧场</button>
                 </div>
             </div>`;
@@ -2449,7 +2449,7 @@ function updateKeepAliveUI(isOn) {
         if (!msg) return;
         try {
             const raw = msg.content.slice(14, -1);
-            const card = JSON.parse(decodeURIComponent(raw).replace(/&quot;/g, '"'));
+            const card = JSON.parse(decodeURIComponent(raw));
             currentTheaterMsgIndex = msgIndex;
             $('#theater-read-title').value = card.title || '';
             $('#theater-read-epigraph').value = card.epigraph || '';
@@ -2490,7 +2490,7 @@ function updateKeepAliveUI(isOn) {
         if (!msg) return;
         try {
             const raw = msg.content.slice(14, -1);
-            const card = JSON.parse(decodeURIComponent(raw).replace(/&quot;/g, '"'));
+            const card = JSON.parse(decodeURIComponent(raw));
             const textToExport = `${card.title}\n\n${card.epigraph ? card.epigraph + '\n\n' : ''}${card.content}`;
             const blob = new Blob([textToExport], { type: 'text/plain;charset=utf-8' });
             const a = document.createElement('a');
@@ -2506,7 +2506,7 @@ function updateKeepAliveUI(isOn) {
         if (!msg) return;
         try {
             const raw = msg.content.slice(14, -1);
-            const card = JSON.parse(decodeURIComponent(raw).replace(/&quot;/g, '"'));
+            const card = JSON.parse(decodeURIComponent(raw));
             
             const now = new Date();
             chats[currentChatRoleId].push({ 
@@ -4061,7 +4061,7 @@ ${modeRules}
             const apiMessages = [{ role: 'system', content: finalSystemPrompt }];
             const contextLimit = role.contextLimit || 30;
 
-            const cleanHistoryContent = (content) => {
+            const cleanHistoryContent = (content, msgRole) => {
                 let text = content;
                 text = text.replace(/<thought>[\s\S]*?<\/thought>\n*/gi, '');
                 text = text.replace(/思考：[\s\S]*?\n\n/gi, '');
@@ -4104,6 +4104,7 @@ ${modeRules}
                     try { const data = JSON.parse(decodeURIComponent(p1)); return `[系统提示：用户向你分享了一条动态，作者：${data.author}，内容：${data.content}]`; } catch(e) { return '[分享了一条动态]'; }
                 });
                 text = text.replace(/\[THEATER_CARD:(.*?)\]/g, (match, p1) => {
+                    if (msgRole === 'ai') return ''; // 核心修复：AI自己生成的剧场卡片，对AI隐形
                     try { 
                         const data = JSON.parse(decodeURIComponent(p1)); 
                         return `[系统提示：这是一篇名为《${data.title}》的同人小剧场，不计入正文剧情。如果你看到了这条提示，说明用户把这篇剧场分享给了你，请你以角色本人的身份对里面的情节进行吐槽或发表看法。]`; 
@@ -4119,7 +4120,7 @@ ${modeRules}
                 let msgRole = m.role;
                 if (msgRole !== 'user' && msgRole !== 'system') msgRole = 'assistant';
                 
-                let content = cleanHistoryContent(m.content);
+                let content = cleanHistoryContent(m.content, m.role);
                 if (settings.timeAware && m.rawTime) {
                     const d = new Date(m.rawTime);
                     const timeStr = `[${d.getMonth()+1}月${d.getDate()}日 ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}]`;
@@ -5305,7 +5306,7 @@ async function generateTodaySummary(roleId) {
     } catch (e) { alert('生成失败: ' + e.message); }
 }
     function saveCurrentMemory() { if (!currentMemoryRoleId) return; memories[currentMemoryRoleId] = $('#memory-editor-content').value.trim(); DB.set('memories', memories); closeMemoryEditorView(); renderMemoryView(); }
-    async function triggerMemorySummary() { if (!currentMemoryRoleId) return; const role = roles.find(r => r.id === currentMemoryRoleId); const chatHistory = (chats[currentMemoryRoleId] || []).map(m => `${m.role === 'user' ? 'ME' : role.realName}: ${m.content}`).join('\n'); if (!chatHistory) return alert('NO DATA.'); const btn = $('#btn-generate-memory'); btn.innerText = '...'; btn.disabled = true; const prompt = `Synthesize the following dialogue into a concise, objective third-person summary of key events and relationship dynamics.\n---\n${chatHistory}\n---\nOUTPUT:`; try { const endpoint = getChatEndpoint(apiConfig.url); const response = await fetch(endpoint, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiConfig.key}` }, body: JSON.stringify({ model: apiConfig.model, messages: [{role: 'user', content: prompt}], max_tokens: 1000, temperature: 0.5 }) }); if (!response.ok) throw new Error(await parseApiError(response)); const data = await response.json(); $('#memory-editor-content').value = data.choices[0].message.content.trim(); } catch (err) { alert('ERROR:\n' + err.message); } finally { btn.innerHTML = 'SYNTHESIZE<span>生成概要</span>'; btn.disabled = false; } }
+    async function triggerMemorySummary() { if (!currentMemoryRoleId) return; const role = roles.find(r => r.id === currentMemoryRoleId); const chatHistory = (chats[currentMemoryRoleId] || []).map(m => { let text = m.content.replace(/\[THEATER_CARD:.*?\]/g, ''); return `${m.role === 'user' ? 'ME' : role.realName}: ${text}`; }).join('\n'); if (!chatHistory.trim()) return alert('NO DATA.'); const btn = $('#btn-generate-memory'); btn.innerText = '...'; btn.disabled = true; const prompt = `Synthesize the following dialogue into a concise, objective third-person summary of key events and relationship dynamics.\n---\n${chatHistory}\n---\nOUTPUT:`; try { const endpoint = getChatEndpoint(apiConfig.url); const response = await fetch(endpoint, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiConfig.key}` }, body: JSON.stringify({ model: apiConfig.model, messages: [{role: 'user', content: prompt}], max_tokens: 1000, temperature: 0.5 }) }); if (!response.ok) throw new Error(await parseApiError(response)); const data = await response.json(); $('#memory-editor-content').value = data.choices[0].message.content.trim(); } catch (err) { alert('ERROR:\n' + err.message); } finally { btn.innerHTML = 'SYNTHESIZE<span>生成概要</span>'; btn.disabled = false; } }
     function openAvatarSettingsModal() { const statusMap = { 'all': 'ALL', 'first': 'FIRST ONLY', 'hide_user': 'HIDE MINE', 'hide_ai': 'HIDE THEIRS', 'hide_all': 'HIDE ALL' }; $('#avatar-setting-current').innerText = `CURRENT: ${statusMap[settings.avatarDisplay]}`; openModal('modal-avatar-settings'); }
     function saveAvatarSettings(mode) { settings.avatarDisplay = mode; DB.set('settings', settings); openAvatarSettingsModal(); if (currentChatRoleId) renderMessages(); }
     function openMemoirSettingsModal() { updateMemoirLength(settings.memoirMaxLength); renderMemoirStylesList(); openModal('modal-memoir-settings'); }
@@ -8935,7 +8936,11 @@ async function autoGenerateSummary(roleId, type = 'episodic') {
         if (endIndex <= startIndex) return;
 
         const msgsToSummarize = msgs.slice(startIndex, endIndex);
-        const chatText = msgsToSummarize.map(m => `${m.role === 'user' ? 'ME' : role.realName}: ${m.content.replace(/<[^>]*>/g, '')}`).join('\n');
+        const chatText = msgsToSummarize.map(m => {
+            let text = m.content.replace(/<[^>]*>/g, '');
+            text = text.replace(/\[THEATER_CARD:.*?\]/g, ''); // 核心修复：过滤小剧场，防止污染记忆
+            return `${m.role === 'user' ? 'ME' : role.realName}: ${text}`;
+        }).join('\n');
         const typeLabel = type === 'episodic' ? '最近发生了什么' : '我们之间的故事走到了哪里';
         const prompt = `你是${role.realName}。${role.persona ? role.persona.substring(0, 200) : ''}\n\n以下是你和用户最新的一段对话记录：\n\n${chatText}\n\n以你（${role.realName}）的第一人称视角，用你自己的语气，用500字以内随手记下"${typeLabel}"。像真人在脑子里过一遍那种感觉，口语化，有主观感受，可以有情绪，可以不完整。禁止油腻，禁止物化用户，禁止书面腔。直接输出内容，不加任何标题。`;
         
@@ -9253,6 +9258,13 @@ async function generateAutoMsg(roleId) {
             });
             textContent = textContent.replace(/\[FEED_CARD:(.*?)\]/g, (match, p1) => {
                 try { const data = JSON.parse(decodeURIComponent(p1)); return `[系统提示：用户向你分享了一条动态，作者：${data.author}，内容：${data.content}]`; } catch(e) { return '[分享了一条动态]'; }
+            });
+            textContent = textContent.replace(/\[THEATER_CARD:(.*?)\]/g, (match, p1) => {
+                if (m.role === 'ai') return ''; // 核心修复：AI自己生成的剧场卡片，对AI隐形
+                try { 
+                    const data = JSON.parse(decodeURIComponent(p1)); 
+                    return `[系统提示：这是一篇名为《${data.title}》的同人小剧场，不计入正文剧情。如果你看到了这条提示，说明用户把这篇剧场分享给了你，请你以角色本人的身份对里面的情节进行吐槽或发表看法。]`; 
+                } catch(e) { return ''; }
             });
             textContent = textContent.replace(/<div class="virtual-img-box" data-text="(.*?)".*?<\/div>/g, '[图片: $1]');
             textContent = textContent.replace(/<img[^>]*src="([^"]+)"[^>]*>/g, '[发送了一张图片]');
@@ -14629,11 +14641,14 @@ window.compressMessageToken = async function(index, btn) {
     
     if (!apiConfig.url) return alert("请先配置 API");
     
+    const role = roles.find(r => r.id === roleId);
+    const speakerName = msg.role === 'user' ? (settings.userName || 'ME') : (role ? role.realName : 'AI');
+    
     const origText = btn.innerText;
     btn.innerText = "压缩中...";
     btn.disabled = true;
     
-    const prompt = `请将以下长文本压缩为简短的摘要（保留核心信息和关键动作），字数控制在原文本的30%以内。直接输出压缩后的文本，不要加任何解释：\n\n${msg.content}`;
+    const prompt = `请将以下长文本压缩为简短的摘要（保留核心信息和关键动作），字数控制在原文本的30%以内。这段话是【${speakerName}】说的，请在压缩后保持正确的人称和主语。直接输出压缩后的文本，不要加任何解释：\n\n${msg.content}`;
     
     try {
         const endpoint = getChatEndpoint(apiConfig.url);
@@ -14679,11 +14694,13 @@ window.compressAllTokens = async function() {
     let successCount = 0;
     const endpoint = getChatEndpoint(apiConfig.url);
 
+    const role = roles.find(r => r.id === roleId);
     for (let i = 0; i < longMsgs.length; i++) {
         const msgObj = longMsgs[i];
         btn.innerText = `正在压缩 (${i + 1}/${longMsgs.length})...`;
         
-        const prompt = `请将以下长文本压缩为简短的摘要（保留核心信息和关键动作），字数控制在原文本的30%以内。直接输出压缩后的文本，不要加任何解释：\n\n${msgObj.content}`;
+        const speakerName = msgObj.role === 'user' ? (settings.userName || 'ME') : (role ? role.realName : 'AI');
+        const prompt = `请将以下长文本压缩为简短的摘要（保留核心信息和关键动作），字数控制在原文本的30%以内。这段话是【${speakerName}】说的，请在压缩后保持正确的人称和主语。直接输出压缩后的文本，不要加任何解释：\n\n${msgObj.content}`;
         
         try {
             const res = await fetch(endpoint, {
