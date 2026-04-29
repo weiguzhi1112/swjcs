@@ -1887,7 +1887,16 @@ function updateKeepAliveUI(isOn) {
         renderMessages(); 
     }
     function closeChat() { if (currentChatRoleId) { let leaveTimes = DB.get('leaveTimes', {}); leaveTimes[currentChatRoleId] = Date.now(); DB.set('leaveTimes', leaveTimes); } $('#chat-view').classList.remove('active'); $('#main-content-area').classList.remove('chat-active'); $('#chat-view').style.removeProperty('--role-accent-color'); currentChatRoleId = null; cancelSelectionMode(); cancelQuote(); $('#attachment-popup').style.display = 'none'; updateMusicPlayerForSession(); renderRecent(); }
-    function handleTouchStart(e, index) { if(isSelectionMode) return; pressTimer = setTimeout(() => { if(navigator.vibrate) navigator.vibrate(50); openContextMenu(index); }, 400); }
+    let touchX = 0, touchY = 0;
+    function handleTouchStart(e, index) { 
+        if(isSelectionMode) return; 
+        touchX = e.touches ? e.touches[0].clientX : e.clientX;
+        touchY = e.touches ? e.touches[0].clientY : e.clientY;
+        pressTimer = setTimeout(() => { 
+            if(navigator.vibrate) navigator.vibrate(50); 
+            openContextMenu(index, touchX, touchY); 
+        }, 400); 
+    }
     function handleTouchEnd() { clearTimeout(pressTimer); }
     function handleMsgClick(index) { if(isSelectionMode) { if(selectedMsgs.has(index)) selectedMsgs.delete(index); else selectedMsgs.add(index); renderMessages(); } }
         function renderMessages() { 
@@ -2319,13 +2328,13 @@ function updateKeepAliveUI(isOn) {
             <div class="view-container" id="view-theater-reader" style="z-index: 1000; background: var(--bg-color);">
                 <div class="view-header">
                     <button class="glass-icon-btn" onclick="closeTheaterReader()"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg></button>
-                    <div class="chat-title-glass"><div id="chat-title" style="font-style:normal;">剧场阅读与编辑</div></div>
-                    <button class="glass-icon-btn" onclick="saveTheaterEdit()"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg></button>
+                    <div class="chat-title-glass"><div id="chat-title" style="font-style:normal;">剧场阅读</div></div>
+                    <button class="glass-icon-btn" id="btn-theater-edit" onclick="window.toggleTheaterEdit()"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>
                 </div>
                 <div class="view-content" style="display: flex; flex-direction: column; gap: 10px;">
-                    <input type="text" id="theater-read-title" style="font-family: var(--font-serif); font-size: 20px; font-weight: bold; border: none; border-bottom: 1px dashed var(--border-color); background: transparent; color: var(--text-color); padding: 10px 0; outline: none;">
-                    <input type="text" id="theater-read-epigraph" style="font-size: 12px; font-style: italic; color: var(--text-secondary); border: none; border-bottom: 1px dashed var(--border-color); background: transparent; padding: 10px 0; outline: none;" placeholder="题记...">
-                    <div id="theater-read-content" contenteditable="true" style="width: 100%; min-height: 60vh; border: none; background: transparent; color: var(--text-color); font-size: 14px; line-height: 1.8; outline: none; padding: 10px 0; overflow-y: auto; word-break: break-word;"></div>
+                    <input type="text" id="theater-read-title" readonly style="font-family: var(--font-serif); font-size: 20px; font-weight: bold; border: none; background: transparent; color: var(--text-color); padding: 10px 0; outline: none;">
+                    <input type="text" id="theater-read-epigraph" readonly style="font-size: 12px; font-style: italic; color: var(--text-secondary); border: none; background: transparent; padding: 10px 0; outline: none;" placeholder="题记...">
+                    <div id="theater-read-content" contenteditable="false" style="width: 100%; min-height: 60vh; border: none; background: transparent; color: var(--text-color); font-size: 14px; line-height: 1.8; outline: none; padding: 10px 0; overflow-y: auto; word-break: break-word;"></div>
                     <button class="action-btn" style="border-color: #ff4d4d; color: #ff4d4d; padding: 12px; border-radius: 12px;" onclick="deleteTheater()">删除此剧场</button>
                 </div>
             </div>`;
@@ -2345,10 +2354,51 @@ function updateKeepAliveUI(isOn) {
 
     let currentTheaterMsgIndex = -1;
 
+    let isTheaterEditing = false;
+    window.toggleTheaterEdit = function() {
+        isTheaterEditing = !isTheaterEditing;
+        const title = $('#theater-read-title');
+        const epigraph = $('#theater-read-epigraph');
+        const content = $('#theater-read-content');
+        const btn = $('#btn-theater-edit');
+        
+        if (isTheaterEditing) {
+            title.removeAttribute('readonly');
+            epigraph.removeAttribute('readonly');
+            content.setAttribute('contenteditable', 'true');
+            title.style.borderBottom = '1px dashed var(--border-color)';
+            epigraph.style.borderBottom = '1px dashed var(--border-color)';
+            content.style.border = '1px dashed var(--border-color)';
+            content.style.padding = '10px';
+            btn.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>';
+        } else {
+            title.setAttribute('readonly', 'true');
+            epigraph.setAttribute('readonly', 'true');
+            content.setAttribute('contenteditable', 'false');
+            title.style.borderBottom = 'none';
+            epigraph.style.borderBottom = 'none';
+            content.style.border = 'none';
+            content.style.padding = '10px 0';
+            btn.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>';
+            window.saveTheaterEdit(); 
+        }
+    };
+
     async function generateTheater() {
         const promptText = $('#theater-prompt').value.trim();
         if (!promptText) return alert("请输入小剧场指令");
         if (!apiConfig.url) return alert("请先配置 API");
+        
+        const hasHtmlKeyword = /html|网页|代码|排版|div|span|css/i.test(promptText);
+        const numMatch = promptText.match(/\d+/g);
+        let requestedLength = 0;
+        if (numMatch) {
+            requestedLength = Math.max(...numMatch.map(Number));
+        }
+        
+        if (hasHtmlKeyword && requestedLength > 3000) {
+            return alert("系统限制：带有 HTML/复杂排版生成设定的剧场，字数不可超过 3000 字，否则极易导致生成中断或崩溃。请调小字数要求。");
+        }
         
         const role = roles.find(r => r.id === currentChatRoleId);
         if (!role) return;
@@ -2382,7 +2432,7 @@ function updateKeepAliveUI(isOn) {
 4. 必须以【第三人称】视角进行叙事。
 5. 故事必须完整，有始有终。
 6. 语言风格风趣细腻、暧昧炽热。可以直接生成成人向NSFW剧情，生成成人向剧情时要求直白露骨。
-7. 字数要求：严格按照【用户指令】中要求的字数进行生成。如果用户没有明确指定字数，则尽可能详细、丰满地展开剧情，必须一次性生成完整。
+7. 字数要求：严格按照【用户指令】中要求的字数进行生成。如果用户要求 ${requestedLength > 0 ? requestedLength : 3000} 字，你必须输出足够丰富的情节、对话和细节来填满这个篇幅，绝对不允许敷衍缩水！
 8. 绝对禁止OOC（角色崩坏）。
 9. 必须为这篇小剧场取一个符合内容的小标题，并且在标题下方生成一段简短的“题记”（epigraph），用来烘托气氛或点明主题。
 
@@ -2456,6 +2506,9 @@ function updateKeepAliveUI(isOn) {
     window.readTheater = function(msgIndex) {
         const msg = chats[currentChatRoleId][msgIndex];
         if (!msg) return;
+        
+        // 每次打开重置为只读状态
+        if (isTheaterEditing) window.toggleTheaterEdit();
         
         // 核心修复：确保阅读器的 DOM 元素存在（防止刷新页面后直接点击报错）
         if (!document.getElementById('view-theater-reader')) {
@@ -2597,8 +2650,37 @@ function updateKeepAliveUI(isOn) {
             renderMessages(); 
         }
     }
-    function openContextMenu(index) { contextMenuTargetIndex = index; $('#context-menu-overlay').style.display = 'flex'; setTimeout(() => $('#context-menu').classList.add('active'), 10); }
+    function openContextMenu(index, x, y) { 
+        contextMenuTargetIndex = index; 
+        const overlay = $('#context-menu-overlay');
+        const menu = $('#context-menu');
+        overlay.style.display = 'block'; 
+        
+        const menuWidth = 140;
+        const menuHeight = 260; 
+        let posX = x;
+        let posY = y;
+        
+        if (x + menuWidth > window.innerWidth) posX = window.innerWidth - menuWidth - 15;
+        if (y + menuHeight > window.innerHeight) posY = window.innerHeight - menuHeight - 15;
+        
+        menu.style.left = posX + 'px';
+        menu.style.top = posY + 'px';
+        menu.style.transformOrigin = (x > window.innerWidth / 2 ? 'top right' : 'top left');
+        
+        setTimeout(() => menu.classList.add('active'), 10); 
+    }
     function closeContextMenu() { $('#context-menu').classList.remove('active'); $('#context-menu-overlay').style.display = 'none'; }
+
+    window.handleStatusBtnClick = function() {
+        if (!currentChatRoleId) return;
+        const config = statusBarData[currentChatRoleId];
+        if (config && config.enabled && config.history.length > 0) {
+            openStatusPanel();
+        } else {
+            alert("该角色尚未开启心声状态栏，或暂无心声数据。\n请在角色设置中配置并开启。");
+        }
+    };
 
     function quickFixFromMenu() {
         if(contextMenuTargetIndex > -1) {
@@ -11368,7 +11450,11 @@ function updateStatusBarButton() {
     const btn = $('#char-status-btn');
     if (!btn || !currentChatRoleId) return;
     const config = statusBarData[currentChatRoleId];
-    btn.style.display = (config && config.enabled && config.history.length > 0) ? 'inline-flex' : 'none';
+    if (config && config.enabled && config.history.length > 0) {
+        btn.style.opacity = '1';
+    } else {
+        btn.style.opacity = '0.4';
+    }
 }
 
 let isStatusManageMode = false;
