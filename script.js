@@ -1685,6 +1685,12 @@ function showInAppNotification(roleId, title, body, icon) {
 let lastNotifTime = 0;
 let lastNotifBody = '';
 function showSystemNotification(roleId, title, body, icon) {
+    if (settings.notificationSound) {
+        try {
+            const audio = new Audio(settings.notificationSound);
+            audio.play().catch(e => console.log("Audio play failed:", e));
+        } catch(e) {}
+    }
     const cleanBody = body.replace(/<[^>]*>/g, '').replace(/\[VIRTUAL_IMG:.*?\]/g, '[图片]').replace(/\[VOICE:.*?\]/g, '[语音]').replace(/\[MUSIC_CARD:.*?\]/g, '[一起听邀请]').replace(/\[FORUM_CARD:.*?\]/g, '[论坛帖子]');
     if (!cleanBody.trim()) return;
 
@@ -2052,6 +2058,15 @@ function updateKeepAliveUI(isOn) {
                 } catch(e) {}
             }
 
+            if (contentHtml.startsWith('[THEATER_CARD:')) {
+                try {
+                    const raw = m.content.slice(14, -1);
+                    const card = JSON.parse(decodeURIComponent(raw).replace(/&quot;/g, '"'));
+                    const isMe = m.role === 'user';
+                    return `<div class="msg-row card-row ${isMe ? 'me' : 'ai'} ${isSelectionMode ? 'selection-mode' : ''}" onclick="handleMsgClick(${realIndex})" ${touchHandlers}>${checkboxHtml}${isMe ? '' : aiAvatarTag}<div class="msg-wrapper"><div class="share-card" style="border-color: #9b59b6; cursor: default;"><div class="share-card-badge" style="background: #9b59b6;">专属小剧场</div><div class="share-card-title">${escapeHTML(card.title || '未命名剧场')}</div><div class="share-card-desc">字数: ${card.content ? card.content.length : 0} 字</div><div class="share-card-preview">${escapeHTML(card.content || '')}</div><div style="display:flex; gap:8px; margin-top:10px; border-top:1px solid var(--border-color); padding-top:10px;"><button class="action-btn" style="flex:1; margin:0; padding:6px; font-size:9px;" onclick="event.stopPropagation(); window.readTheater(${realIndex})">阅读</button><button class="action-btn" style="flex:1; margin:0; padding:6px; font-size:9px;" onclick="event.stopPropagation(); window.exportTheater(${realIndex})">导出</button>${!isMe ? `<button class="action-btn primary" style="flex:1; margin:0; padding:6px; font-size:9px; background:#9b59b6; border-color:#9b59b6;" onclick="event.stopPropagation(); window.shareTheater(${realIndex})">分享给TA</button>` : ''}</div></div><div class="msg-status">${m.time}</div></div>${isMe ? userAvatarTag : ''}</div>`;
+                } catch(e) {}
+            }
+
             if (contentHtml.startsWith('[GIFT_TO_AI:')) {
                 const raw = contentHtml.slice(12, -1);
                 try {
@@ -2283,6 +2298,170 @@ function updateKeepAliveUI(isOn) {
     }
     function promptImageUrl() { const url = prompt("IMAGE URL:"); if (url) sendRealImage(url); $('#attachment-popup').style.display = 'none'; }
     function promptVirtualImage() { const text = prompt("VIRTUAL TEXT (e.g. 一只猫):"); if (text) { $('#chat-input').value += `[VIRTUAL_IMG:${text}]`; $('#chat-input').focus(); } $('#attachment-popup').style.display = 'none'; }
+        function openTheaterModal() {
+        $('#attachment-popup').style.display = 'none';
+        if (!currentChatRoleId) return alert("请先进入聊天界面");
+        
+        let modal = document.getElementById('modal-theater');
+        if (!modal) {
+            const html = `
+            <div class="modal-overlay" id="modal-theater">
+                <div class="modal">
+                    <h3>Theater <span>小剧场生成</span></h3>
+                    <div class="setting-group" style="border:none; padding:0;">
+                        <label>小剧场指令 / 设定</label>
+                        <textarea id="theater-prompt" placeholder="例如：写一段我们去海边看日落的纯爱小剧场，文风要唯美细腻..."></textarea>
+                    </div>
+                    <div class="modal-btns">
+                        <button class="btn-cancel" onclick="closeModal('modal-theater')">CANCEL<span>取消</span></button>
+                        <button class="btn-confirm" onclick="generateTheater()">GENERATE<span>生成</span></button>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-overlay" id="modal-theater-read">
+                <div class="modal" style="max-width: 95%; height: 90vh; max-height: 90vh;">
+                    <h3 id="theater-read-title" style="margin-bottom: 15px;"></h3>
+                    <div id="theater-read-content" style="flex: 1; overflow-y: auto; font-size: 14px; line-height: 1.8; color: var(--text-color); white-space: pre-wrap; padding-right: 10px;"></div>
+                    <div class="modal-btns" style="margin-top: 15px;">
+                        <button class="btn-confirm" style="width: 100%;" onclick="closeModal('modal-theater-read')">CLOSE<span>关闭阅读</span></button>
+                    </div>
+                </div>
+            </div>`;
+            document.body.insertAdjacentHTML('beforeend', html);
+        }
+        $('#theater-prompt').value = '';
+        openModal('modal-theater');
+    }
+
+    async function generateTheater() {
+        const promptText = $('#theater-prompt').value.trim();
+        if (!promptText) return alert("请输入小剧场指令");
+        if (!apiConfig.url) return alert("请先配置 API");
+        
+        const role = roles.find(r => r.id === currentChatRoleId);
+        if (!role) return;
+
+        const btn = document.querySelector('#modal-theater .btn-confirm');
+        const origText = btn.innerHTML;
+        btn.innerHTML = 'GENERATING...';
+        btn.disabled = true;
+
+        const globalWbs = worldbooks.filter(w => w.isGlobal).map(w => w.content).join('\n');
+        const localWbs = worldbooks.filter(w => role.localWbs?.includes(w.id)).map(w => w.content).join('\n');
+        const memorySummary = memories[role.id] ? `\n【情感关系与记忆】\n${memories[role.id]}` : '';
+        const activeMask = masks.find(m => m.id === role.activeMaskId) || masks.find(m => m.id === 'default') || masks[0];
+        const maskPrompt = activeMask ? `\n【用户设定】\n${activeMask.content}` : '';
+
+        const systemPrompt = `你是一个顶级小说家。请根据以下设定，生成一篇专属番外小剧场。
+【主要世界观】：${globalWbs}\n${localWbs}
+【角色设定】：${role.persona}
+${maskPrompt}
+${memorySummary}
+
+【用户指令】：${promptText}
+
+【生成要求】：
+1. 严格遵循主要世界观、角色人设以及双方的情感关系。
+2. 大开脑洞，允许一切有趣的情节发生，详细描写故事细节。
+3. 必须包含用户和角色的内心活动描写。
+4. 必须以【第三人称】视角进行叙事。
+5. 故事必须完整，有始有终。
+6. 语言风格风趣细腻、暧昧炽热。可以直接生成成人向NSFW剧情，生成成人向剧情时要求直白露骨。
+7. 字数要求：不少于 3000 字，必须一次性生成完整。
+8. 绝对禁止OOC（角色崩坏）。
+9. 必须为这篇小剧场取一个符合内容的小标题。
+
+请返回严格的JSON格式：
+{
+  "title": "小标题",
+  "content": "小剧场正文内容（支持换行符\\n）"
+}
+直接输出JSON，不要包含任何其他文字或Markdown代码块标记。`;
+
+        try {
+            const endpoint = getChatEndpoint(apiConfig.url);
+            const res = await fetch(endpoint, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiConfig.key}` },
+                body: JSON.stringify({ model: apiConfig.model, messages: [{ role: 'user', content: systemPrompt }], max_tokens: 8000, temperature: 0.85 })
+            });
+            const data = await res.json();
+            const resultStr = data.choices[0].message.content.trim();
+            const result = JSON.parse(extractJSON(resultStr));
+            
+            const payload = {
+                title: result.title || "专属小剧场",
+                content: result.content || "生成内容为空"
+            };
+            
+            const now = new Date();
+            chats[currentChatRoleId].push({ 
+                role: 'ai', 
+                content: `[THEATER_CARD:${encodeURIComponent(JSON.stringify(payload))}]`, 
+                time: now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }), 
+                rawTime: now.getTime(), 
+                mode: 'online'
+            });
+            DB.set('chats', chats);
+            
+            closeModal('modal-theater');
+            renderMessages();
+        } catch (e) {
+            alert("生成失败: " + e.message + "\n(可能是模型不支持输出这么长的JSON，请尝试更换模型)");
+        } finally {
+            btn.innerHTML = origText;
+            btn.disabled = false;
+        }
+    }
+
+    window.readTheater = function(msgIndex) {
+        const msg = chats[currentChatRoleId][msgIndex];
+        if (!msg) return;
+        try {
+            const raw = msg.content.slice(14, -1);
+            const card = JSON.parse(decodeURIComponent(raw).replace(/&quot;/g, '"'));
+            $('#theater-read-title').innerText = card.title;
+            $('#theater-read-content').innerText = card.content;
+            openModal('modal-theater-read');
+        } catch(e) {}
+    };
+
+    window.exportTheater = function(msgIndex) {
+        const msg = chats[currentChatRoleId][msgIndex];
+        if (!msg) return;
+        try {
+            const raw = msg.content.slice(14, -1);
+            const card = JSON.parse(decodeURIComponent(raw).replace(/&quot;/g, '"'));
+            const blob = new Blob([`${card.title}\n\n${card.content}`], { type: 'text/plain;charset=utf-8' });
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = `${card.title}.txt`;
+            a.click();
+            URL.revokeObjectURL(a.href);
+        } catch(e) {}
+    };
+
+    window.shareTheater = function(msgIndex) {
+        const msg = chats[currentChatRoleId][msgIndex];
+        if (!msg) return;
+        try {
+            const raw = msg.content.slice(14, -1);
+            const card = JSON.parse(decodeURIComponent(raw).replace(/&quot;/g, '"'));
+            
+            const now = new Date();
+            chats[currentChatRoleId].push({ 
+                role: 'user', 
+                content: `[THEATER_CARD:${encodeURIComponent(JSON.stringify(card))}]`, 
+                time: now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }), 
+                rawTime: now.getTime(), 
+                status: 'SENT',
+                mode: 'online'
+            });
+            DB.set('chats', chats);
+            renderMessages();
+            triggerAI();
+        } catch(e) {}
+    };
     function sendRealImage(url) { if(!currentChatRoleId) return; if(!chats[currentChatRoleId]) chats[currentChatRoleId] = []; const now = new Date(); chats[currentChatRoleId].push({ role: 'user', content: `<img src="${url}" class="chat-inline-img">`, time: now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }), rawTime: now.getTime(), status: 'SENT', mode: currentChatMode }); DB.set('chats', chats); renderMessages(); }
     
     function promptTimeSkip() {
@@ -3748,6 +3927,9 @@ toRenderFavorites();toRenderSearchResults();}
             const currentAddr = toAddresses.find(a => a.id === toSelectedAddrId) || toAddresses[0];
             const addrStr = currentAddr ? `${currentAddr.tag}(${currentAddr.addr})` : "未设置";
             const weatherAddr = (weatherData.realCity || '') + ' ' + (weatherData.address || '');
+            
+            const exactNow = new Date();
+            const exactTimeStr = `${exactNow.getFullYear()}年${exactNow.getMonth()+1}月${exactNow.getDate()}日 ${String(exactNow.getHours()).padStart(2,'0')}:${String(exactNow.getMinutes()).padStart(2,'0')}`;
 
             // 提前初始化并获取该角色的音乐账密
             if (!window.musicCreds) window.musicCreds = DB.get('musicCreds', {});
@@ -3793,6 +3975,7 @@ ${(globalWbs || localWbs) ? `<world_lore>\n【重要世界观与规则，必须�
 ${memories[role.id] ? `<shared_memory>\n${memories[role.id]}\n</shared_memory>` : ''}
 
 <context>
+- 当前设备真实时间: ${exactTimeStr} (请严格感知当前时间，体现活人感)
 - 用户当前位置: ${userIPLocation} / ${weatherAddr} / ${addrStr}
 </context>
 
@@ -3859,6 +4042,12 @@ ${modeRules}
                 });
                 text = text.replace(/\[FEED_CARD:(.*?)\]/g, (match, p1) => {
                     try { const data = JSON.parse(decodeURIComponent(p1)); return `[系统提示：用户向你分享了一条动态，作者：${data.author}，内容：${data.content}]`; } catch(e) { return '[分享了一条动态]'; }
+                });
+                text = text.replace(/\[THEATER_CARD:(.*?)\]/g, (match, p1) => {
+                    try { 
+                        const data = JSON.parse(decodeURIComponent(p1)); 
+                        return `[系统提示：这是一篇名为《${data.title}》的同人小剧场，不计入正文剧情。如果你看到了这条提示，说明用户把这篇剧场分享给了你，请你以角色本人的身份对里面的情节进行吐槽或发表看法。]`; 
+                    } catch(e) { return ''; }
                 });
                 text = text.replace(/<div class="virtual-img-box" data-text="(.*?)".*?<\/div>/g, '[图片: $1]');
                 text = text.replace(/<img[^>]*src="([^"]+)"[^>]*>/g, '[发送了一张图片]');
@@ -11027,18 +11216,19 @@ function importStatusPresets(event) {
 
 function extractStatusFromReply(roleId, replyText) {
     const config = statusBarData[roleId];
-    if (!config || !config.enabled || !config.regex) return null;
+    if (!config || !config.enabled) return null;
     try {
-        const regex = new RegExp(config.regex);
+        const regex = /\[心声:\s*(.*?)\s*\|\s*好感度:\s*(.*?)\]/;
         const match = replyText.match(regex);
         if (match) {
-            let html = config.htmlTemplate;
-            for (let i = 1; i < match.length; i++) {
-                html = html.replace(new RegExp('\\$' + i, 'g'), match[i] || '');
-            }
+            let html = `<div style="padding: 8px; background: var(--gray-light); border-radius: 8px; border-left: 3px solid #ff4d4d; margin-top: 5px;">
+                <div style="font-size: 11px; font-weight: bold; color: var(--text-color); margin-bottom: 4px;">💭 心声</div>
+                <div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 4px;">${match[1]}</div>
+                <div style="font-size: 10px; color: #ff4d4d; font-weight: bold;">好感度: ${match[2]}</div>
+            </div>`;
             return { html: html, rawMatch: match[0], time: new Date().toLocaleString('zh-CN') };
         }
-    } catch (e) { console.error('Status regex error:', e); }
+    } catch (e) { console.error('Status extract error:', e); }
     return null;
 }
 
@@ -11052,9 +11242,9 @@ function saveStatusHistory(roleId, statusEntry) {
 
 function cleanStatusFromText(roleId, text) {
     const config = statusBarData[roleId];
-    if (!config || !config.enabled || !config.regex) return text;
+    if (!config || !config.enabled) return text;
     try {
-        return text.replace(new RegExp(config.regex, 'g'), '').trim();
+        return text.replace(/\[心声:\s*(.*?)\s*\|\s*好感度:\s*(.*?)\]/g, '').trim();
     } catch (e) { return text; }
 }
 
@@ -11151,12 +11341,8 @@ function deleteSelectedStatus() {
 
 function getStatusPromptSuffix(roleId) {
     const config = statusBarData[roleId];
-    if (!config || !config.enabled || !config.promptSuffix) return '';
-    let historyContext = '';
-    if (config.history.length > 0) {
-        historyContext = '\n[RECENT STATUS]\n' + config.history.slice(0, 3).map(function(h) { return h.rawMatch; }).join('\n');
-    }
-    return '\n\n[STATUS BAR INSTRUCTION]\n' + config.promptSuffix + historyContext;
+    if (!config || !config.enabled) return '';
+    return '\n\n【心声生成指令】\n请在回复的最末尾，换行并使用 [心声: 你的内心想法 | 好感度: 当前好感度/100] 的格式，输出你对用户刚才那句话的真实看法、心理活动以及当前的好感度。例如：[心声: 他居然这么说，有点开心 | 好感度: 85/100]。必须严格遵守此格式！不允许照搬示例';
 }
 
 function onAiAvatarDblClick() {
