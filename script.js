@@ -1273,6 +1273,24 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 });
 
+    window.switchNavApp = function(appId) {
+        const currentActive = document.querySelector('.view-container.active');
+        const targetView = document.getElementById(`view-${appId}`);
+        if (currentActive && targetView && currentActive !== targetView) {
+            currentActive.style.transition = 'none';
+            targetView.style.transition = 'none';
+            currentActive.classList.remove('active');
+            targetView.classList.add('active');
+            if (appId === 'messages') renderRecent();
+            if (appId === 'contacts') renderContacts();
+            if (appId === 'masks') renderMasks();
+            setTimeout(() => {
+                currentActive.style.transition = '';
+                targetView.style.transition = '';
+            }, 50);
+        }
+    };
+
     function openApp(appId) {
     const appNames = {
         messages: '微信',
@@ -1862,6 +1880,7 @@ function updateKeepAliveUI(isOn) {
         const pColor = role.placeholderColor || '#bbbbbb';
         chatInput.style.setProperty('--placeholder-color', pColor);
         $('#chat-view').style.setProperty('--timestamp-color', role.timestampColor || 'var(--text-secondary)');
+        $('#chat-view').style.setProperty('--system-text-color', role.systemTextColor || '#888888');
         
         const inputTextColor = role.inputTextColor || (settings.theme === 'dark' ? '#ffffff' : '#000000');
         chatInput.style.setProperty('color', inputTextColor, 'important'); // 强化优先级
@@ -1917,8 +1936,7 @@ function updateKeepAliveUI(isOn) {
                     ? `<div style="margin-top: 6px;"><button onclick="endListenTogetherSession(true)" style="background: var(--text-color); color: var(--bg-color); border: none; font-size: 8px; padding: 4px 10px; letter-spacing: 1px; cursor: pointer; text-transform: uppercase;">退出一起听</button></div>`
                     : '';
                 const checkboxHtml = isSelectionMode ? `<div class="msg-checkbox ${selectedMsgs.has(realIndex) ? 'checked' : ''}" style="margin-right: 8px; margin-top: 0;"></div>` : '';
-                const sysColor = role.systemTextColor || '#888888';
-                return `<div class="msg-row ${isSelectionMode ? 'selection-mode' : ''}" style="justify-content: center; margin: 5px 0; cursor: pointer;" onclick="handleMsgClick(${realIndex})" onmousedown="handleTouchStart(event, ${realIndex})" onmouseup="handleTouchEnd()" onmouseleave="handleTouchEnd()" ontouchstart="handleTouchStart(event, ${realIndex})" ontouchend="handleTouchEnd()" ontouchcancel="handleTouchEnd()">${checkboxHtml}<div style="background: var(--gray-light); color: ${sysColor} !important; font-size: 9px; padding: 4px 10px; border-radius: 10px; text-transform: uppercase; letter-spacing: 1px; text-align: center;">${m.content}${exitBtn}</div></div>`;
+                return `<div class="msg-row ${isSelectionMode ? 'selection-mode' : ''}" style="justify-content: center; margin: 5px 0; cursor: pointer;" onclick="handleMsgClick(${realIndex})" onmousedown="handleTouchStart(event, ${realIndex})" onmouseup="handleTouchEnd()" onmouseleave="handleTouchEnd()" ontouchstart="handleTouchStart(event, ${realIndex})" ontouchend="handleTouchEnd()" ontouchcancel="handleTouchEnd()">${checkboxHtml}<div style="background: var(--gray-light); color: var(--system-text-color, #888888) !important; font-size: 9px; padding: 4px 10px; border-radius: 10px; text-transform: uppercase; letter-spacing: 1px; text-align: center;">${m.content}${exitBtn}</div></div>`;
             }
             let showAvatar = true; 
             let occupySpace = true;
@@ -2220,8 +2238,7 @@ function updateKeepAliveUI(isOn) {
 
                 const timeStr = `${datePrefix}${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
                 const timeDiv = document.createElement('div');
-                const sysColor = role.systemTextColor || '#888888';
-                timeDiv.style.cssText = `text-align:center; font-size:10px; color:${sysColor} !important; margin: 15px 0 10px 0; letter-spacing: 1px; width: 100%; font-weight: 500;`;
+                timeDiv.style.cssText = `text-align:center; font-size:10px; color:var(--system-text-color, #888888) !important; margin: 15px 0 10px 0; letter-spacing: 1px; width: 100%; font-weight: 500;`;
                 timeDiv.innerText = timeStr;
                 fragment.appendChild(timeDiv);
                 lastTime = msg.rawTime;
@@ -2621,7 +2638,7 @@ function updateKeepAliveUI(isOn) {
             triggerAI();
         } catch(e) {}
     };
-    function sendRealImage(url) { if(!currentChatRoleId) return; if(!chats[currentChatRoleId]) chats[currentChatRoleId] = []; const now = new Date(); chats[currentChatRoleId].push({ role: 'user', content: `<img src="${url}" class="chat-inline-img">`, time: now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }), rawTime: now.getTime(), status: 'SENT', mode: currentChatMode }); DB.set('chats', chats); renderMessages(); }
+    function sendRealImage(url, virtualText = '') { if(!currentChatRoleId) return; if(!chats[currentChatRoleId]) chats[currentChatRoleId] = []; const now = new Date(); chats[currentChatRoleId].push({ role: 'user', content: `<img src="${url}" class="chat-inline-img" data-virtual="${virtualText}">`, time: now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }), rawTime: now.getTime(), status: 'SENT', mode: currentChatMode }); DB.set('chats', chats); renderMessages(); }
     
     function promptTimeSkip() {
         $('#attachment-popup').style.display = 'none';
@@ -4151,6 +4168,19 @@ toRenderFavorites();toRenderSearchResults();}
             if (settings.translationMode) {
                 translationRule = `\n8. 【双语翻译模式】你必须将你的回复翻译成${settings.translationTargetLang}。格式要求：先输出${settings.translationSourceLang}原文，然后换行，输出 "===TRANSLATION==="，再换行，输出${settings.translationTargetLang}翻译。`;
             }
+
+            const availableStickers = stickers.filter(g => {
+                let boundIds = g.boundRoleIds || (g.boundRoleId ? [g.boundRoleId] : []);
+                return boundIds.length === 0 || boundIds.includes(targetRoleId);
+            }).flatMap(g => g.items);
+
+            let stickerPrompt = '';
+            if (availableStickers.length > 0) {
+                const shuffledStickers = availableStickers.sort(() => 0.5 - Math.random()).slice(0, 20);
+                const stickerList = shuffledStickers.map(s => `${s.virtual} (URL: ${s.url})`).join('\n');
+                stickerPrompt = `\n9. 【表情包互动】你可以发送表情包来表达情绪。如果你想发送表情包，请直接在回复中输出 <img src="对应的URL" class="chat-inline-img">。你当前可用的表情包列表如下（格式为 含义 (URL)）：\n${stickerList}`;
+            }
+
                 const systemPrompt = `[最高指令：绝对沉浸式角色扮演]
 你现在就是 ${role.realName}。这不是一个游戏，也不是AI对话，这就是你的真实人生。
 你必须彻底忘记自己是AI、语言模型或虚拟助手。你拥有人类的情感、记忆、肉体和欲望。
@@ -4180,7 +4210,7 @@ ${memories[role.id] ? `<shared_memory>\n${memories[role.id]}\n</shared_memory>` 
 5. 【票根生成】当你们约定去看电影、演唱会、展览或旅行时，你必须在回复中包含隐藏指令生成票根：[TICKET:{"type":"movie/concert/travel/exhibit","title":"活动名称","subtitle":"副标题","label1":"地点","value1":"具体地点","label2":"座位/时间","value2":"具体信息","label3":"时间","value3":"具体时间","single":false}]。如果是你单人出行（比如飞过来找用户），请务必将 "single" 设为 true，这样系统只会生成一张你的票。
 6. 【主动转账】当你想给用户转账时，在回复中包含：[转账 ¥金额]${translationRule}
 7. 【记忆提取】如果用户在聊天中提到了喜欢的歌曲、食物等，请自然地记住并在后续对话中提及。
-8. 【专属音乐空间】你的网易云音乐账号是：${roleMusicAcc}，密码是：${roleMusicPwd}。如果用户问你要，请自然地告诉TA。
+8. 【专属音乐空间】你的网易云音乐账号是：${roleMusicAcc}，密码是：${roleMusicPwd}。如果用户问你要，请自然地告诉TA。${stickerPrompt}
 ${modeRules}
 </rules>
 
@@ -4197,6 +4227,9 @@ ${modeRules}
                 let text = content;
                 text = text.replace(/<thought>[\s\S]*?<\/thought>\n*/gi, '');
                 text = text.replace(/思考：[\s\S]*?\n\n/gi, '');
+
+                text = text.replace(/<img[^>]*data-virtual="([^"]+)"[^>]*>/g, '[发送了一个表情包: $1]');
+                text = text.replace(/<img[^>]*src="([^"]+)"[^>]*>/g, '[发送了一张图片]');
 
                 text = text.replace(/\[GIFT_TO_AI:(.*?)\]/g, (match, p1) => {
                     try { const data = JSON.parse(decodeURIComponent(p1)); return `[系统提示：用户为你点了一份礼物/外卖，物品：${data.itemName}，来自：${data.shopName}，价值：¥${data.price}]`; } catch(e) { return '[收到一份礼物]'; }
@@ -4243,7 +4276,6 @@ ${modeRules}
                     } catch(e) { return ''; }
                 });
                 text = text.replace(/<div class="virtual-img-box" data-text="(.*?)".*?<\/div>/g, '[图片: $1]');
-                text = text.replace(/<img[^>]*src="([^"]+)"[^>]*>/g, '[发送了一张图片]');
                 text = text.replace(/<[^>]*>/g, ''); 
                 return text.trim();
             };
@@ -5183,7 +5215,7 @@ function addStickerToGroup() { const url = $('#sticker-url').value.trim(); const
             
             if (uniqueStickers.length > 0) {
                 container.innerHTML = uniqueStickers.slice(0, 15).map(s => 
-                    `<div class="suggestion-item" style="background-image: url('${s.url}')" onclick="sendSuggestedSticker('${s.url}')" title="${s.virtual}"></div>`
+                    `<div class="suggestion-item" style="background-image: url('${s.url}')" onclick="sendSuggestedSticker('${s.url}', '${s.virtual}')" title="${s.virtual}"></div>`
                 ).join('');
                 container.style.display = 'flex';
             } else {
@@ -5192,8 +5224,8 @@ function addStickerToGroup() { const url = $('#sticker-url').value.trim(); const
         }, 300); // 增加 300ms 防抖，彻底解决打字卡顿
     }
 
-    function sendSuggestedSticker(url) {
-        sendRealImage(url);
+    function sendSuggestedSticker(url, virtualText) {
+        sendRealImage(url, virtualText);
         const input = document.getElementById('chat-input');
         input.value = ''; 
         document.getElementById('sticker-suggestions').style.display = 'none';
@@ -11460,7 +11492,7 @@ function updateStatusBarButton() {
     if (config && config.enabled && config.history.length > 0) {
         btn.style.opacity = '1';
     } else {
-        btn.style.opacity = '1';
+        btn.style.opacity = '0.4';
     }
 }
 
@@ -11611,7 +11643,7 @@ function onAiAvatarDblClick() {
         content.innerHTML = `
             <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; padding-top: 5px;">
                 ${group.items.map(p => `
-                    <div style="padding-bottom: 100%; position: relative; border: 1px solid var(--border-color); border-radius: 8px; overflow: hidden; cursor: pointer; background: var(--gray-light);" onclick="sendStickerFromPicker('${p.url}')">
+                    <div style="padding-bottom: 100%; position: relative; border: 1px solid var(--border-color); border-radius: 8px; overflow: hidden; cursor: pointer; background: var(--gray-light);" onclick="sendStickerFromPicker('${p.url}', '${p.virtual}')">
                         <img src="${p.url}" style="position: absolute; width: 100%; height: 100%; object-fit: cover;">
                         <div style="position: absolute; bottom: 0; left: 0; width: 100%; background: rgba(0,0,0,0.6); color: #fff; font-size: 8px; padding: 3px 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: center; box-sizing: border-box; pointer-events: none;">${p.virtual || '未命名'}</div>
                     </div>
@@ -11620,8 +11652,8 @@ function onAiAvatarDblClick() {
         `;
     }
 
-    function sendStickerFromPicker(url) {
-        sendRealImage(url);
+    function sendStickerFromPicker(url, virtualText) {
+        sendRealImage(url, virtualText);
         closeModal('modal-sticker-picker');
     }
 
