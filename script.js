@@ -1496,9 +1496,11 @@ document.addEventListener('DOMContentLoaded', () => {
         appTextStyle.innerHTML = `.app-icon span { color: ${appTextColor} !important; }`;
 
         document.documentElement.style.setProperty('--status-bar-height', settings.showStatusBar ? '44px' : '0px'); 
-        $('#status-bar').style.display = settings.showStatusBar ? 'flex' : 'none'; 
+        const statusBar = $('#status-bar');
+        if (statusBar) statusBar.style.display = settings.showStatusBar ? 'flex' : 'none'; 
         const bg = settings.bgImage ? `url('${settings.bgImage}')` : 'none'; 
-        $('#phone-shell').style.backgroundImage = bg; 
+        const phoneShell = $('#phone-shell');
+        if (phoneShell) phoneShell.style.backgroundImage = bg; 
         const viewBg = 'var(--bg-color)'; 
         $$('.view-container, #chat-view').forEach(el => { el.style.backgroundColor = viewBg; el.style.backgroundImage = 'none'; }); 
         applyFont(settings.activeFontId, true); 
@@ -1519,18 +1521,19 @@ document.addEventListener('DOMContentLoaded', () => {
             document.documentElement.classList.remove('single-timestamp-mode');
         }
 
-        const phoneShell = document.getElementById('phone-shell');
-        if (settings.isFullscreen) {
-            phoneShell.classList.add('fullscreen');
-        } else {
-            phoneShell.classList.remove('fullscreen');
-        }
+        if (phoneShell) {
+            if (settings.isFullscreen) {
+                phoneShell.classList.add('fullscreen');
+            } else {
+                phoneShell.classList.remove('fullscreen');
+            }
 
-        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
-        if (isIOS && phoneShell.classList.contains('fullscreen')) {
-            phoneShell.style.paddingTop = 'env(safe-area-inset-top)';
-        } else {
-            phoneShell.style.paddingTop = '0';
+            const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+            if (isIOS && phoneShell.classList.contains('fullscreen')) {
+                phoneShell.style.paddingTop = 'env(safe-area-inset-top)';
+            } else {
+                phoneShell.style.paddingTop = '0';
+            }
         }
         
         if (typeof applyChatButtons === 'function') applyChatButtons();
@@ -5826,6 +5829,7 @@ window.newRoleTempWbs = null;
     function openCurrentRoleInfo() { if(currentChatRoleId) editRole(currentChatRoleId); }
     function renderRecent() {
     const list = $('#recent-list');
+    if (!list) return;
     const recentChats = Object.keys(chats).map(roleId => {
         const role = roles.find(r => r.id === roleId);
         if (!role) return null;
@@ -5869,7 +5873,7 @@ window.newRoleTempWbs = null;
         `).join('')
         : `<div style="text-align:center; color:var(--text-secondary); padding: 40px; font-size:10px; letter-spacing:2px;">VOID.</div>`;
 }
-    function renderContacts() { const list = $('#contacts-list'); if (roles.length === 0) { list.innerHTML = `<div style="text-align:center; color:var(--text-secondary); padding: 40px; font-size:10px; letter-spacing:2px;">VOID.</div>`; return; } list.innerHTML = roles.map(role => ` <div class="list-item" onclick="openChat('${role.id}')"><img class="avatar" src="${role.avatar && role.avatar.trim() ? role.avatar.trim() : DEFAULT_AVATAR}" onerror="this.src='${DEFAULT_AVATAR}'"> <div class="item-info"> <div class="item-name">${getDisplayName(role)}</div> <div class="item-desc">${(role.persona || '').substring(0, 50) || 'NO DIRECTIVES'}...</div> </div> <div class="item-actions"> <button class="btn-edit" onclick="event.stopPropagation(); editRole('${role.id}')">CONFIG<span>设置</span></button> <button class="btn-delete" onclick="event.stopPropagation(); clearEntityData('${role.id}')">PURGE<span>清空</span></button> </div> </div> `).join(''); }
+    function renderContacts() { const list = $('#contacts-list'); if (!list) return; if (roles.length === 0) { list.innerHTML = `<div style="text-align:center; color:var(--text-secondary); padding: 40px; font-size:10px; letter-spacing:2px;">VOID.</div>`; return; } list.innerHTML = roles.map(role => ` <div class="list-item" onclick="openChat('${role.id}')"><img class="avatar" src="${role.avatar && role.avatar.trim() ? role.avatar.trim() : DEFAULT_AVATAR}" onerror="this.src='${DEFAULT_AVATAR}'"> <div class="item-info"> <div class="item-name">${getDisplayName(role)}</div> <div class="item-desc">${(role.persona || '').substring(0, 50) || 'NO DIRECTIVES'}...</div> </div> <div class="item-actions"> <button class="btn-edit" onclick="event.stopPropagation(); editRole('${role.id}')">CONFIG<span>设置</span></button> <button class="btn-delete" onclick="event.stopPropagation(); clearEntityData('${role.id}')">PURGE<span>清空</span></button> </div> </div> `).join(''); }
     function addApiLog(type, details, isError = false) {
         apiLogs.unshift({ time: new Date().toLocaleString('zh-CN'), type, details, isError });
         if (apiLogs.length > 50) apiLogs.pop();
@@ -6452,6 +6456,7 @@ window.newRoleTempWbs = null;
     function renderDesktop() { 
         const desktopView = $('#view-desktop');
         const dockContainer = $('#desktop-dock');
+        if (!desktopView) return;
         
         const SLOTS_PER_PAGE = 24;
         
@@ -8162,17 +8167,21 @@ ${knowUser ? `注意：你清楚地知道回复你的人就是 ${userName}，请
     }
     function renderMusicApp() { 
         $$('.music-tab-content').forEach(el => el.classList.remove('active')); 
-        $(`#music-${musicActiveTab}-page`).classList.add('active'); 
+        const pageEl = $(`#music-${musicActiveTab}-page`);
+        if (pageEl) pageEl.classList.add('active'); 
         $$('.music-nav-btn').forEach(el => el.classList.remove('active')); 
-        $(`.music-nav-btn[onclick*="'${musicActiveTab}'"]`).classList.add('active'); 
+        const navBtn = $(`.music-nav-btn[onclick*="'${musicActiveTab}'"]`);
+        if (navBtn) navBtn.classList.add('active'); 
         
         if (musicActiveTab === 'playlist') { renderMusicPlaylist(); } 
         if (musicActiveTab === 'listen-together') { renderListenTogetherTab(); } 
         if (musicActiveTab === 'favorites') { renderMusicFavorites(); }
         if (musicActiveTab === 'account') { 
             const switcher = $('#music-account-switcher');
-            switcher.innerHTML = `<option value="ME">ME (我的音乐)</option>` + roles.map(r => `<option value="${r.id}">${getDisplayName(r)}</option>`).join('');
-            switcher.value = window.currentMusicAccount;
+            if (switcher) {
+                switcher.innerHTML = `<option value="ME">ME (我的音乐)</option>` + roles.map(r => `<option value="${r.id}">${getDisplayName(r)}</option>`).join('');
+                switcher.value = window.currentMusicAccount;
+            }
             switchMusicAccount(); 
         }
     }
