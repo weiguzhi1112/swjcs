@@ -2061,7 +2061,8 @@ function updateKeepAliveUI(isOn) {
                     const card = JSON.parse(decodeURIComponent(raw));
                     const isMe = m.role === 'user';
                     const epigraphHtml = card.epigraph ? `<div style="font-size: 10px; font-style: italic; color: var(--text-secondary); margin-bottom: 6px; border-left: 2px solid #9b59b6; padding-left: 6px;">${card.epigraph}</div>` : '';
-                    return `<div class="msg-row card-row ${isMe ? 'me' : 'ai'} ${isSelectionMode ? 'selection-mode' : ''}" onclick="handleMsgClick(${realIndex})" ${touchHandlers}>${checkboxHtml}${isMe ? '' : aiAvatarTag}<div class="msg-wrapper"><div class="share-card" style="border-color: #9b59b6; cursor: default;"><div class="share-card-badge" style="background: #9b59b6;">专属小剧场</div><div class="share-card-title">${card.title || '未命名剧场'}</div>${epigraphHtml}<div class="share-card-desc">字数: ${card.content ? card.content.length : 0} 字</div><div class="share-card-preview" style="pointer-events: auto;" onclick="event.stopPropagation()">${card.content || ''}</div><div style="display:flex; gap:8px; margin-top:10px; border-top:1px solid var(--border-color); padding-top:10px;"><button class="action-btn" style="flex:1; margin:0; padding:6px; font-size:9px;" onclick="event.stopPropagation(); window.readTheater(${realIndex})">阅读/编辑</button><button class="action-btn" style="flex:1; margin:0; padding:6px; font-size:9px;" onclick="event.stopPropagation(); window.exportTheater(${realIndex})">导出</button>${!isMe ? `<button class="action-btn primary" style="flex:1; margin:0; padding:6px; font-size:9px; background:#9b59b6; border-color:#9b59b6;" onclick="event.stopPropagation(); window.shareTheater(${realIndex})">分享给TA</button>` : ''}</div></div><div class="msg-status">${m.time}</div></div>${isMe ? userAvatarTag : ''}</div>`;
+                    const previewText = (card.content || '').replace(/<[^>]*>/g, '');
+                    return `<div class="msg-row card-row ${isMe ? 'me' : 'ai'} ${isSelectionMode ? 'selection-mode' : ''}" onclick="handleMsgClick(${realIndex})" ${touchHandlers}>${checkboxHtml}${isMe ? '' : aiAvatarTag}<div class="msg-wrapper"><div class="share-card" style="border-color: #9b59b6; cursor: default;"><div class="share-card-badge" style="background: #9b59b6;">专属小剧场</div><div class="share-card-title">${card.title || '未命名剧场'}</div>${epigraphHtml}<div class="share-card-desc">字数: ${previewText.length} 字</div><div class="share-card-preview" style="pointer-events: auto;" onclick="event.stopPropagation()">${previewText}</div><div style="display:flex; gap:8px; margin-top:10px; border-top:1px solid var(--border-color); padding-top:10px;"><button class="action-btn" style="flex:1; margin:0; padding:6px; font-size:9px;" onclick="event.stopPropagation(); window.readTheater(${realIndex})">阅读/编辑</button><button class="action-btn" style="flex:1; margin:0; padding:6px; font-size:9px;" onclick="event.stopPropagation(); window.exportTheater(${realIndex})">导出</button>${!isMe ? `<button class="action-btn primary" style="flex:1; margin:0; padding:6px; font-size:9px; background:#9b59b6; border-color:#9b59b6;" onclick="event.stopPropagation(); window.shareTheater(${realIndex})">分享给TA</button>` : ''}</div></div><div class="msg-status">${m.time}</div></div>${isMe ? userAvatarTag : ''}</div>`;
                 } catch(e) {}
             }
 
@@ -2324,7 +2325,7 @@ function updateKeepAliveUI(isOn) {
                 <div class="view-content" style="display: flex; flex-direction: column; gap: 10px;">
                     <input type="text" id="theater-read-title" style="font-family: var(--font-serif); font-size: 20px; font-weight: bold; border: none; border-bottom: 1px dashed var(--border-color); background: transparent; color: var(--text-color); padding: 10px 0; outline: none;">
                     <input type="text" id="theater-read-epigraph" style="font-size: 12px; font-style: italic; color: var(--text-secondary); border: none; border-bottom: 1px dashed var(--border-color); background: transparent; padding: 10px 0; outline: none;" placeholder="题记...">
-                    <textarea id="theater-read-content" style="width: 100%; min-height: 60vh; border: none; background: transparent; color: var(--text-color); font-size: 14px; line-height: 1.8; resize: vertical; outline: none; padding: 10px 0;"></textarea>
+                    <div id="theater-read-content" contenteditable="true" style="width: 100%; min-height: 60vh; border: none; background: transparent; color: var(--text-color); font-size: 14px; line-height: 1.8; outline: none; padding: 10px 0; overflow-y: auto; word-break: break-word;"></div>
                     <button class="action-btn" style="border-color: #ff4d4d; color: #ff4d4d; padding: 12px; border-radius: 12px;" onclick="deleteTheater()">删除此剧场</button>
                 </div>
             </div>`;
@@ -2411,13 +2412,22 @@ function updateKeepAliveUI(isOn) {
             
             const data = await res.json();
             const resultStr = data.choices[0].message.content.trim();
-            const result = JSON.parse(extractJSON(resultStr));
             
-            const payload = {
-                title: result.title || "专属小剧场",
-                epigraph: result.epigraph || "",
-                content: result.content || "生成内容为空"
-            };
+            let payload;
+            try {
+                const result = JSON.parse(extractJSON(resultStr));
+                payload = {
+                    title: result.title || "专属小剧场",
+                    epigraph: result.epigraph || "",
+                    content: result.content || "生成内容为空"
+                };
+            } catch (parseError) {
+                payload = {
+                    title: "专属小剧场",
+                    epigraph: "",
+                    content: resultStr.replace(/\n/g, '<br>')
+                };
+            }
             
             const now = new Date();
             chats[currentChatRoleId].push({ 
@@ -2452,7 +2462,7 @@ function updateKeepAliveUI(isOn) {
             currentTheaterMsgIndex = msgIndex;
             $('#theater-read-title').value = card.title || '';
             $('#theater-read-epigraph').value = card.epigraph || '';
-            $('#theater-read-content').value = card.content || '';
+            $('#theater-read-content').innerHTML = card.content || '';
             $('#view-theater-reader').classList.add('active');
         } catch(e) {}
     };
@@ -2465,7 +2475,7 @@ function updateKeepAliveUI(isOn) {
         const payload = {
             title: $('#theater-read-title').value.trim(),
             epigraph: $('#theater-read-epigraph').value.trim(),
-            content: $('#theater-read-content').value.trim()
+            content: $('#theater-read-content').innerHTML.trim()
         };
         
         msg.content = `[THEATER_CARD:${encodeURIComponent(JSON.stringify(payload))}]`;
