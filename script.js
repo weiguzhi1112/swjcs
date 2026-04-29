@@ -793,7 +793,7 @@ async function checkDiscordCallback() {
                 overlay.classList.remove('active', 'fade-out');
             }, 1200);
 
-        }, 12000);
+        }, 2000);
     }
 
     window.skipAutoLoginAnimation = function() {
@@ -1038,7 +1038,10 @@ function processPendingBgMessages() {
     });
 }
     function renderAll() { renderDesktop(); renderRecent(); renderContacts(); renderWorldbooks(); renderMasks(); renderWeather(); renderAlbums(); renderStickers(); renderMemoryView(); renderTimeAwarenessStatus(); renderAppearanceApp(); renderFeeds(); renderMusicApp(); renderBubbleCountStatus(); renderTranslationStatus(); renderForum(); cipherRenderMenu();}
-    function updateTime() { $('#time').innerText = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }); }
+    function updateTime() { 
+        const timeEl = $('#time');
+        if (timeEl) timeEl.innerText = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }); 
+    }
     function setupKeyboardShortcuts() { 
     const chatInput = $('#chat-input');
     if (!chatInput) {
@@ -1491,9 +1494,11 @@ document.addEventListener('DOMContentLoaded', () => {
         appTextStyle.innerHTML = `.app-icon span { color: ${appTextColor} !important; }`;
 
         document.documentElement.style.setProperty('--status-bar-height', settings.showStatusBar ? '44px' : '0px'); 
-        $('#status-bar').style.display = settings.showStatusBar ? 'flex' : 'none'; 
+        const statusBar = $('#status-bar');
+        if (statusBar) statusBar.style.display = settings.showStatusBar ? 'flex' : 'none'; 
         const bg = settings.bgImage ? `url('${settings.bgImage}')` : 'none'; 
-        $('#phone-shell').style.backgroundImage = bg; 
+        const phoneShell = $('#phone-shell');
+        if (phoneShell) phoneShell.style.backgroundImage = bg; 
         const viewBg = 'var(--bg-color)'; 
         $$('.view-container, #chat-view').forEach(el => { el.style.backgroundColor = viewBg; el.style.backgroundImage = 'none'; }); 
         applyFont(settings.activeFontId, true); 
@@ -7766,6 +7771,7 @@ ${knowUser ? `注意：你清楚地知道回复你的人就是 ${userName}，请
     
     function setupAudioPlayer() { 
         musicAudio = $('#music-audio-player'); 
+        if (!musicAudio) return;
         musicAudio.addEventListener('timeupdate', updateMusicProgress); 
         musicAudio.addEventListener('loadedmetadata', updateMusicDuration); 
         musicAudio.addEventListener('ended', playNextTrack); 
