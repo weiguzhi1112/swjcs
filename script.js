@@ -168,7 +168,7 @@ document.addEventListener('touchmove', function(e) {
         get: (key, def) => {
             return DB.cache.hasOwnProperty(key) ? DB.cache[key] : def;
         },
-        set: (key, val) => {
+            set: (key, val) => {
             DB.cache[key] = val;
             if (window.idbStore) {
                 window.idbStore.put(val, key).catch(e => console.warn('IDB Save Error', e));
@@ -181,10 +181,7 @@ document.addEventListener('touchmove', function(e) {
                         localStorage.setItem('suowu_' + key, dataStr); 
                     }
                 } catch (e) {
-                    // 静默处理 LocalStorage 满的警告，依赖 IndexedDB 即可
-                    if (e.name === 'QuotaExceededError') {
-                        localStorage.removeItem('suowu_settings');
-                    }
+                    console.warn("LocalStorage is full, skipping backup for", key);
                 }
             }
         }
@@ -1890,7 +1887,16 @@ function updateKeepAliveUI(isOn) {
         renderMessages(); 
     }
     function closeChat() { if (currentChatRoleId) { let leaveTimes = DB.get('leaveTimes', {}); leaveTimes[currentChatRoleId] = Date.now(); DB.set('leaveTimes', leaveTimes); } $('#chat-view').classList.remove('active'); $('#main-content-area').classList.remove('chat-active'); $('#chat-view').style.removeProperty('--role-accent-color'); currentChatRoleId = null; cancelSelectionMode(); cancelQuote(); $('#attachment-popup').style.display = 'none'; updateMusicPlayerForSession(); renderRecent(); }
-    function handleTouchStart(e, index) { if(isSelectionMode) return; pressTimer = setTimeout(() => { if(navigator.vibrate) navigator.vibrate(50); openContextMenu(index); }, 400); }
+    let touchX = 0, touchY = 0;
+    function handleTouchStart(e, index) { 
+        if(isSelectionMode) return; 
+        touchX = e.touches ? e.touches[0].clientX : e.clientX;
+        touchY = e.touches ? e.touches[0].clientY : e.clientY;
+        pressTimer = setTimeout(() => { 
+            if(navigator.vibrate) navigator.vibrate(50); 
+            openContextMenu(index, touchX, touchY); 
+        }, 400); 
+    }
     function handleTouchEnd() { clearTimeout(pressTimer); }
     function handleMsgClick(index) { if(isSelectionMode) { if(selectedMsgs.has(index)) selectedMsgs.delete(index); else selectedMsgs.add(index); renderMessages(); } }
         function renderMessages() { 
@@ -1911,8 +1917,8 @@ function updateKeepAliveUI(isOn) {
                     ? `<div style="margin-top: 6px;"><button onclick="endListenTogetherSession(true)" style="background: var(--text-color); color: var(--bg-color); border: none; font-size: 8px; padding: 4px 10px; letter-spacing: 1px; cursor: pointer; text-transform: uppercase;">退出一起听</button></div>`
                     : '';
                 const checkboxHtml = isSelectionMode ? `<div class="msg-checkbox ${selectedMsgs.has(realIndex) ? 'checked' : ''}" style="margin-right: 8px; margin-top: 0;"></div>` : '';
-                const sysColor = role.systemTextColor || 'var(--text-secondary)';
-                return `<div class="msg-row ${isSelectionMode ? 'selection-mode' : ''}" style="justify-content: center; margin: 5px 0; cursor: pointer;" onclick="handleMsgClick(${realIndex})" onmousedown="handleTouchStart(event, ${realIndex})" onmouseup="handleTouchEnd()" onmouseleave="handleTouchEnd()" ontouchstart="handleTouchStart(event, ${realIndex})" ontouchend="handleTouchEnd()" ontouchcancel="handleTouchEnd()">${checkboxHtml}<div style="background: var(--gray-light); color: ${sysColor}; font-size: 9px; padding: 4px 10px; border-radius: 10px; text-transform: uppercase; letter-spacing: 1px; text-align: center;">${m.content}${exitBtn}</div></div>`;
+                const sysColor = role.systemTextColor || '#888888';
+                return `<div class="msg-row ${isSelectionMode ? 'selection-mode' : ''}" style="justify-content: center; margin: 5px 0; cursor: pointer;" onclick="handleMsgClick(${realIndex})" onmousedown="handleTouchStart(event, ${realIndex})" onmouseup="handleTouchEnd()" onmouseleave="handleTouchEnd()" ontouchstart="handleTouchStart(event, ${realIndex})" ontouchend="handleTouchEnd()" ontouchcancel="handleTouchEnd()">${checkboxHtml}<div style="background: var(--gray-light); color: ${sysColor} !important; font-size: 9px; padding: 4px 10px; border-radius: 10px; text-transform: uppercase; letter-spacing: 1px; text-align: center;">${m.content}${exitBtn}</div></div>`;
             }
             let showAvatar = true; 
             let occupySpace = true;
@@ -2061,10 +2067,11 @@ function updateKeepAliveUI(isOn) {
             if (contentHtml.startsWith('[THEATER_CARD:')) {
                 try {
                     const raw = m.content.slice(14, -1);
-                    const card = JSON.parse(decodeURIComponent(raw).replace(/&quot;/g, '"'));
+                    const card = JSON.parse(decodeURIComponent(raw));
                     const isMe = m.role === 'user';
-                    const epigraphHtml = card.epigraph ? `<div style="font-size: 10px; font-style: italic; color: var(--text-secondary); margin-bottom: 6px; border-left: 2px solid #9b59b6; padding-left: 6px;">${escapeHTML(card.epigraph)}</div>` : '';
-                    return `<div class="msg-row card-row ${isMe ? 'me' : 'ai'} ${isSelectionMode ? 'selection-mode' : ''}" onclick="handleMsgClick(${realIndex})" ${touchHandlers}>${checkboxHtml}${isMe ? '' : aiAvatarTag}<div class="msg-wrapper"><div class="share-card" style="border-color: #9b59b6; cursor: default;"><div class="share-card-badge" style="background: #9b59b6;">专属小剧场</div><div class="share-card-title">${escapeHTML(card.title || '未命名剧场')}</div>${epigraphHtml}<div class="share-card-desc">字数: ${card.content ? card.content.length : 0} 字</div><div class="share-card-preview">${escapeHTML(card.content || '')}</div><div style="display:flex; gap:8px; margin-top:10px; border-top:1px solid var(--border-color); padding-top:10px;"><button class="action-btn" style="flex:1; margin:0; padding:6px; font-size:9px;" onclick="event.stopPropagation(); window.readTheater(${realIndex})">阅读/编辑</button><button class="action-btn" style="flex:1; margin:0; padding:6px; font-size:9px;" onclick="event.stopPropagation(); window.exportTheater(${realIndex})">导出</button>${!isMe ? `<button class="action-btn primary" style="flex:1; margin:0; padding:6px; font-size:9px; background:#9b59b6; border-color:#9b59b6;" onclick="event.stopPropagation(); window.shareTheater(${realIndex})">分享给TA</button>` : ''}</div></div><div class="msg-status">${m.time}</div></div>${isMe ? userAvatarTag : ''}</div>`;
+                    const epigraphHtml = card.epigraph ? `<div style="font-size: 10px; font-style: italic; color: var(--text-secondary); margin-bottom: 6px; border-left: 2px solid #9b59b6; padding-left: 6px;">${card.epigraph}</div>` : '';
+                    const previewText = (card.content || '').replace(/<[^>]*>/g, '');
+                    return `<div class="msg-row card-row ${isMe ? 'me' : 'ai'} ${isSelectionMode ? 'selection-mode' : ''}" onclick="handleMsgClick(${realIndex})" ${touchHandlers}>${checkboxHtml}${isMe ? '' : aiAvatarTag}<div class="msg-wrapper"><div class="share-card" style="border-color: #9b59b6; cursor: default;"><div class="share-card-badge" style="background: #9b59b6;">专属小剧场</div><div class="share-card-title">${card.title || '未命名剧场'}</div>${epigraphHtml}<div class="share-card-desc">字数: ${previewText.length} 字</div><div class="share-card-preview" style="pointer-events: auto;" onclick="event.stopPropagation()">${previewText}</div><div style="display:flex; gap:8px; margin-top:10px; border-top:1px solid var(--border-color); padding-top:10px;"><button class="action-btn" style="flex:1; margin:0; padding:6px; font-size:9px;" onclick="event.stopPropagation(); window.readTheater(${realIndex})">阅读/编辑</button><button class="action-btn" style="flex:1; margin:0; padding:6px; font-size:9px;" onclick="event.stopPropagation(); window.exportTheater(${realIndex})">导出</button>${!isMe ? `<button class="action-btn primary" style="flex:1; margin:0; padding:6px; font-size:9px; background:#9b59b6; border-color:#9b59b6;" onclick="event.stopPropagation(); window.shareTheater(${realIndex})">分享给TA</button>` : ''}</div></div><div class="msg-status">${m.time}</div></div>${isMe ? userAvatarTag : ''}</div>`;
                 } catch(e) {}
             }
 
@@ -2213,7 +2220,8 @@ function updateKeepAliveUI(isOn) {
 
                 const timeStr = `${datePrefix}${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
                 const timeDiv = document.createElement('div');
-                timeDiv.style.cssText = 'text-align:center; font-size:10px; color:var(--text-secondary); margin: 15px 0 10px 0; letter-spacing: 1px; width: 100%; font-weight: 500;';
+                const sysColor = role.systemTextColor || '#888888';
+                timeDiv.style.cssText = `text-align:center; font-size:10px; color:${sysColor} !important; margin: 15px 0 10px 0; letter-spacing: 1px; width: 100%; font-weight: 500;`;
                 timeDiv.innerText = timeStr;
                 fragment.appendChild(timeDiv);
                 lastTime = msg.rawTime;
@@ -2321,13 +2329,13 @@ function updateKeepAliveUI(isOn) {
             <div class="view-container" id="view-theater-reader" style="z-index: 1000; background: var(--bg-color);">
                 <div class="view-header">
                     <button class="glass-icon-btn" onclick="closeTheaterReader()"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg></button>
-                    <div class="chat-title-glass"><div id="chat-title" style="font-style:normal;">剧场阅读与编辑</div></div>
-                    <button class="glass-icon-btn" onclick="saveTheaterEdit()"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg></button>
+                    <div class="chat-title-glass"><div id="chat-title" style="font-style:normal;">剧场阅读</div></div>
+                    <button class="glass-icon-btn" id="btn-theater-edit" onclick="window.toggleTheaterEdit()"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>
                 </div>
                 <div class="view-content" style="display: flex; flex-direction: column; gap: 10px;">
-                    <input type="text" id="theater-read-title" style="font-family: var(--font-serif); font-size: 20px; font-weight: bold; border: none; border-bottom: 1px dashed var(--border-color); background: transparent; color: var(--text-color); padding: 10px 0; outline: none;">
-                    <input type="text" id="theater-read-epigraph" style="font-size: 12px; font-style: italic; color: var(--text-secondary); border: none; border-bottom: 1px dashed var(--border-color); background: transparent; padding: 10px 0; outline: none;" placeholder="题记...">
-                    <textarea id="theater-read-content" style="flex: 1; width: 100%; border: none; background: transparent; color: var(--text-color); font-size: 14px; line-height: 1.8; resize: none; outline: none; padding: 10px 0;"></textarea>
+                    <input type="text" id="theater-read-title" readonly style="font-family: var(--font-serif); font-size: 20px; font-weight: bold; border: none; background: transparent; color: var(--text-color); padding: 10px 0; outline: none;">
+                    <input type="text" id="theater-read-epigraph" readonly style="font-size: 12px; font-style: italic; color: var(--text-secondary); border: none; background: transparent; padding: 10px 0; outline: none;" placeholder="题记...">
+                    <div id="theater-read-content" contenteditable="false" style="width: 100%; min-height: 60vh; border: none; background: transparent; color: var(--text-color); font-size: 14px; line-height: 1.8; outline: none; padding: 10px 0; overflow-y: auto; word-break: break-word;"></div>
                     <button class="action-btn" style="border-color: #ff4d4d; color: #ff4d4d; padding: 12px; border-radius: 12px;" onclick="deleteTheater()">删除此剧场</button>
                 </div>
             </div>`;
@@ -2347,10 +2355,51 @@ function updateKeepAliveUI(isOn) {
 
     let currentTheaterMsgIndex = -1;
 
+    let isTheaterEditing = false;
+    window.toggleTheaterEdit = function() {
+        isTheaterEditing = !isTheaterEditing;
+        const title = $('#theater-read-title');
+        const epigraph = $('#theater-read-epigraph');
+        const content = $('#theater-read-content');
+        const btn = $('#btn-theater-edit');
+        
+        if (isTheaterEditing) {
+            title.removeAttribute('readonly');
+            epigraph.removeAttribute('readonly');
+            content.setAttribute('contenteditable', 'true');
+            title.style.borderBottom = '1px dashed var(--border-color)';
+            epigraph.style.borderBottom = '1px dashed var(--border-color)';
+            content.style.border = '1px dashed var(--border-color)';
+            content.style.padding = '10px';
+            btn.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>';
+        } else {
+            title.setAttribute('readonly', 'true');
+            epigraph.setAttribute('readonly', 'true');
+            content.setAttribute('contenteditable', 'false');
+            title.style.borderBottom = 'none';
+            epigraph.style.borderBottom = 'none';
+            content.style.border = 'none';
+            content.style.padding = '10px 0';
+            btn.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>';
+            window.saveTheaterEdit(); 
+        }
+    };
+
     async function generateTheater() {
         const promptText = $('#theater-prompt').value.trim();
         if (!promptText) return alert("请输入小剧场指令");
         if (!apiConfig.url) return alert("请先配置 API");
+        
+        const hasHtmlKeyword = /html|网页|代码|排版|div|span|css/i.test(promptText);
+        const numMatch = promptText.match(/\d+/g);
+        let requestedLength = 0;
+        if (numMatch) {
+            requestedLength = Math.max(...numMatch.map(Number));
+        }
+        
+        if (hasHtmlKeyword && requestedLength > 3000) {
+            return alert("系统限制：带有 HTML/复杂排版生成设定的剧场，字数不可超过 3000 字，否则极易导致生成中断或崩溃。请调小字数要求。");
+        }
         
         const role = roles.find(r => r.id === currentChatRoleId);
         if (!role) return;
@@ -2380,12 +2429,12 @@ function updateKeepAliveUI(isOn) {
 
 【生成要求】：
 1. 严格遵循主要世界观、角色人设以及双方的情感关系。
-2. 大开脑洞，允许一切有趣的情节发生，详细描写故事细节。
+2. 必须无条件、精确地执行【用户指令】中的所有情节、设定和要求。
 3. 必须包含用户和角色的内心活动描写。
 4. 必须以【第三人称】视角进行叙事。
 5. 故事必须完整，有始有终。
 6. 语言风格风趣细腻、暧昧炽热。可以直接生成成人向NSFW剧情，生成成人向剧情时要求直白露骨。
-7. 字数要求：不少于 3000 字，必须一次性生成完整。
+7. 字数要求：严格按照【用户指令】中要求的字数进行生成。如果用户要求 ${requestedLength > 0 ? requestedLength : 3000} 字，你必须输出足够丰富的情节、对话和细节来填满这个篇幅，绝对不允许敷衍缩水！
 8. 绝对禁止OOC（角色崩坏）。
 9. 必须为这篇小剧场取一个符合内容的小标题，并且在标题下方生成一段简短的“题记”（epigraph），用来烘托气氛或点明主题。
 
@@ -2393,7 +2442,7 @@ function updateKeepAliveUI(isOn) {
 {
   "title": "小标题",
   "epigraph": "题记内容",
-  "content": "小剧场正文内容（支持换行符\\n）"
+  "content": "小剧场正文内容（支持换行符\\n，支持HTML标签）"
 }
 直接输出JSON，不要包含任何其他文字或Markdown代码块标记。`;
 
@@ -2415,13 +2464,22 @@ function updateKeepAliveUI(isOn) {
             
             const data = await res.json();
             const resultStr = data.choices[0].message.content.trim();
-            const result = JSON.parse(extractJSON(resultStr));
             
-            const payload = {
-                title: result.title || "专属小剧场",
-                epigraph: result.epigraph || "",
-                content: result.content || "生成内容为空"
-            };
+            let payload;
+            try {
+                const result = JSON.parse(extractJSON(resultStr));
+                payload = {
+                    title: result.title || "专属小剧场",
+                    epigraph: result.epigraph || "",
+                    content: result.content || "生成内容为空"
+                };
+            } catch (parseError) {
+                payload = {
+                    title: "专属小剧场",
+                    epigraph: "",
+                    content: resultStr.replace(/\n/g, '<br>')
+                };
+            }
             
             const now = new Date();
             chats[currentChatRoleId].push({ 
@@ -2450,15 +2508,53 @@ function updateKeepAliveUI(isOn) {
     window.readTheater = function(msgIndex) {
         const msg = chats[currentChatRoleId][msgIndex];
         if (!msg) return;
+        
+        // 每次打开重置为只读状态
+        if (isTheaterEditing) window.toggleTheaterEdit();
+        
+        // 核心修复：确保阅读器的 DOM 元素存在（防止刷新页面后直接点击报错）
+        if (!document.getElementById('view-theater-reader')) {
+            const html = `
+            <div class="view-container" id="view-theater" style="z-index: 1000; background: var(--bg-color);">
+                <div class="view-header">
+                    <button class="glass-icon-btn" onclick="closeTheaterView()"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg></button>
+                    <div class="chat-title-glass"><div id="chat-title" style="font-style:normal;">小剧场生成</div></div>
+                    <div style="width:34px;"></div>
+                </div>
+                <div class="view-content" style="display: flex; flex-direction: column; gap: 15px;">
+                    <div style="font-size: 12px; color: var(--text-secondary);">请输入小剧场指令 / 设定：</div>
+                    <textarea id="theater-prompt" style="flex: 1; width: 100%; padding: 15px; border-radius: 12px; border: 1px solid var(--border-color); background: var(--gray-light); color: var(--text-color); font-size: 14px; resize: none; outline: none;" placeholder="例如：写一段我们去海边看日落的纯爱小剧场，文风要唯美细腻..."></textarea>
+                    <button class="action-btn primary" id="btn-generate-theater" style="padding: 15px; border-radius: 12px; font-size: 14px;" onclick="generateTheater()">开始生成</button>
+                </div>
+            </div>
+            <div class="view-container" id="view-theater-reader" style="z-index: 1000; background: var(--bg-color);">
+                <div class="view-header">
+                    <button class="glass-icon-btn" onclick="closeTheaterReader()"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg></button>
+                    <div class="chat-title-glass"><div id="chat-title" style="font-style:normal;">剧场阅读与编辑</div></div>
+                    <button class="glass-icon-btn" onclick="saveTheaterEdit()"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg></button>
+                </div>
+                <div class="view-content" style="display: flex; flex-direction: column; gap: 10px;">
+                    <input type="text" id="theater-read-title" style="font-family: var(--font-serif); font-size: 20px; font-weight: bold; border: none; border-bottom: 1px dashed var(--border-color); background: transparent; color: var(--text-color); padding: 10px 0; outline: none;">
+                    <input type="text" id="theater-read-epigraph" style="font-size: 12px; font-style: italic; color: var(--text-secondary); border: none; border-bottom: 1px dashed var(--border-color); background: transparent; padding: 10px 0; outline: none;" placeholder="题记...">
+                    <div id="theater-read-content" contenteditable="true" style="width: 100%; min-height: 60vh; border: none; background: transparent; color: var(--text-color); font-size: 14px; line-height: 1.8; outline: none; padding: 10px 0; overflow-y: auto; word-break: break-word;"></div>
+                    <button class="action-btn" style="border-color: #ff4d4d; color: #ff4d4d; padding: 12px; border-radius: 12px;" onclick="deleteTheater()">删除此剧场</button>
+                </div>
+            </div>`;
+            document.body.insertAdjacentHTML('beforeend', html);
+        }
+
         try {
             const raw = msg.content.slice(14, -1);
-            const card = JSON.parse(decodeURIComponent(raw).replace(/&quot;/g, '"'));
+            const card = JSON.parse(decodeURIComponent(raw));
             currentTheaterMsgIndex = msgIndex;
             $('#theater-read-title').value = card.title || '';
             $('#theater-read-epigraph').value = card.epigraph || '';
-            $('#theater-read-content').value = card.content || '';
+            $('#theater-read-content').innerHTML = card.content || '';
             $('#view-theater-reader').classList.add('active');
-        } catch(e) {}
+        } catch(e) {
+            console.error("解析剧场数据失败:", e);
+            alert("解析剧场数据失败，可能是数据格式损坏。");
+        }
     };
 
     window.saveTheaterEdit = function() {
@@ -2469,7 +2565,7 @@ function updateKeepAliveUI(isOn) {
         const payload = {
             title: $('#theater-read-title').value.trim(),
             epigraph: $('#theater-read-epigraph').value.trim(),
-            content: $('#theater-read-content').value.trim()
+            content: $('#theater-read-content').innerHTML.trim()
         };
         
         msg.content = `[THEATER_CARD:${encodeURIComponent(JSON.stringify(payload))}]`;
@@ -2493,7 +2589,7 @@ function updateKeepAliveUI(isOn) {
         if (!msg) return;
         try {
             const raw = msg.content.slice(14, -1);
-            const card = JSON.parse(decodeURIComponent(raw).replace(/&quot;/g, '"'));
+            const card = JSON.parse(decodeURIComponent(raw));
             const textToExport = `${card.title}\n\n${card.epigraph ? card.epigraph + '\n\n' : ''}${card.content}`;
             const blob = new Blob([textToExport], { type: 'text/plain;charset=utf-8' });
             const a = document.createElement('a');
@@ -2509,7 +2605,7 @@ function updateKeepAliveUI(isOn) {
         if (!msg) return;
         try {
             const raw = msg.content.slice(14, -1);
-            const card = JSON.parse(decodeURIComponent(raw).replace(/&quot;/g, '"'));
+            const card = JSON.parse(decodeURIComponent(raw));
             
             const now = new Date();
             chats[currentChatRoleId].push({ 
@@ -2556,8 +2652,37 @@ function updateKeepAliveUI(isOn) {
             renderMessages(); 
         }
     }
-    function openContextMenu(index) { contextMenuTargetIndex = index; $('#context-menu-overlay').style.display = 'flex'; setTimeout(() => $('#context-menu').classList.add('active'), 10); }
+    function openContextMenu(index, x, y) { 
+        contextMenuTargetIndex = index; 
+        const overlay = $('#context-menu-overlay');
+        const menu = $('#context-menu');
+        overlay.style.display = 'block'; 
+        
+        const menuWidth = 140;
+        const menuHeight = 260; 
+        let posX = x;
+        let posY = y;
+        
+        if (x + menuWidth > window.innerWidth) posX = window.innerWidth - menuWidth - 15;
+        if (y + menuHeight > window.innerHeight) posY = window.innerHeight - menuHeight - 15;
+        
+        menu.style.left = posX + 'px';
+        menu.style.top = posY + 'px';
+        menu.style.transformOrigin = (x > window.innerWidth / 2 ? 'top right' : 'top left');
+        
+        setTimeout(() => menu.classList.add('active'), 10); 
+    }
     function closeContextMenu() { $('#context-menu').classList.remove('active'); $('#context-menu-overlay').style.display = 'none'; }
+
+    window.handleStatusBtnClick = function() {
+        if (!currentChatRoleId) return;
+        const config = statusBarData[currentChatRoleId];
+        if (config && config.enabled && config.history.length > 0) {
+            openStatusPanel();
+        } else {
+            alert("该角色尚未开启心声状态栏，或暂无心声数据。\n请在角色设置中配置并开启。");
+        }
+    };
 
     function quickFixFromMenu() {
         if(contextMenuTargetIndex > -1) {
@@ -2597,6 +2722,8 @@ function updateKeepAliveUI(isOn) {
             html = `<label>TITLE / 帖子标题</label><input type="text" id="qf-forum-title" placeholder="例如: 标题" value="修复的帖子" style="margin-bottom:10px;"><label>AUTHOR / 作者</label><input type="text" id="qf-forum-author" placeholder="例如: 匿名" value="匿名" style="margin-bottom:10px;"><label>CONTENT / 内容</label><textarea id="qf-forum-content" placeholder="帖子内容...">${cleanText}</textarea>`;
         } else if (type === 'feed_card') {
             html = `<label>AUTHOR / 作者</label><input type="text" id="qf-feed-author" placeholder="例如: 匿名" value="匿名" style="margin-bottom:10px;"><label>CONTENT / 内容</label><textarea id="qf-feed-content" placeholder="动态内容...">${cleanText}</textarea>`;
+        } else if (type === 'system') {
+            html = `<label>SYSTEM TEXT / 旁白或系统提示内容</label><textarea id="qf-system-content" placeholder="输入旁白内容...">${cleanText}</textarea>`;
         } else {
             html = `<label>TEXT CONTENT / 纯文本内容</label><textarea id="qf-text-content" placeholder="输入纯文本...">${cleanText}</textarea>`;
         }
@@ -2638,6 +2765,9 @@ function updateKeepAliveUI(isOn) {
             const content = $('#qf-feed-content').value.trim() || '...';
             const payload = { id: 'feed_fix_' + Date.now(), author: author, content: content };
             newContent = `[FEED_CARD:${encodeURIComponent(JSON.stringify(payload))}]`;
+        } else if (type === 'system') {
+            newContent = $('#qf-system-content').value.trim();
+            chats[currentChatRoleId][editingMsgIndex].role = 'system';
         } else {
             newContent = $('#qf-text-content').value.trim();
         }
@@ -4047,7 +4177,7 @@ ${memories[role.id] ? `<shared_memory>\n${memories[role.id]}\n</shared_memory>` 
 2. 【互动反应】对转账、礼物、代付、一起听歌、动态分享等系统提示，必须给出符合人设的真实反应。
 3. 【情侣空间】收到绑定邀请且同意时，回复必须包含隐藏指令 [ACCEPT_OURSPACE:配对码]，并且你必须在回复的文字中，自己编造一个全新的 6 位数字发给用户，让用户去输入。
 4. 你的头像URL: "${role.avatar || '默认'}"。换头像回复 [CHANGE_AVATAR:图片URL]。保存图片回复 [SAVE_PHOTO:图片URL|相册名]。
-5. 【票根生成】当你们约定去看电影、演唱会、展览或旅行时，你必须在回复中包含隐藏指令生成票根：[TICKET:{"type":"movie/concert/travel/exhibit","title":"活动名称","subtitle":"副标题","label1":"地点","value1":"具体地点","label2":"座位/时间","value2":"具体信息","label3":"时间","value3":"具体时间"}]
+5. 【票根生成】当你们约定去看电影、演唱会、展览或旅行时，你必须在回复中包含隐藏指令生成票根：[TICKET:{"type":"movie/concert/travel/exhibit","title":"活动名称","subtitle":"副标题","label1":"地点","value1":"具体地点","label2":"座位/时间","value2":"具体信息","label3":"时间","value3":"具体时间","single":false}]。如果是你单人出行（比如飞过来找用户），请务必将 "single" 设为 true，这样系统只会生成一张你的票。
 6. 【主动转账】当你想给用户转账时，在回复中包含：[转账 ¥金额]${translationRule}
 7. 【记忆提取】如果用户在聊天中提到了喜欢的歌曲、食物等，请自然地记住并在后续对话中提及。
 8. 【专属音乐空间】你的网易云音乐账号是：${roleMusicAcc}，密码是：${roleMusicPwd}。如果用户问你要，请自然地告诉TA。
@@ -4063,8 +4193,7 @@ ${modeRules}
             }
             const apiMessages = [{ role: 'system', content: finalSystemPrompt }];
             const contextLimit = role.contextLimit || 30;
-
-            const cleanHistoryContent = (content) => {
+            const cleanHistoryContent = (content, msgRole) => {
                 let text = content;
                 text = text.replace(/<thought>[\s\S]*?<\/thought>\n*/gi, '');
                 text = text.replace(/思考：[\s\S]*?\n\n/gi, '');
@@ -4107,6 +4236,7 @@ ${modeRules}
                     try { const data = JSON.parse(decodeURIComponent(p1)); return `[系统提示：用户向你分享了一条动态，作者：${data.author}，内容：${data.content}]`; } catch(e) { return '[分享了一条动态]'; }
                 });
                 text = text.replace(/\[THEATER_CARD:(.*?)\]/g, (match, p1) => {
+                    if (msgRole === 'ai') return ''; // 核心修复：AI自己生成的剧场卡片，对AI隐形
                     try { 
                         const data = JSON.parse(decodeURIComponent(p1)); 
                         return `[系统提示：这是一篇名为《${data.title}》的同人小剧场，不计入正文剧情。如果你看到了这条提示，说明用户把这篇剧场分享给了你，请你以角色本人的身份对里面的情节进行吐槽或发表看法。]`; 
@@ -4122,7 +4252,7 @@ ${modeRules}
                 let msgRole = m.role;
                 if (msgRole !== 'user' && msgRole !== 'system') msgRole = 'assistant';
                 
-                let content = cleanHistoryContent(m.content);
+                let content = cleanHistoryContent(m.content, m.role);
                 if (settings.timeAware && m.rawTime) {
                     const d = new Date(m.rawTime);
                     const timeStr = `[${d.getMonth()+1}月${d.getDate()}日 ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}]`;
@@ -4460,7 +4590,7 @@ ${modeRules}
         } finally {
             window.isAiResponding[targetRoleId] = false;
             if (currentChatRoleId === targetRoleId && typeof hideGlobalTyping === 'function') {
-                hideGlobalTyping();
+                try { hideGlobalTyping(); } catch(e) {}
             }
         }
     }
@@ -5308,7 +5438,7 @@ async function generateTodaySummary(roleId) {
     } catch (e) { alert('生成失败: ' + e.message); }
 }
     function saveCurrentMemory() { if (!currentMemoryRoleId) return; memories[currentMemoryRoleId] = $('#memory-editor-content').value.trim(); DB.set('memories', memories); closeMemoryEditorView(); renderMemoryView(); }
-    async function triggerMemorySummary() { if (!currentMemoryRoleId) return; const role = roles.find(r => r.id === currentMemoryRoleId); const chatHistory = (chats[currentMemoryRoleId] || []).map(m => `${m.role === 'user' ? 'ME' : role.realName}: ${m.content}`).join('\n'); if (!chatHistory) return alert('NO DATA.'); const btn = $('#btn-generate-memory'); btn.innerText = '...'; btn.disabled = true; const prompt = `Synthesize the following dialogue into a concise, objective third-person summary of key events and relationship dynamics.\n---\n${chatHistory}\n---\nOUTPUT:`; try { const endpoint = getChatEndpoint(apiConfig.url); const response = await fetch(endpoint, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiConfig.key}` }, body: JSON.stringify({ model: apiConfig.model, messages: [{role: 'user', content: prompt}], max_tokens: 1000, temperature: 0.5 }) }); if (!response.ok) throw new Error(await parseApiError(response)); const data = await response.json(); $('#memory-editor-content').value = data.choices[0].message.content.trim(); } catch (err) { alert('ERROR:\n' + err.message); } finally { btn.innerHTML = 'SYNTHESIZE<span>生成概要</span>'; btn.disabled = false; } }
+    async function triggerMemorySummary() { if (!currentMemoryRoleId) return; const role = roles.find(r => r.id === currentMemoryRoleId); const chatHistory = (chats[currentMemoryRoleId] || []).map(m => { let text = m.content.replace(/\[THEATER_CARD:.*?\]/g, ''); return `${m.role === 'user' ? 'ME' : role.realName}: ${text}`; }).join('\n'); if (!chatHistory.trim()) return alert('NO DATA.'); const btn = $('#btn-generate-memory'); btn.innerText = '...'; btn.disabled = true; const prompt = `Synthesize the following dialogue into a concise, objective third-person summary of key events and relationship dynamics.\n---\n${chatHistory}\n---\nOUTPUT:`; try { const endpoint = getChatEndpoint(apiConfig.url); const response = await fetch(endpoint, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiConfig.key}` }, body: JSON.stringify({ model: apiConfig.model, messages: [{role: 'user', content: prompt}], max_tokens: 1000, temperature: 0.5 }) }); if (!response.ok) throw new Error(await parseApiError(response)); const data = await response.json(); $('#memory-editor-content').value = data.choices[0].message.content.trim(); } catch (err) { alert('ERROR:\n' + err.message); } finally { btn.innerHTML = 'SYNTHESIZE<span>生成概要</span>'; btn.disabled = false; } }
     function openAvatarSettingsModal() { const statusMap = { 'all': 'ALL', 'first': 'FIRST ONLY', 'hide_user': 'HIDE MINE', 'hide_ai': 'HIDE THEIRS', 'hide_all': 'HIDE ALL' }; $('#avatar-setting-current').innerText = `CURRENT: ${statusMap[settings.avatarDisplay]}`; openModal('modal-avatar-settings'); }
     function saveAvatarSettings(mode) { settings.avatarDisplay = mode; DB.set('settings', settings); openAvatarSettingsModal(); if (currentChatRoleId) renderMessages(); }
     function openMemoirSettingsModal() { updateMemoirLength(settings.memoirMaxLength); renderMemoirStylesList(); openModal('modal-memoir-settings'); }
@@ -5948,7 +6078,8 @@ window.newRoleTempWbs = null;
             msg.content = msg.content.replace(jsonArrayRegex, '[JSON数据已清理]');
             fixCount++;
         }
-        const htmlTagRegex = /<\/?(?:html|body|head|div|span|p|a|script|style)[^>]*>/gi;
+        // 核心修复：清理所有可能破坏布局的 HTML 标签，仅保留 img 和 br
+        const htmlTagRegex = /<\/?(?:html|body|head|div|span|p|a|script|style|table|tr|td|th|tbody|thead|ul|li|ol|h1|h2|h3|h4|h5|h6)[^>]*>/gi;
         if (msg.content.match(htmlTagRegex) && !msg.content.includes('class="chat-inline-img"') && !msg.content.includes('class="bubble-typing-indicator"')) {
             msg.content = msg.content.replace(htmlTagRegex, '');
             fixCount++;
@@ -8938,7 +9069,11 @@ async function autoGenerateSummary(roleId, type = 'episodic') {
         if (endIndex <= startIndex) return;
 
         const msgsToSummarize = msgs.slice(startIndex, endIndex);
-        const chatText = msgsToSummarize.map(m => `${m.role === 'user' ? 'ME' : role.realName}: ${m.content.replace(/<[^>]*>/g, '')}`).join('\n');
+        const chatText = msgsToSummarize.map(m => {
+            let text = m.content.replace(/<[^>]*>/g, '');
+            text = text.replace(/\[THEATER_CARD:.*?\]/g, ''); // 核心修复：过滤小剧场，防止污染记忆
+            return `${m.role === 'user' ? 'ME' : role.realName}: ${text}`;
+        }).join('\n');
         const typeLabel = type === 'episodic' ? '最近发生了什么' : '我们之间的故事走到了哪里';
         const prompt = `你是${role.realName}。${role.persona ? role.persona.substring(0, 200) : ''}\n\n以下是你和用户最新的一段对话记录：\n\n${chatText}\n\n以你（${role.realName}）的第一人称视角，用你自己的语气，用500字以内随手记下"${typeLabel}"。像真人在脑子里过一遍那种感觉，口语化，有主观感受，可以有情绪，可以不完整。禁止油腻，禁止物化用户，禁止书面腔。直接输出内容，不加任何标题。`;
         
@@ -9256,6 +9391,13 @@ async function generateAutoMsg(roleId) {
             });
             textContent = textContent.replace(/\[FEED_CARD:(.*?)\]/g, (match, p1) => {
                 try { const data = JSON.parse(decodeURIComponent(p1)); return `[系统提示：用户向你分享了一条动态，作者：${data.author}，内容：${data.content}]`; } catch(e) { return '[分享了一条动态]'; }
+            });
+            textContent = textContent.replace(/\[THEATER_CARD:(.*?)\]/g, (match, p1) => {
+                if (m.role === 'ai') return ''; // 核心修复：AI自己生成的剧场卡片，对AI隐形
+                try { 
+                    const data = JSON.parse(decodeURIComponent(p1)); 
+                    return `[系统提示：这是一篇名为《${data.title}》的同人小剧场，不计入正文剧情。如果你看到了这条提示，说明用户把这篇剧场分享给了你，请你以角色本人的身份对里面的情节进行吐槽或发表看法。]`; 
+                } catch(e) { return ''; }
             });
             textContent = textContent.replace(/<div class="virtual-img-box" data-text="(.*?)".*?<\/div>/g, '[图片: $1]');
             textContent = textContent.replace(/<img[^>]*src="([^"]+)"[^>]*>/g, '[发送了一张图片]');
@@ -11315,7 +11457,11 @@ function updateStatusBarButton() {
     const btn = $('#char-status-btn');
     if (!btn || !currentChatRoleId) return;
     const config = statusBarData[currentChatRoleId];
-    btn.style.display = (config && config.enabled && config.history.length > 0) ? 'inline-flex' : 'none';
+    if (config && config.enabled && config.history.length > 0) {
+        btn.style.opacity = '1';
+    } else {
+        btn.style.opacity = '1';
+    }
 }
 
 let isStatusManageMode = false;
@@ -13226,6 +13372,14 @@ function renderTicketPair(ticketData) {
     const userName = settings.userName || 'ME';
     const roleName = role ? getDisplayName(role) : 'TA';
 
+    const baseSerialNum = Math.floor(Date.now() / 1000) % 1000000; 
+    
+    // 核心修复：如果是单人行动，只生成一张角色的票
+    if (ticketData.single) {
+        const singleTicket = { ...ticketData, owner: roleName, serial: 'NO.' + String(baseSerialNum).padStart(6, '0') };
+        return `<div class="ticket-card-wrapper">${renderTicketCard(singleTicket)}</div>`;
+    }
+
     function incrementIfSeat(label, value) {
         if (value === undefined || value === null) return value;
         let strValue = String(value);
@@ -13242,7 +13396,6 @@ function renderTicketPair(ticketData) {
         return strValue;
     }
 
-    const baseSerialNum = Math.floor(Date.now() / 1000) % 1000000; 
     const userTicket = { ...ticketData, owner: userName, serial: 'NO.' + String(baseSerialNum).padStart(6, '0') };
     
     const roleTicket = { 
@@ -14632,11 +14785,14 @@ window.compressMessageToken = async function(index, btn) {
     
     if (!apiConfig.url) return alert("请先配置 API");
     
+    const role = roles.find(r => r.id === roleId);
+    const speakerName = msg.role === 'user' ? (settings.userName || 'ME') : (role ? role.realName : 'AI');
+    
     const origText = btn.innerText;
     btn.innerText = "压缩中...";
     btn.disabled = true;
     
-    const prompt = `请将以下长文本压缩为简短的摘要（保留核心信息和关键动作），字数控制在原文本的30%以内。直接输出压缩后的文本，不要加任何解释：\n\n${msg.content}`;
+    const prompt = `请将以下长文本压缩为简短的摘要（保留核心信息和关键动作），字数控制在原文本的30%以内。这段话是【${speakerName}】说的，请在压缩后保持正确的人称和主语。直接输出压缩后的文本，不要加任何解释：\n\n${msg.content}`;
     
     try {
         const endpoint = getChatEndpoint(apiConfig.url);
@@ -14682,11 +14838,13 @@ window.compressAllTokens = async function() {
     let successCount = 0;
     const endpoint = getChatEndpoint(apiConfig.url);
 
+    const role = roles.find(r => r.id === roleId);
     for (let i = 0; i < longMsgs.length; i++) {
         const msgObj = longMsgs[i];
         btn.innerText = `正在压缩 (${i + 1}/${longMsgs.length})...`;
         
-        const prompt = `请将以下长文本压缩为简短的摘要（保留核心信息和关键动作），字数控制在原文本的30%以内。直接输出压缩后的文本，不要加任何解释：\n\n${msgObj.content}`;
+        const speakerName = msgObj.role === 'user' ? (settings.userName || 'ME') : (role ? role.realName : 'AI');
+        const prompt = `请将以下长文本压缩为简短的摘要（保留核心信息和关键动作），字数控制在原文本的30%以内。这段话是【${speakerName}】说的，请在压缩后保持正确的人称和主语。直接输出压缩后的文本，不要加任何解释：\n\n${msgObj.content}`;
         
         try {
             const res = await fetch(endpoint, {
