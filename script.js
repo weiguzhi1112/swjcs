@@ -4698,6 +4698,7 @@ ${modeRules}
     
     function renderWeather() { 
         const form = $('#weather-form'); 
+        if (!form) return;
         form.innerHTML = Object.entries({ 
             city: '虚拟城市 (VIRTUAL CITY)', 
             realCity: '真实映射 (REAL CITY)', 
@@ -4935,6 +4936,7 @@ ${modeRules}
     
     function renderAlbums() { 
         const container = $('#album-container'); 
+        if (!container) return;
         container.innerHTML = albums.map(album => `
             <div class="album-group">
                 <div class="album-header" onclick="toggleAlbumGroup('${album.id}')">
@@ -5135,6 +5137,7 @@ ${modeRules}
     
     function renderStickers() { 
         const container = $('#sticker-container'); 
+        if (!container) return;
         container.innerHTML = stickers.map(group => `
             <div class="album-group">
                 <div class="album-header" onclick="toggleStickerGroup('${group.id}')">
@@ -5302,6 +5305,7 @@ function addStickerToGroup() { const url = $('#sticker-url').value.trim(); const
     
     function renderMemoryView() {
     const list = $('#memory-character-list');
+    if (!list) return;
     if (roles.length === 0) {
         list.innerHTML = `<div style="text-align:center; color:var(--text-secondary); padding: 40px; font-size:10px; letter-spacing:2px;">VOID.</div>`;
         return;
@@ -5955,7 +5959,7 @@ window.newRoleTempWbs = null;
     function renderApiPresets() { const list = $('#api-presets-list'); list.innerHTML = apiPresets.map(p => `<div class="list-item" style="padding:10px 0;"><div class="item-name" style="font-size:12px; font-family:var(--font-sans);">${p.name}</div><div class="item-actions"><button class="btn-edit" onclick="loadApiPreset('${p.id}')">LOAD</button><button class="btn-delete" onclick="deleteApiPreset('${p.id}')">DEL</button></div></div>`).join(''); }
     function loadApiPreset(presetId) { const preset = apiPresets.find(p => p.id === presetId); if (!preset) return; $('#api-url').value = preset.url; $('#api-key').value = preset.key; $('#api-model').value = preset.model; $('#api-tokens').value = preset.maxTokens; $('#api-temp').value = preset.temperature; $('#val-temp').innerText = preset.temperature; $('#api-topp').value = preset.topP; $('#val-topp').innerText = preset.topP; }
     function deleteApiPreset(presetId) { if (!confirm('删除预设？')) return; apiPresets = apiPresets.filter(p => p.id !== presetId); DB.set('apiPresets', apiPresets); renderApiPresets(); }
-        function renderWorldbooks() { $('#worldbook-list').innerHTML = worldbooks.map(w => `<div class="list-item" onclick="openWorldbookModal('${w.id}')"><div class="item-info"><div class="item-name">${w.isGlobal?'[GLOBAL] ':'[LOCAL] '}${w.title || w.keyword}</div><div class="item-desc">${w.content}</div></div><div class="item-actions"><button class="btn-edit">CONFIG</button></div></div>`).join(''); }
+        function renderWorldbooks() { const list = $('#worldbook-list'); if (!list) return; list.innerHTML = worldbooks.map(w => `<div class="list-item" onclick="openWorldbookModal('${w.id}')"><div class="item-info"><div class="item-name">${w.isGlobal?'[GLOBAL] ':'[LOCAL] '}${w.title || w.keyword}</div><div class="item-desc">${w.content}</div></div><div class="item-actions"><button class="btn-edit">CONFIG</button></div></div>`).join(''); }
     
     function openWorldbookModal(id = null) { 
         editingWbId = id; 
@@ -6037,7 +6041,7 @@ window.newRoleTempWbs = null;
         inputEl.value = '';
     }
     
-    function renderMasks() { $('#mask-list').innerHTML = masks.map(m => `<div class="list-item" onclick="openMaskModal('${m.id}')"><div class="item-info"><div class="item-name">${m.name} ${m.id === 'default' ? '<span style="font-size:10px;color:var(--text-secondary);">(DEFAULT)</span>' : ''}</div><div class="item-desc">${m.content}</div></div><div class="item-actions"><button class="btn-edit">CONFIG</button></div></div>`).join(''); }
+    function renderMasks() { const list = $('#mask-list'); if (!list) return; list.innerHTML = masks.map(m => `<div class="list-item" onclick="openMaskModal('${m.id}')"><div class="item-info"><div class="item-name">${m.name} ${m.id === 'default' ? '<span style="font-size:10px;color:var(--text-secondary);">(DEFAULT)</span>' : ''}</div><div class="item-desc">${m.content}</div></div><div class="item-actions"><button class="btn-edit">CONFIG</button></div></div>`).join(''); }
     function openMaskModal(id = null) { editingMaskId = id; if (id) { const m = masks.find(x => x.id === id); $('#mask-modal-title').innerText = 'CONFIG PERSONA'; $('#mask-name').value = m.name; $('#mask-content').value = m.content; $('#btn-del-mask').style.display = m.id !== 'default' ? 'block' : 'none'; } else { $('#mask-modal-title').innerText = 'NEW PERSONA'; $('#mask-name').value = ''; $('#mask-content').value = ''; $('#btn-del-mask').style.display = 'none'; } openModal('modal-mask'); }
     function saveMask() { const name = $('#mask-name').value.trim(), content = $('#mask-content').value.trim(); if(!name || !content) return alert('REQUIRED FIELDS EMPTY.'); if (editingMaskId) { const idx = masks.findIndex(x => x.id === editingMaskId); masks[idx] = { ...masks[idx], name, content }; } else { masks.push({ id: Date.now().toString(36) + Math.random().toString(36).substring(2, 8), name, content }); } DB.set('masks', masks); closeModal('modal-mask'); renderMasks(); }
     function deleteMask() { if (editingMaskId === 'default' || !confirm('删除面具？')) return; roles.forEach(r => { if (r.activeMaskId === editingMaskId) r.activeMaskId = 'default'; }); DB.set('roles', roles); masks = masks.filter(x => x.id !== editingMaskId); DB.set('masks', masks); closeModal('modal-mask'); renderMasks(); }
