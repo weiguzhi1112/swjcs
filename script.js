@@ -181,10 +181,7 @@ document.addEventListener('touchmove', function(e) {
                         localStorage.setItem('suowu_' + key, dataStr); 
                     }
                 } catch (e) {
-                    // 静默处理 LocalStorage 满的警告，依赖 IndexedDB 即可
-                    if (e.name === 'QuotaExceededError') {
-                        localStorage.removeItem('suowu_settings');
-                    }
+                    console.warn("LocalStorage is full, skipping backup for", key);
                 }
             }
         }
@@ -4460,7 +4457,7 @@ ${modeRules}
         } finally {
             window.isAiResponding[targetRoleId] = false;
             if (currentChatRoleId === targetRoleId && typeof hideGlobalTyping === 'function') {
-                hideGlobalTyping();
+                try { hideGlobalTyping(); } catch(e) {}
             }
         }
     }
