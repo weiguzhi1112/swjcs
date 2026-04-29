@@ -6146,26 +6146,32 @@ window.newRoleTempWbs = null;
             if (msg.content.includes('[PAY_REQUEST:') || msg.content.includes('[ORDER_RECEIPT_CARD:') || msg.content.includes('[TRANSFER:') || msg.content.includes('[FAMILY_CARD:') || msg.content.includes('[OURSPACE_INVITE:')) {
                 try {
                     const tagMatch = msg.content.match(/\[(PAY_REQUEST|ORDER_RECEIPT_CARD|TRANSFER|FAMILY_CARD|OURSPACE_INVITE):(.*?)\]/);
+                    // 将变量声明提升到 if 外面，解决作用域报错问题
+                    let needsFix = false;
+                    let tagType = '';
+                    let card = null;
+                    
                     if (tagMatch) {
-                        const tagType = tagMatch[1];
+                        tagType = tagMatch[1];
                         const rawJson = tagMatch[2];
-                        let card = JSON.parse(decodeURIComponent(rawJson));
-                        let needsFix = false;
+                        card = JSON.parse(decodeURIComponent(rawJson));
+                        
                         if (!card.status) {
                             if (tagType === 'PAY_REQUEST') card.status = '待支付';
                             if (tagType === 'ORDER_RECEIPT_CARD') card.status = '已支付';
                             if (tagType === 'TRANSFER' || tagType === 'FAMILY_CARD') card.status = '待接收';
                             if (tagType === 'OURSPACE_INVITE') card.status = '等待对方回复配对码';
                             needsFix = true;
-                        } // 【修复毒瘤】：这里必须加上这个闭合括号！
+                        }
                     }
-                    if (needsFix) {
+                    
+                    if (needsFix && card) {
                         msg.content = msg.content.replace(tagMatch[0], `[${tagType}:${encodeURIComponent(JSON.stringify(card))}]`);
                         fixCount++;
                     }
-                }
-            } catch(e) {}
-        }
+                } catch(e) {} // catch 必须紧跟 try 的闭合括号
+            } // 这是 if (msg.content.includes...) 的闭合括号
+        } // 这是 chats[roleId].forEach 的闭合括号
 
         const jsonArrayRegex = /\[\s*\{.*?\}\s*\]/g;
         if (msg.content.match(jsonArrayRegex)) {
