@@ -555,6 +555,8 @@ async function checkDiscordCallback() {
 
     let currentChatRoleId = null;
     let currentChatMode = 'online';
+    let currentCallInitiator = 'user';
+    let isVideoCall = false;
     let editingMsgIndex = -1;
     let editingWbId = null;
     let editingMaskId = null;
@@ -2136,6 +2138,26 @@ function updateKeepAliveUI(isOn) {
                 } catch(e) {}
             }
 
+            if (contentHtml.startsWith('[INCOMING_CALL:')) {
+                const raw = contentHtml.slice(15, -1);
+                try {
+                    const card = JSON.parse(decodeURIComponent(raw));
+                    const isMe = m.role === 'user';
+                    
+                    let actionHtml = '';
+                    if (card.status === '等待接听' && !isMe) {
+                        actionHtml = `
+                            <div style="display:flex; gap:10px; margin-top:10px;">
+                                <button class="action-btn" style="flex:1; border-radius:16px; background:#ff3b30; color:#fff; border:none;" onclick="event.stopPropagation(); window.handleIncomingCall(${realIndex}, false)">拒绝</button>
+                                <button class="action-btn" style="flex:1; border-radius:16px; background:#22c55e; color:#fff; border:none;" onclick="event.stopPropagation(); window.handleIncomingCall(${realIndex}, true)">接听</button>
+                            </div>
+                        `;
+                    }
+
+                    return `<div class="msg-row card-row ${isMe ? 'me' : 'ai'} ${isSelectionMode ? 'selection-mode' : ''}" onclick="handleMsgClick(${realIndex})" ${touchHandlers}>${checkboxHtml}${isMe ? '' : aiAvatarTag}<div class="msg-wrapper"><div class="daifu-card" style="flex-direction:column; align-items:stretch;"><div style="display:flex; align-items:center; gap:12px;"><div class="daifu-icon" style="border-radius:50%; background:rgba(34,197,94,0.1); color:#22c55e;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg></div><div class="daifu-info"><div class="daifu-title">${isMe ? '发起了语音通话' : '邀请你语音通话'}</div><div class="daifu-desc">${card.status}</div></div></div>${actionHtml}</div><div class="msg-status">${m.time}</div></div>${isMe ? userAvatarTag : ''}</div>`;
+                } catch(e) {}
+            }
+
             if (contentHtml.startsWith('[PAY_REQUEST:') || contentHtml.startsWith('[ORDER_RECEIPT_CARD:') || contentHtml.startsWith('[TRANSFER:') || contentHtml.startsWith('[FAMILY_CARD:')) {
                 const isPayReq = contentHtml.startsWith('[PAY_REQUEST:');
                 const isOrder = contentHtml.startsWith('[ORDER_RECEIPT_CARD:');
@@ -2890,8 +2912,13 @@ ${promptText}
         openModal('modal-call-history');
     }
 
-    function openRealCallScreen() {
+    function openRealCallScreen(initiator = 'user') {
         if (!currentChatRoleId) return;
+        currentCallInitiator = initiator;
+        isVideoCall = false;
+        const videoStatusEl = document.getElementById('call-video-status');
+        if (videoStatusEl) videoStatusEl.innerText = '语音通话中';
+        
         const role = roles.find(r => r.id === currentChatRoleId);
         if (!role) return;
 
@@ -2996,14 +3023,14 @@ function renderCallMessage(name, text, isMe) {
     while ((match = regex.exec(text)) !== null) {
         const action = text.substring(lastIndex, match.index).trim();
         if (action) {
-            html += `<div style="color: #888; text-align: center; font-size: 10px; margin: 8px 0; align-self: center; width: 100%;">${action}</div>`;
+            html += `<div style="color: #999; text-align: center; font-size: 10px; margin: 8px 0; align-self: center; width: 100%; font-style: italic;">${action}</div>`;
         }
         const spoken = match[1].trim();
         if (spoken) {
             if (isMe) {
-                html += `<div style="color: #aaa; text-align: left; background: rgba(255,255,255,0.05); padding: 8px 12px; border-radius: 12px; align-self: flex-end; max-width: 85%; margin-bottom: 8px;"><span style="font-size:10px; font-weight:bold; color:#888;">${name}</span><br>${spoken}</div>`;
+                html += `<div style="color: #fff; text-align: left; background: rgba(255,255,255,0.1); padding: 8px 12px; border-radius: 12px; align-self: flex-end; max-width: 85%; margin-bottom: 8px; border: 1px solid rgba(255,255,255,0.15);"><span style="font-size:10px; font-weight:bold; color:#ccc;">${name}</span><br>${spoken}</div>`;
             } else {
-                html += `<div style="color: #fff; text-align: left; background: rgba(34,197,94,0.15); padding: 8px 12px; border-radius: 12px; align-self: flex-start; max-width: 85%; border: 1px solid rgba(34,197,94,0.3); margin-bottom: 8px;"><span style="font-size:10px; font-weight:bold; color:#22c55e;">${name}</span><br>${spoken}</div>`;
+                html += `<div style="color: #fff; text-align: left; background: rgba(255,255,255,0.2); padding: 8px 12px; border-radius: 12px; align-self: flex-start; max-width: 85%; border: 1px solid rgba(255,255,255,0.3); margin-bottom: 8px;"><span style="font-size:10px; font-weight:bold; color:#fff;">${name}</span><br>${spoken}</div>`;
             }
         }
         lastIndex = regex.lastIndex;
@@ -3012,12 +3039,12 @@ function renderCallMessage(name, text, isMe) {
     if (lastAction) {
         if (lastIndex === 0) {
             if (isMe) {
-                html += `<div style="color: #aaa; text-align: left; background: rgba(255,255,255,0.05); padding: 8px 12px; border-radius: 12px; align-self: flex-end; max-width: 85%; margin-bottom: 8px;"><span style="font-size:10px; font-weight:bold; color:#888;">${name}</span><br>${lastAction}</div>`;
+                html += `<div style="color: #fff; text-align: left; background: rgba(255,255,255,0.1); padding: 8px 12px; border-radius: 12px; align-self: flex-end; max-width: 85%; margin-bottom: 8px; border: 1px solid rgba(255,255,255,0.15);"><span style="font-size:10px; font-weight:bold; color:#ccc;">${name}</span><br>${lastAction}</div>`;
             } else {
-                html += `<div style="color: #fff; text-align: left; background: rgba(34,197,94,0.15); padding: 8px 12px; border-radius: 12px; align-self: flex-start; max-width: 85%; border: 1px solid rgba(34,197,94,0.3); margin-bottom: 8px;"><span style="font-size:10px; font-weight:bold; color:#22c55e;">${name}</span><br>${lastAction}</div>`;
+                html += `<div style="color: #fff; text-align: left; background: rgba(255,255,255,0.2); padding: 8px 12px; border-radius: 12px; align-self: flex-start; max-width: 85%; border: 1px solid rgba(255,255,255,0.3); margin-bottom: 8px;"><span style="font-size:10px; font-weight:bold; color:#fff;">${name}</span><br>${lastAction}</div>`;
             }
         } else {
-            html += `<div style="color: #888; text-align: center; font-size: 10px; margin: 8px 0; align-self: center; width: 100%;">${lastAction}</div>`;
+            html += `<div style="color: #999; text-align: center; font-size: 10px; margin: 8px 0; align-self: center; width: 100%; font-style: italic;">${lastAction}</div>`;
         }
     }
     return html;
@@ -3049,7 +3076,7 @@ let currentCallAudioId = null;
             };
             
             chats[currentChatRoleId].push({
-                role: 'ai',
+                role: currentCallInitiator,
                 content: `[REAL_CALL:${encodeURIComponent(JSON.stringify(callData))}]`,
                 time: timeStr,
                 rawTime: rawTime,
@@ -3086,7 +3113,68 @@ let currentCallAudioId = null;
         currentCallText = "";
         currentCallAudioId = null;
     }
-    
+    window.toggleVideoCall = async function() {
+    if (!currentChatRoleId) return;
+    const role = roles.find(r => r.id === currentChatRoleId);
+    if (!role) return;
+
+    const btn = $('#btn-toggle-video');
+    if (isVideoCall) {
+        isVideoCall = false;
+        $('#call-video-status').innerText = '语音通话中';
+        btn.style.background = 'rgba(255,255,255,0.1)';
+        btn.style.color = '#fff';
+        const convBox = $('#call-conversation');
+        convBox.innerHTML += `<div style="color: #888; text-align: center; font-size: 10px; margin: 8px 0; width: 100%;">你关闭了摄像头</div>`;
+        convBox.scrollTop = convBox.scrollHeight;
+        currentCallText += `\n[系统提示：用户关闭了摄像头]\n`;
+        return;
+    }
+
+    btn.disabled = true;
+    btn.style.opacity = '0.5';
+    const convBox = $('#call-conversation');
+    convBox.innerHTML += `<div style="color: #888; text-align: center; font-size: 10px; margin: 8px 0; width: 100%;">正在请求对方开启摄像头...</div>`;
+    convBox.scrollTop = convBox.scrollHeight;
+
+    const prompt = `[系统提示：用户在通话中请求开启摄像头（视频通话）。请根据你当前的情况决定是否同意。如果同意，请在回复中包含 [ACCEPT_VIDEO]；如果拒绝，请包含 [REJECT_VIDEO] 并说明理由。只输出你的回复，不要加引号。]`;
+
+    try {
+        const endpoint = getChatEndpoint(apiConfig.url);
+        const chatRes = await fetch(endpoint, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiConfig.key}` },
+            body: JSON.stringify({ model: apiConfig.model, messages: [{ role: 'user', content: prompt }], max_tokens: 150, temperature: 0.8 })
+        });
+        const chatData = await chatRes.json();
+        let aiReply = chatData.choices[0].message.content.trim();
+
+        if (aiReply.includes('[ACCEPT_VIDEO]')) {
+            isVideoCall = true;
+            aiReply = aiReply.replace('[ACCEPT_VIDEO]', '').trim();
+            $('#call-video-status').innerText = '视频通话中';
+            btn.style.background = '#fff';
+            btn.style.color = '#000';
+            convBox.innerHTML += `<div style="color: #22c55e; text-align: center; font-size: 10px; margin: 8px 0; width: 100%;">对方已接受视频请求</div>`;
+            currentCallText += `\n[系统提示：双方已开启摄像头]\n`;
+        } else {
+            aiReply = aiReply.replace('[REJECT_VIDEO]', '').trim();
+            convBox.innerHTML += `<div style="color: #ef4444; text-align: center; font-size: 10px; margin: 8px 0; width: 100%;">对方拒绝了视频请求</div>`;
+        }
+
+        if (aiReply) {
+            convBox.innerHTML += renderCallMessage(getDisplayName(role), aiReply, false);
+            currentCallText += `${getDisplayName(role)}: ${aiReply}\n`;
+        }
+        convBox.scrollTop = convBox.scrollHeight;
+
+    } catch (e) {
+        convBox.innerHTML += `<div style="color: #ef4444; text-align: center; font-size: 10px; margin: 8px 0; width: 100%;">请求失败</div>`;
+    } finally {
+        btn.disabled = false;
+        btn.style.opacity = '1';
+    }
+};
         async function startRealCall() {
         const text = $('#real-call-input').value.trim();
         if (!text || !currentChatRoleId) return;
@@ -3127,8 +3215,12 @@ let currentCallAudioId = null;
             // 提取本次通话的上下文
             const callContext = currentCallText ? `\n[本次通话记录]\n${currentCallText}` : '';
 
+            let videoPrompt = isVideoCall 
+                ? "【视频通话中】摄像头已开启。你必须在回复中详细描述你的动作、表情、穿着以及周围的环境细节（写在引号外面），然后再输出你说的话。"
+                : "【语音通话中】摄像头未开启。用户只能听到你的声音。你只能输出你说的话以及声音（如笑声、叹气声），绝对不能描写任何视觉上的动作、表情或环境！";
+
             // 将所有上下文整合进 Prompt
-            const prompt = `[CORE DIRECTIVE]\n你是${role.realName}。${role.persona}${memorySummary}${chatContext}${callContext}\n\n用户正在和你打语音电话，对你说：“${text}”\n请回复用户。要求：\n1. 必须包含你直接说出口的话（必须用双引号 "" 或 “” 包裹）。\n2. 可以包含少量的动作旁白（写在引号外面）。\n3. 语气自然，像真人在打电话，结合上下文连贯对话。`;
+            const prompt = `[CORE DIRECTIVE]\n你是${role.realName}。${role.persona}${memorySummary}${chatContext}${callContext}\n\n${videoPrompt}\n\n用户对你说：“${text}”\n请回复用户。要求：\n1. 必须包含你直接说出口的话（必须用双引号 "" 或 “” 包裹）。\n2. 语气自然，像真人在打电话，结合上下文连贯对话。`;
             
             const endpoint = getChatEndpoint(apiConfig.url);
             const chatRes = await fetch(endpoint, {
@@ -4229,6 +4321,7 @@ ${memories[role.id] ? `<shared_memory>\n${memories[role.id]}\n</shared_memory>` 
 6. 【主动转账】当你想给用户转账时，在回复中包含：[转账 ¥金额]${translationRule}
 7. 【记忆提取】如果用户在聊天中提到了喜欢的歌曲、食物等，请自然地记住并在后续对话中提及。
 8. 【专属音乐空间】你的网易云音乐账号是：${roleMusicAcc}，密码是：${roleMusicPwd}。如果用户问你要，请自然地告诉TA。${stickerPrompt}
+9. 【主动打电话】如果你有急事、想听用户的声音，或者想主动发起语音通话，请在回复中包含隐藏指令 [INCOMING_CALL]。
 ${modeRules}
 </rules>
 
@@ -4495,6 +4588,20 @@ ${modeRules}
             }
 
             fullReply = fullReply.trim();
+
+            if (fullReply.includes('[INCOMING_CALL]')) {
+                fullReply = fullReply.replace(/\[INCOMING_CALL\]/g, '').trim();
+                const callId = 'CALL_' + Date.now();
+                const payload = { id: callId, status: '等待接听' };
+                const msgContent = `[INCOMING_CALL:${encodeURIComponent(JSON.stringify(payload))}]`;
+                chats[targetRoleId].push({ 
+                    role: 'ai', 
+                    content: msgContent, 
+                    time: timeStr, 
+                    rawTime: now.getTime() + 3, 
+                    mode: 'online' 
+                });
+            }
 
             const transferMatch = fullReply.match(/\[转账\s*[¥￥]?\s*(\d+(\.\d+)?)\]/);
             if (transferMatch) {
@@ -14936,4 +15043,31 @@ window.deleteMessageToken = function(index) {
     window.updateRoleTokenCountUI(roleId); // 更新总Token显示
     window.openTokenInspector();
     if (currentChatRoleId === roleId) renderMessages();
+};
+window.handleIncomingCall = function(msgIndex, isAccept) {
+    if (!currentChatRoleId) return;
+    const msg = chats[currentChatRoleId][msgIndex];
+    const raw = msg.content.slice(15, -1);
+    try {
+        const card = JSON.parse(decodeURIComponent(raw));
+        card.status = isAccept ? '已接听' : '已拒绝';
+        msg.content = `[INCOMING_CALL:${encodeURIComponent(JSON.stringify(card))}]`;
+        DB.set('chats', chats);
+        renderMessages();
+
+        if (isAccept) {
+            openRealCallScreen('ai'); 
+        } else {
+            const now = new Date();
+            chats[currentChatRoleId].push({ 
+                role: 'system', 
+                content: '你拒绝了通话', 
+                time: now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }), 
+                rawTime: now.getTime(), 
+                mode: 'online' 
+            });
+            DB.set('chats', chats);
+            renderMessages();
+        }
+    } catch(e) {}
 };
