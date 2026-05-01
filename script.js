@@ -15720,6 +15720,143 @@ applySettings = function() {
         select.value = settings.timestampFormat;
     }
 };
+/* ==================== 控制中心逻辑 ==================== */
+window.ccStartY = 0;
+window.isDraggingCC = false;
+
+document.addEventListener('touchstart', function(e) {
+    const y = e.touches[0].clientY;
+    /* 如果在屏幕最顶部 30px 内向下滑动，触发控制中心 */
+    if (y < 30) {
+        window.ccStartY = y;
+        window.isDraggingCC = true;
+    }
+}, { passive: true });
+
+document.addEventListener('touchmove', function(e) {
+    if (!window.isDraggingCC) return;
+    const y = e.touches[0].clientY;
+    if (y - window.ccStartY > 50) {
+        window.openControlCenter();
+        window.isDraggingCC = false;
+    }
+}, { passive: true });
+
+document.addEventListener('touchend', function() {
+    window.isDraggingCC = false;
+});
+
+window.openControlCenter = function() {
+    const overlay = document.getElementById('control-center-overlay');
+    const panel = document.getElementById('control-center-panel');
+    if (overlay && panel) {
+        overlay.style.display = 'block';
+        /* 强制重绘以触发过渡动画 */
+        void overlay.offsetWidth;
+        overlay.style.opacity = '1';
+        panel.style.top = '0';
+        
+        const slider = document.getElementById('cc-font-slider');
+        if (slider) slider.value = settings.fontSize || 14;
+    }
+};
+
+window.closeControlCenter = function() {
+    const overlay = document.getElementById('control-center-overlay');
+    const panel = document.getElementById('control-center-panel');
+    if (overlay && panel) {
+        overlay.style.opacity = '0';
+        panel.style.top = '-100%';
+        setTimeout(() => {
+            overlay.style.display = 'none';
+        }, 300);
+    }
+};
+
+window.updateCCFontSize = function(val) {
+    settings.fontSize = val;
+    DB.set('settings', settings);
+    applySettings();
+};
+
+/* ==================== 聊天记录搜索逻辑 ==================== */
+window.chatSearchQuery = '';
+
+window.toggleChatSearch = function() {
+    const bar = document.getElementById('chat-search-bar');
+    const input = document.getElementById('chat-search-input');
+    if (bar.style.display === 'none' || bar.style.display === '') {
+        bar.style.display = 'flex';
+        input.value = '';
+        window.chatSearchQuery = '';
+        input.focus();
+    } else {
+        bar.style.display = 'none';
+        window.chatSearchQuery = '';
+        renderMessages(); /* 取消搜索时恢复正常显示 */
+    }
+};
+
+window.executeChatSearch = function() {
+    const input = document.getElementById('chat-search-input');
+    window.chatSearchQuery = input.value.trim().toLowerCase();
+    renderMessages(); /* 触发重新渲染，应用过滤 */
+};
+
+/* 拦截 renderMessages 函数，注入搜索过滤逻辑 */
+const originalRenderMessages = renderMessages;
+renderMessages = function() {
+    /* 如果没有搜索词，执行原本的渲染逻辑 */
+    if (!window.chatSearchQuery) {
+        originalRenderMessages();
+        return;
+    }
+    
+    /* 如果有搜索词，执行过滤渲染 */
+    const container = $('#chat-messages'); 
+    if (!currentChatRoleId) { container.innerHTML = ""; return; } 
+    
+    const allMsgs = chats[currentChatRoleId] || []; 
+    /* 过滤包含搜索词的消息 */
+    const filteredMsgs = allMsgs.map((m, index) => ({ msg: m, originalIndex: index }))
+                                .filter(item => item.msg.content && item.msg.content.toLowerCase().includes(window.chatSearchQuery));
+    
+    const role = roles.find(r => r.id === currentChatRoleId); 
+    const userAvatar = settings.userAvatar || DEFAULT_AVATAR; 
+    
+    if (filteredMsgs.length === 0) {
+        container.innerHTML = `<div style="text-align:center; color:var(--text-secondary); padding: 40px; font-size:12px;">未找到包含 "${window.chatSearchQuery}" 的记录</div>`;
+        return;
+    }
+
+    container.innerHTML = filteredMsgs.map(item => { 
+        const m = item.msg;
+        const realIndex = item.originalIndex;
+        
+        /* 简化渲染，仅用于展示搜索结果 */
+        let contentHtml = escapeHTML(m.content).replace(/\n/g, '<br>');
+        /* 高亮搜索词 */
+        const regex = new RegExp(`(${window.chatSearchQuery})`, 'gi');
+        contentHtml = contentHtml.replace(regex, '<span style="background: #ffc300; color: #000;">$1</span>');
+
+        const avatarSrc = m.role === 'user' ? userAvatar : (role.avatar || DEFAULT_AVATAR);
+        const align = m.role === 'user' ? 'flex-end' : 'flex-start';
+        const bgColor = m.role === 'user' ? 'var(--text-color)' : 'var(--gray-light)';
+        const textColor = m.role === 'user' ? 'var(--bg-color)' : 'var(--text-color)';
+
+        return `
+        <div style="display: flex; flex-direction: column; align-items: ${align}; margin-bottom: 15px; cursor: pointer;" onclick="handleMsgClick(${realIndex})">
+            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px; flex-direction: ${m.role === 'user' ? 'row-reverse' : 'row'};">
+                <img src="${avatarSrc}" style="width: 24px; height: 24px; border-radius: 50%; object-fit: cover;">
+                <span style="font-size: 9px; color: var(--text-secondary);">${m.time}</span>
+            </div>
+            <div style="background: ${bgColor}; color: ${textColor}; padding: 10px 14px; border-radius: 12px; max-width: 80%; font-size: 13px; line-height: 1.5;">
+                ${contentHtml}
+            </div>
+        </div>`;
+    }).join(''); 
+};
+
 /* ==================== 红包功能逻辑 ==================== */
 window.openRedPacketModal = function() {
     if (!currentChatRoleId) return alert("请先进入聊天界面");
@@ -15856,140 +15993,4 @@ cleanHistoryContent = function(content, msgRole) {
         } catch(e) { return '[红包]'; }
     });
     return text;
-};
-/* ==================== 控制中心逻辑 ==================== */
-let ccStartY = 0;
-let isDraggingCC = false;
-
-document.addEventListener('touchstart', function(e) {
-    const y = e.touches[0].clientY;
-    /* 如果在屏幕最顶部 30px 内向下滑动，触发控制中心 */
-    if (y < 30) {
-        ccStartY = y;
-        isDraggingCC = true;
-    }
-}, { passive: true });
-
-document.addEventListener('touchmove', function(e) {
-    if (!isDraggingCC) return;
-    const y = e.touches[0].clientY;
-    if (y - ccStartY > 50) {
-        openControlCenter();
-        isDraggingCC = false;
-    }
-}, { passive: true });
-
-document.addEventListener('touchend', function() {
-    isDraggingCC = false;
-});
-
-function openControlCenter() {
-    const overlay = document.getElementById('control-center-overlay');
-    const panel = document.getElementById('control-center-panel');
-    if (overlay && panel) {
-        overlay.style.display = 'block';
-        /* 强制重绘以触发过渡动画 */
-        void overlay.offsetWidth;
-        overlay.style.opacity = '1';
-        panel.style.top = '0';
-        
-        const slider = document.getElementById('cc-font-slider');
-        if (slider) slider.value = settings.fontSize || 14;
-    }
-}
-
-function closeControlCenter() {
-    const overlay = document.getElementById('control-center-overlay');
-    const panel = document.getElementById('control-center-panel');
-    if (overlay && panel) {
-        overlay.style.opacity = '0';
-        panel.style.top = '-100%';
-        setTimeout(() => {
-            overlay.style.display = 'none';
-        }, 300);
-    }
-}
-
-function updateCCFontSize(val) {
-    settings.fontSize = val;
-    DB.set('settings', settings);
-    applySettings();
-}
-
-/* ==================== 聊天记录搜索逻辑 ==================== */
-let chatSearchQuery = '';
-
-function toggleChatSearch() {
-    const bar = document.getElementById('chat-search-bar');
-    const input = document.getElementById('chat-search-input');
-    if (bar.style.display === 'none' || bar.style.display === '') {
-        bar.style.display = 'flex';
-        input.value = '';
-        chatSearchQuery = '';
-        input.focus();
-    } else {
-        bar.style.display = 'none';
-        chatSearchQuery = '';
-        renderMessages(); /* 取消搜索时恢复正常显示 */
-    }
-}
-
-function executeChatSearch() {
-    const input = document.getElementById('chat-search-input');
-    chatSearchQuery = input.value.trim().toLowerCase();
-    renderMessages(); /* 触发重新渲染，应用过滤 */
-}
-
-/* 拦截 renderMessages 函数，注入搜索过滤逻辑 */
-const originalRenderMessages = renderMessages;
-renderMessages = function() {
-    /* 如果没有搜索词，执行原本的渲染逻辑 */
-    if (!chatSearchQuery) {
-        originalRenderMessages();
-        return;
-    }
-    
-    /* 如果有搜索词，执行过滤渲染 */
-    const container = $('#chat-messages'); 
-    if (!currentChatRoleId) { container.innerHTML = ""; return; } 
-    
-    const allMsgs = chats[currentChatRoleId] || []; 
-    /* 过滤包含搜索词的消息 */
-    const filteredMsgs = allMsgs.map((m, index) => ({ msg: m, originalIndex: index }))
-                                .filter(item => item.msg.content && item.msg.content.toLowerCase().includes(chatSearchQuery));
-    
-    const role = roles.find(r => r.id === currentChatRoleId); 
-    const userAvatar = settings.userAvatar || DEFAULT_AVATAR; 
-    
-    if (filteredMsgs.length === 0) {
-        container.innerHTML = `<div style="text-align:center; color:var(--text-secondary); padding: 40px; font-size:12px;">未找到包含 "${chatSearchQuery}" 的记录</div>`;
-        return;
-    }
-
-    container.innerHTML = filteredMsgs.map(item => { 
-        const m = item.msg;
-        const realIndex = item.originalIndex;
-        
-        /* 简化渲染，仅用于展示搜索结果 */
-        let contentHtml = escapeHTML(m.content).replace(/\n/g, '<br>');
-        /* 高亮搜索词 */
-        const regex = new RegExp(`(${chatSearchQuery})`, 'gi');
-        contentHtml = contentHtml.replace(regex, '<span style="background: #ffc300; color: #000;">$1</span>');
-
-        const avatarSrc = m.role === 'user' ? userAvatar : (role.avatar || DEFAULT_AVATAR);
-        const align = m.role === 'user' ? 'flex-end' : 'flex-start';
-        const bgColor = m.role === 'user' ? 'var(--text-color)' : 'var(--gray-light)';
-        const textColor = m.role === 'user' ? 'var(--bg-color)' : 'var(--text-color)';
-
-        return `
-        <div style="display: flex; flex-direction: column; align-items: ${align}; margin-bottom: 15px; cursor: pointer;" onclick="handleMsgClick(${realIndex})">
-            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px; flex-direction: ${m.role === 'user' ? 'row-reverse' : 'row'};">
-                <img src="${avatarSrc}" style="width: 24px; height: 24px; border-radius: 50%; object-fit: cover;">
-                <span style="font-size: 9px; color: var(--text-secondary);">${m.time}</span>
-            </div>
-            <div style="background: ${bgColor}; color: ${textColor}; padding: 10px 14px; border-radius: 12px; max-width: 80%; font-size: 13px; line-height: 1.5;">
-                ${contentHtml}
-            </div>
-        </div>`;
-    }).join(''); 
 };
