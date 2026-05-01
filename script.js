@@ -2020,6 +2020,19 @@ function updateKeepAliveUI(isOn) {
                        `--tail-color: transparent !important;`;
             }
 
+            /* 动态格式化时间戳 */
+            let displayTime = m.time;
+            if (m.rawTime && settings.timestampFormat) {
+                const d = new Date(m.rawTime);
+                if (settings.timestampFormat === 'hm') {
+                    displayTime = `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+                } else if (settings.timestampFormat === 'hms') {
+                    displayTime = `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}:${String(d.getSeconds()).padStart(2,'0')}`;
+                } else if (settings.timestampFormat === 'ymdhm') {
+                    displayTime = `${d.getFullYear()}/${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+                }
+            }
+
             if (contentHtml.startsWith('[REAL_CALL:')) {
                 const raw = contentHtml.slice(11, -1);
                 try {
@@ -2049,7 +2062,7 @@ function updateKeepAliveUI(isOn) {
                             </div>
                             <span style="font-size:10px; opacity:0.8; flex-shrink:0; font-family:var(--font-sans); letter-spacing:0.5px; font-weight:bold;">${timeStr}</span>
                         </div>
-                    </div><div class="msg-status">${m.time}</div></div>${m.role === 'user' ? userAvatarTag : ''}</div>`;
+                    </div><div class="msg-status">${displayTime}</div></div>${m.role === 'user' ? userAvatarTag : ''}</div>`;
                 } catch(e) { return `<div class="msg-row ai">解析通话记录失败</div>`; }
             }
             if (contentHtml.startsWith('[VOICE:')) {
@@ -2402,7 +2415,7 @@ function updateKeepAliveUI(isOn) {
                 <div class="view-header">
                     <button class="glass-icon-btn" onclick="closeTheaterView()"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg></button>
                     <div class="chat-title-glass"><div id="chat-title" style="font-style:normal;">小剧场生成</div></div>
-                    <div style="width:34px;"></div>
+                    <button class="text-btn" onclick="openSubApiModal('theater')">ENGINE<span>引擎</span></button>
                 </div>
                 <div class="view-content" style="display: flex; flex-direction: column; gap: 15px;">
                     <div style="font-size: 12px; color: var(--text-secondary);">请输入小剧场指令 / 设定：</div>
@@ -2474,7 +2487,10 @@ function updateKeepAliveUI(isOn) {
     async function generateTheater() {
         const promptText = $('#theater-prompt').value.trim();
         if (!promptText) return alert("请输入小剧场指令");
-        if (!apiConfig.url) return alert("请先配置 API");
+        
+        /* 获取小剧场专属API配置，如果没有配置则默认使用全局API */
+        const api = getSubApi('theater');
+        if (!api.url) return alert("请先配置 API");
         
         const hasHtmlKeyword = /html|网页|代码|排版|div|span|css/i.test(promptText);
         const numMatch = promptText.match(/\d+/g);
@@ -2541,11 +2557,12 @@ ${promptText}
         const timeoutId = setTimeout(() => controller.abort(), 900000);
 
         try {
-            const endpoint = getChatEndpoint(apiConfig.url);
+            /* 使用获取到的专属API变量进行网络请求 */
+            const endpoint = getChatEndpoint(api.url);
             const res = await fetch(endpoint, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiConfig.key}` },
-                body: JSON.stringify({ model: apiConfig.model, messages: [{ role: 'user', content: systemPrompt }], max_tokens: 8000, temperature: 0.85 }),
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${api.key}` },
+                body: JSON.stringify({ model: api.model, messages: [{ role: 'user', content: systemPrompt }], max_tokens: 8000, temperature: 0.85 }),
                 signal: controller.signal
             });
             clearTimeout(timeoutId);
@@ -4502,7 +4519,8 @@ toRenderFavorites();toRenderSearchResults();}
             const maxB = settings.bubbleCountMax || 5;
             let modeRules = '';
             if (finalChatMode === 'online') {
-                modeRules = `【线上聊天模式强制规则】\n- 保持简短、自然的网聊风格。\n- 必须严格输出 ${minB} 到 ${maxB} 句话（行）。如果设置了最少${minB}条，你绝对不能少于${minB}条！\n- 每句话必须独占一行（按回车换行），系统会根据换行自动切分为多个气泡。\n- 句末绝对不要加句号。\n- 【格式红线】：绝对禁止使用星号、括号包裹动作描写（如 *笑*、(叹气)），只能输出纯文字对话！`;
+                /* 强化提示词，强制要求 AI 必须输出足够的行数 */
+                modeRules = `【线上聊天模式强制规则】\n- 保持简短、自然的网聊风格。\n- 必须严格输出 ${minB} 到 ${maxB} 句话（行）。你必须至少输出 ${minB} 行！少于 ${minB} 行将被视为严重错误！\n- 每句话必须独占一行（按回车换行），系统会根据换行自动切分为多个气泡。\n- 句末绝对不要加句号。\n- 【格式红线】：绝对禁止使用星号、括号包裹动作描写（如 *笑*、(叹气)），只能输出纯文字对话！`;
             } else {
                 const targetLength = settings.memoirMaxLength || 400;
                 modeRules = `【线下叙事模式强制规则】\n- 必须强制输出不少于 ${targetLength} 字的长篇叙事！绝对不允许敷衍了事！\n- 必须严格按照以下三段式结构输出，绝对不能把对话和旁白揉在同一段里：\n第一段：纯粹的环境描写或心理描写（绝对不含任何对话）\n第二段："双引号包裹的对话文本"（必须独占一段）\n第三段：纯粹的环境描写或心理描写（绝对不含任何对话）\n- 【格式红线】：对话必须用双引号 "" 包裹，且必须单独成段！禁止在对话段落中夹杂动作！`;
@@ -6030,7 +6048,97 @@ function updateRoleWbPreview() {
         const localWbIds = isEditing ? (role.localWbs || []) : []; 
         
         $('#view-role-edit').classList.add('active'); 
+
+        /* 自动保存逻辑：为所有输入框绑定 input 和 change 事件 */
+        const roleView = document.getElementById('view-role-edit');
+        const inputs = roleView.querySelectorAll('input, textarea, select');
+        inputs.forEach(inp => {
+            inp.removeEventListener('change', window.silentSaveRole);
+            inp.addEventListener('change', window.silentSaveRole);
+            if(inp.tagName === 'TEXTAREA' || inp.type === 'text' || inp.type === 'number') {
+                inp.removeEventListener('input', window.silentSaveRole);
+                inp.addEventListener('input', window.silentSaveRole);
+            }
+        });
+        const bubbles = roleView.querySelectorAll('.widget-bubble');
+        bubbles.forEach(b => {
+            b.removeEventListener('input', window.silentSaveRole);
+            b.addEventListener('input', window.silentSaveRole);
+        });
     }
+
+    /* 静默保存函数：不关闭界面，实时保存数据 */
+    window.silentSaveRole = function() {
+        const id = $('#role-realname').dataset.id;
+        if (!id) return; // 新建角色时必须手动点一次保存生成ID
+        const realName = $('#role-realname').value.trim(); 
+        if(!realName) return; 
+
+        const localWbs = window.newRoleTempWbs || (roles.find(r => r.id === id)?.localWbs || []);
+        const activeMaskId = $('#role-mask-select').value; 
+        const boundMapId = $('#role-map-preset-select').value;         
+        
+        let chatBgVal = $('#role-chat-bg').value.trim();
+        if (chatBgVal === '已上传本地图片 (重新上传覆盖)') chatBgVal = $('#role-chat-bg').dataset.realValue || '';
+        
+        let callBgVal = $('#role-call-bg').value.trim();
+        if (callBgVal === '已上传本地图片 (重新上传覆盖)') callBgVal = $('#role-call-bg').dataset.realValue || '';
+
+        const userBubbleEl = $('#role-edit-user-bubble');
+        const aiBubbleEl = $('#role-edit-ai-bubble');
+        const userBubble = userBubbleEl ? userBubbleEl.innerText.trim() : '˃ 𖥦 ˂';
+        const aiBubble = aiBubbleEl ? aiBubbleEl.innerText.trim() : '⩌⩊⩌';
+
+        const roleData = { 
+            id, 
+            realName, 
+            remark: $('#role-remark').value.trim(), 
+            titleColor: $('#role-title-color') ? $('#role-title-color').value : (settings.theme === 'dark' ? '#ffffff' : '#000000'),
+            avatar: $('#role-avatar').value.trim(), 
+            userBubble: userBubble,
+            aiBubble: aiBubble,
+            persona: $('#role-persona').value.trim(), 
+            chatBg: chatBgVal, 
+            callBg: callBgVal, 
+            callBlur: parseInt($('#role-call-blur').value) || 0,
+            chatCss: $('#role-chat-css').value.trim(), 
+            bubbleCss: $('#role-bubble-css').value.trim(), 
+            aiBubbleColor: $('#role-ai-bubble-color').value, 
+            userBubbleColor: $('#role-user-bubble-color').value, 
+            aiTextColor: $('#role-ai-text-color').value,
+            userTextColor: $('#role-user-text-color').value,
+            inputTextColor: $('#role-input-text-color').value,
+            systemTextColor: $('#role-system-text-color').value,
+            bubbleStyle: $('#role-bubble-style').value,
+            accentColor: $('#role-accent-color').value,
+            attachmentColor: $('#role-attachment-color').value,
+            ttsVoiceId: $('#role-tts-voice-id').value.trim(),
+            placeholderText: $('#role-placeholder-text').value.trim(),
+            placeholderColor: $('#role-placeholder-color').value,
+            timestampColor: $('#role-timestamp-color').value,
+            locationCity: $('#role-location-city').value.trim(),
+            locationReal: $('#role-location-real').value.trim(),
+            weatherInfo: document.getElementById('role-weather-preview').dataset.rawInfo || '',
+            ecgColor: $('#role-ecg-color').value, 
+            autoFeed: $('#role-auto-feed').checked,
+            autoFeedInterval: parseInt($('#role-auto-feed-interval').value) || 60,
+            canBlock: $('#role-can-block').checked, 
+            unblockDelay: $('#role-unblock-delay').value.trim(),
+            autoMsg: $('#role-auto-msg').checked, 
+            autoMemSave: $('#role-auto-mem-save').checked, 
+            autoMsgInterval: parseInt($('#role-auto-msg-interval').value) || 30, 
+            contextLimit: parseInt($('#role-context-limit').value) || 30, 
+            summaryThreshold: parseInt($('#role-summary-threshold').value) || 100, 
+            opening: $('#role-opening').value.trim(), 
+            localWbs, 
+            activeMaskId, 
+            boundMapId,
+            showHeaderAvatar: $('#role-show-header-avatar').checked,
+        };
+        const idx = roles.findIndex(x => x.id === id); 
+        if(idx > -1) roles[idx] = roleData; 
+        DB.set('roles', roles); 
+    };
     function closeRoleView() { $('#view-role-edit').classList.remove('active'); }
     function exportCurrentChat() { const roleId = $('#role-realname').dataset.id; if (!roleId || !chats[roleId] || chats[roleId].length === 0) return alert("暂无聊天记录"); const role = roles.find(r => r.id === roleId); const data = JSON.stringify(chats[roleId], null, 2); const blob = new Blob([data], {type: 'application/json'}); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `chat_${role.realName}_${Date.now()}.json`; a.click(); URL.revokeObjectURL(a.href); }
     function importCurrentChat(event) { const file = event.target.files[0]; if(!file) return; const roleId = $('#role-realname').dataset.id; if(!roleId) return; const reader = new FileReader(); reader.onload = function(e) { try { const data = JSON.parse(e.target.result); if(Array.isArray(data)) { if(confirm('确定要导入聊天记录吗？这将会和现有的记录合并。')) { if(!chats[roleId]) chats[roleId] = []; chats[roleId] = chats[roleId].concat(data); chats[roleId].sort((a, b) => a.rawTime - b.rawTime); DB.set('chats', chats); alert('导入成功！'); if(currentChatRoleId === roleId) renderMessages(); } } else { alert('文件格式不正确，请导入导出的聊天记录JSON文件。'); } } catch(err) { alert('解析失败: ' + err.message); } }; reader.readAsText(file); event.target.value = ''; }
@@ -6700,24 +6808,42 @@ window.newRoleTempWbs = null;
         const LIMIT = 52001314 * 1024 * 1024;
         const percent = Math.min(100, (totalBytes / LIMIT) * 100);
 
-        const fillEl = document.getElementById('storage-visual-fill');
+        const barContainer = document.getElementById('storage-visual-bar');
         const textEl = document.getElementById('storage-visual-text');
         const detailEl = document.getElementById('storage-visual-detail');
 
-        if (fillEl) {
-            fillEl.style.width = percent.toFixed(1) + '%';
-            if (percent > 80) fillEl.style.background = '#ff4d4d';
-            else if (percent > 50) fillEl.style.background = '#f59e0b';
-            else fillEl.style.background = 'var(--text-color)';
+        /* 颜色调色板，用于区分不同的 App 数据 */
+        const colors = ['#ff4d4d', '#f59e0b', '#22c55e', '#3b82f6', '#8b5cf6', '#a855f7', '#ec4899', '#f43f5e', '#14b8a6', '#f97316', '#64748b', '#333333'];
+
+        if (barContainer) {
+            barContainer.innerHTML = ''; // 清空旧的单一进度条
+            barContainer.style.display = 'flex';
+            
+            details.forEach((d, i) => {
+                if (d.size > 0) {
+                    const segmentPercent = (d.size / LIMIT) * 100;
+                    const segment = document.createElement('div');
+                    segment.style.height = '100%';
+                    segment.style.width = segmentPercent + '%';
+                    segment.style.backgroundColor = colors[i % colors.length];
+                    barContainer.appendChild(segment);
+                }
+            });
         }
+
         if (textEl) textEl.innerText = `${formatBytes(totalBytes)} / ${formatBytes(LIMIT)} (${percent.toFixed(1)}%)`;
+        
         if (detailEl) {
-            detailEl.innerHTML = details.map(d => {
-                const barW = totalBytes > 0 ? Math.max(2, (d.size / totalBytes) * 100) : 0;
+            detailEl.innerHTML = details.map((d, i) => {
+                const barW = totalBytes > 0 ? Math.max(1, (d.size / totalBytes) * 100) : 0;
+                const color = colors[i % colors.length];
                 return `<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
-                    <span style="flex:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${d.name}</span>
+                    <span style="flex:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; display:flex; align-items:center; gap:6px;">
+                        <span style="width:8px; height:8px; border-radius:50%; background-color:${color}; display:inline-block;"></span>
+                        ${d.name}
+                    </span>
                     <div style="width:80px; height:4px; background:var(--gray-light); border-radius:2px; margin:0 8px; flex-shrink:0;">
-                        <div style="width:${barW.toFixed(1)}%; height:100%; background:var(--text-color); border-radius:2px;"></div>
+                        <div style="width:${barW.toFixed(1)}%; height:100%; background:${color}; border-radius:2px;"></div>
                     </div>
                     <span style="flex-shrink:0; min-width:55px; text-align:right;">${formatBytes(d.size)}</span>
                 </div>`;
@@ -10004,7 +10130,7 @@ async function scheduleBlockedRoleRequest(roleId) {
     const role = roles.find(r => r.id === roleId);
     if (!role || !blockList.blockedByUser.includes(roleId)) return;
     
-    // 按钮状态更新
+    /* 更新按钮状态，防止重复点击 */
     const triggerBtn = document.getElementById('btn-trigger-unblock');
     if (triggerBtn) {
         triggerBtn.innerHTML = 'GENERATING...';
@@ -10014,7 +10140,10 @@ async function scheduleBlockedRoleRequest(roleId) {
     const fallbackPleas = ['能解开我吗……', '我就想说句话', '你在吗？', '求你了', '……你还记得我吗'];
     if (!apiConfig.url) { 
         showBlockRequestBanner(roleId, role, fallbackPleas[Math.floor(Math.random() * fallbackPleas.length)]); 
-        if (triggerBtn) { triggerBtn.innerHTML = 'FORCE REQ<span>立即触发请求</span>'; triggerBtn.disabled = false; }
+        if (triggerBtn) { 
+            triggerBtn.innerHTML = 'FORCE REQ<span>立即触发请求</span>'; 
+            triggerBtn.disabled = false; 
+        }
         return; 
     }
     const memorySummary = memories[roleId] ? `\n[我们的共同记忆]\n${memories[roleId]}` : '';
@@ -10039,6 +10168,20 @@ async function scheduleBlockedRoleRequest(roleId) {
 function showBlockRequestBanner(roleId, role, plea) {
     const container = document.getElementById('msg-banner-container');
     if (!container) return;
+    
+    /* 修复逻辑：原本容器是 display:none，必须将其显示出来并设置层级 */
+    container.style.display = 'flex';
+    container.style.flexDirection = 'column';
+    container.style.gap = '10px';
+    container.style.zIndex = '10000';
+    container.style.position = 'fixed';
+    container.style.top = 'calc(env(safe-area-inset-top) + 60px)';
+    container.style.left = '50%';
+    container.style.transform = 'translateX(-50%)';
+    container.style.width = '90%';
+    container.style.maxWidth = '400px';
+    container.style.pointerEvents = 'none';
+
     const banner = document.createElement('div');
     banner.style.cssText = `background:var(--glass-bg); backdrop-filter:blur(20px); -webkit-backdrop-filter:blur(20px); border:1px solid var(--border-color); border-radius:14px; padding:10px 14px; display:flex; align-items:center; gap:10px; pointer-events:auto; box-shadow:0 4px 20px rgba(0,0,0,0.15); animation:bannerSlideIn 0.3s cubic-bezier(0.34,1.56,0.64,1); opacity:1; transition:opacity 0.3s ease; width:100%; box-sizing:border-box; flex-direction:column; align-items:flex-start;`;
     banner.innerHTML = `
@@ -11916,17 +12059,12 @@ function extractStatusFromReply(roleId, replyText) {
     const config = statusBarData[roleId];
     if (!config || !config.enabled) return null;
     try {
-        /* 修复逻辑：使用用户自定义的正则表达式，如果没有则使用默认的 */
-        const regexStr = config.regex || '\\[心声:\\s*(.*?)\\s*\\|\\s*好感度:\\s*(.*?)\\]';
+        /* 提取状态数据并格式化为HTML */
+        const regexStr = config.regex || '\\[状态:\\s*([\\s\\S]*?)\\]';
         const regex = new RegExp(regexStr);
         const match = replyText.match(regex);
         if (match) {
-            let html = config.htmlTemplate || `<div style="padding: 8px; background: var(--gray-light); border-radius: 8px; border-left: 3px solid #ff4d4d; margin-top: 5px;">
-                <div style="font-size: 11px; font-weight: bold; color: var(--text-color); margin-bottom: 4px;">💭 心声</div>
-                <div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 4px;">$1</div>
-                <div style="font-size: 10px; color: #ff4d4d; font-weight: bold;">好感度: $2</div>
-            </div>`;
-            /* 动态替换模板中的 $1, $2 等捕获组 */
+            let html = config.htmlTemplate || `<div class='my-status'>$1</div>`;
             for (let i = 1; i < match.length; i++) {
                 html = html.replace(new RegExp('\\$' + i, 'g'), match[i] || '');
             }
@@ -11948,8 +12086,8 @@ function cleanStatusFromText(roleId, text) {
     const config = statusBarData[roleId];
     if (!config || !config.enabled) return text;
     try {
-        /* 修复逻辑：使用用户自定义的正则表达式清理原文 */
-        const regexStr = config.regex || '\\[心声:\\s*(.*?)\\s*\\|\\s*好感度:\\s*(.*?)\\]';
+        /* 从正文中移除状态文本 */
+        const regexStr = config.regex || '\\[状态:\\s*([\\s\\S]*?)\\]';
         const regex = new RegExp(regexStr, 'g');
         return text.replace(regex, '').trim();
     } catch (e) { return text; }
@@ -12927,8 +13065,15 @@ function onAiAvatarDblClick() {
                 receiptBtn = `<button class="action-btn" style="flex:1; border-radius:20px; background:#fff; color:#333; border:1px solid #ddd;" onclick="showReceipt('${card.shopName}', '送礼订单', ${card.price}, '已支付', 'GF${Date.now().toString().slice(-6)}', '${msg.time}'); closeModal('modal-pay-request-detail');">查看小票</button>`;
             }
 
+            /* 修复：如果是待支付状态，增加代付按钮 */
+            let payBtn = '';
+            if (card.status === '待支付') {
+                payBtn = `<button class="action-btn primary" style="flex:1; border-radius:20px; background:#ff3b30; color:#fff; border:none;" onclick="payForAiRequest(${msgIndex})">帮TA付款</button>`;
+            }
+
             actionsEl.innerHTML = `
                 ${receiptBtn}
+                ${payBtn}
                 <button class="action-btn primary" style="flex:1; border-radius:20px; background:#333; color:#fff; border:none;" onclick="closeModal('modal-pay-request-detail')">关闭</button>
             `;
             
@@ -15259,12 +15404,35 @@ document.addEventListener('visibilitychange', () => {
 window.updateRoleTokenCountUI = function(roleId) {
     const tokenCountEl = document.getElementById('role-token-count');
     if (tokenCountEl && chats[roleId]) {
-        const tokenCount = chats[roleId].reduce((acc, msg) => {
-            // AI生成且未分享的小剧场不计入上下文Token
+        const role = roles.find(r => r.id === roleId);
+        const personaLen = role && role.persona ? role.persona.length : 0;
+        
+        let wbLen = 0;
+        if (role) {
+            const globalWbs = worldbooks.filter(w => w.isGlobal).map(w => w.content).join('');
+            const localWbs = worldbooks.filter(w => role.localWbs?.includes(w.id)).map(w => w.content).join('');
+            wbLen = globalWbs.length + localWbs.length;
+        }
+
+        const chatLen = chats[roleId].reduce((acc, msg) => {
             if (msg.role === 'ai' && msg.content && msg.content.startsWith('[THEATER_CARD:')) return acc;
             return acc + (msg.content ? msg.content.length : 0);
         }, 0);
-        tokenCountEl.innerText = `当前聊天总计 Token: 约 ${tokenCount}`;
+        
+        /* 统计该角色在其他App（论坛、动态、日记等）中的数据长度 */
+        let otherAppLen = 0;
+        if (forumPosts) {
+            otherAppLen += forumPosts.filter(p => p.author === role.realName || p.author === getDisplayName(role)).reduce((acc, p) => acc + (p.content ? p.content.length : 0), 0);
+        }
+        if (feeds) {
+            otherAppLen += feeds.filter(f => f.roleId === roleId).reduce((acc, f) => acc + (f.content ? f.content.length : 0), 0);
+        }
+        if (ourSpaceData && ourSpaceData.partnerId === roleId) {
+            otherAppLen += (ourSpaceData.diaries || []).reduce((acc, d) => acc + (d.text ? d.text.length : 0), 0);
+            otherAppLen += (ourSpaceData.letters || []).reduce((acc, l) => acc + (l.text ? l.text.length : 0), 0);
+        }
+        
+        tokenCountEl.innerHTML = `Token 消耗预估: 人设 <span style="color:#22c55e">${personaLen}</span> | 世界书 <span style="color:#3b82f6">${wbLen}</span> | 聊天 <span style="color:#ff4d4d">${chatLen}</span> | 其他App <span style="color:#f59e0b">${otherAppLen}</span>`;
     }
 };
 
@@ -15272,16 +15440,30 @@ window.openTokenInspector = function() {
     const roleId = currentChatRoleId || $('#role-realname').dataset.id;
     if (!roleId || !chats[roleId]) return alert("暂无聊天记录");
     
+    const role = roles.find(r => r.id === roleId);
+    const personaLen = role && role.persona ? role.persona.length : 0;
+    let wbLen = 0;
+    if (role) {
+        const globalWbs = worldbooks.filter(w => w.isGlobal).map(w => w.content).join('');
+        const localWbs = worldbooks.filter(w => role.localWbs?.includes(w.id)).map(w => w.content).join('');
+        wbLen = globalWbs.length + localWbs.length;
+    }
+
     const msgs = chats[roleId].map((m, i) => ({ ...m, originalIndex: i, length: (m.content || '').length }))
-        .filter(m => !(m.role === 'ai' && m.content.startsWith('[THEATER_CARD:'))); // 过滤未分享的小剧场
+        .filter(m => !(m.role === 'ai' && m.content.startsWith('[THEATER_CARD:'))); 
     msgs.sort((a, b) => b.length - a.length);
     const topMsgs = msgs.slice(0, 20);
     
     const list = $('#token-inspector-list');
+    let html = `<div style="display:flex; justify-content:space-between; background:var(--gray-light); padding:10px; border-radius:8px; margin-bottom:15px; font-size:11px; font-weight:bold;">
+        <span style="color:#22c55e">人设: ${personaLen}</span>
+        <span style="color:#3b82f6">世界书: ${wbLen}</span>
+    </div>`;
+
     if (topMsgs.length === 0) {
-        list.innerHTML = '<div style="text-align:center; color:var(--text-secondary); font-size:10px;">无数据</div>';
+        html += '<div style="text-align:center; color:var(--text-secondary); font-size:10px;">无数据</div>';
     } else {
-        list.innerHTML = topMsgs.map(m => `
+        html += topMsgs.map(m => `
             <div style="background: var(--gray-light); padding: 10px; border-radius: 8px; border: 1px solid var(--border-color);">
                 <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
                     <span style="font-size: 10px; font-weight: bold;">${m.role === 'user' ? 'ME' : 'AI'} | 长度: ${m.length}</span>
@@ -15428,4 +15610,22 @@ window.handleIncomingCall = function(msgIndex, isAccept) {
             renderMessages();
         }
     } catch(e) {}
+};
+window.saveTimestampFormat = function() {
+    const select = document.getElementById('timestamp-format-select');
+    if (select) {
+        settings.timestampFormat = select.value;
+        DB.set('settings', settings);
+        if (currentChatRoleId) renderMessages();
+    }
+};
+
+// 在 applySettings 函数中初始化下拉框的值
+const originalApplySettings = applySettings;
+applySettings = function() {
+    originalApplySettings();
+    const select = document.getElementById('timestamp-format-select');
+    if (select && settings.timestampFormat) {
+        select.value = settings.timestampFormat;
+    }
 };
