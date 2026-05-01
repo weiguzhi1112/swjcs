@@ -1970,7 +1970,7 @@ function updateKeepAliveUI(isOn) {
             const heartHtml = settings.showHeart ? `<div class="bubble-heart" style="display:flex; align-items:center; justify-content:center;"><svg width="8" height="8" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="1"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg></div>` : '';
             
             let contentHtml = escapeHTML(m.content);
-            contentHtml = contentHtml.replace(/&lt;img\s+([^&]+)\s*&gt;/g, (match, p1) => {
+            contentHtml = contentHtml.replace(/&lt;img\s+(.+?)&gt;/g, (match, p1) => {
                 if (p1.includes('chat-inline-img')) {
                     return `<img ${p1.replace(/&quot;/g, '"')}>`;
                 }
@@ -2606,6 +2606,10 @@ ${promptText}
                 <div class="view-content" style="display: flex; flex-direction: column; gap: 10px;">
                     <input type="text" id="theater-read-title" readonly style="font-family: var(--font-serif); font-size: 20px; font-weight: bold; border: none; background: transparent; color: var(--text-color); padding: 10px 0; outline: none;">
                     <textarea id="theater-read-epigraph" readonly style="font-size: 12px; font-style: italic; color: var(--text-secondary); border: none; background: transparent; padding: 10px 0; outline: none; resize: none; overflow: hidden; min-height: 30px;" placeholder="题记..."></textarea>
+                    
+                    <!-- 新增：用来显示 Token 值的容器 -->
+                    <div id="theater-read-token-count" style="font-size: 10px; color: var(--text-secondary); text-align: right;"></div>
+                    
                     <div id="theater-read-content" contenteditable="false" style="width: 100%; min-height: 60vh; border: none; background: transparent; color: var(--text-color); font-size: 14px; line-height: 1.8; outline: none; padding: 10px 0; overflow-y: auto; word-break: break-word;"></div>
                     <button class="action-btn" style="border-color: #ff4d4d; color: #ff4d4d; padding: 12px; border-radius: 12px;" onclick="deleteTheater()">删除此剧场</button>
                 </div>
@@ -2620,8 +2624,14 @@ ${promptText}
             $('#theater-read-title').value = card.title || '';
             $('#theater-read-epigraph').value = card.epigraph || '';
             $('#theater-read-content').innerHTML = card.content || '';
+            
+            // 新增：计算这条消息的长度（近似Token），并显示在刚刚添加的 div 中
+            const tokenCount = msg.content ? msg.content.length : 0;
+            const tokenEl = document.getElementById('theater-read-token-count');
+            if (tokenEl) tokenEl.innerText = `Token: 约 ${tokenCount}`;
+            
             $('#view-theater-reader').classList.add('active');
-const epiEl = $('#theater-read-epigraph'); epiEl.style.height = 'auto'; epiEl.style.height = epiEl.scrollHeight + 'px';
+            const epiEl = $('#theater-read-epigraph'); epiEl.style.height = 'auto'; epiEl.style.height = epiEl.scrollHeight + 'px';
         } catch(e) {
             console.error("解析剧场数据失败:", e);
             alert("解析剧场数据失败，可能是数据格式损坏。");
@@ -14987,7 +14997,11 @@ document.addEventListener('visibilitychange', () => {
 window.updateRoleTokenCountUI = function(roleId) {
     const tokenCountEl = document.getElementById('role-token-count');
     if (tokenCountEl && chats[roleId]) {
-        const tokenCount = chats[roleId].reduce((acc, msg) => acc + (msg.content ? msg.content.length : 0), 0);
+        const tokenCount = chats[roleId].reduce((acc, msg) => {
+            // AI生成且未分享的小剧场不计入上下文Token
+            if (msg.role === 'ai' && msg.content && msg.content.startsWith('[THEATER_CARD:')) return acc;
+            return acc + (msg.content ? msg.content.length : 0);
+        }, 0);
         tokenCountEl.innerText = `当前聊天总计 Token: 约 ${tokenCount}`;
     }
 };
@@ -14996,7 +15010,8 @@ window.openTokenInspector = function() {
     const roleId = $('#role-realname').dataset.id;
     if (!roleId || !chats[roleId]) return alert("暂无聊天记录");
     
-    const msgs = chats[roleId].map((m, i) => ({ ...m, originalIndex: i, length: (m.content || '').length }));
+    const msgs = chats[roleId].map((m, i) => ({ ...m, originalIndex: i, length: (m.content || '').length }))
+        .filter(m => !(m.role === 'ai' && m.content.startsWith('[THEATER_CARD:'))); // 过滤未分享的小剧场
     msgs.sort((a, b) => b.length - a.length);
     const topMsgs = msgs.slice(0, 20);
     
@@ -15065,8 +15080,9 @@ window.compressAllTokens = async function() {
     if (!roleId || !chats[roleId]) return alert("暂无聊天记录");
     if (!apiConfig.url) return alert("请先配置 API");
 
-    // 筛选出长度大于 500 的消息
-    const longMsgs = chats[roleId].map((m, i) => ({ ...m, originalIndex: i, length: (m.content || '').length })).filter(m => m.length > 500);
+    // 筛选出长度大于 500 的消息，且排除未分享的小剧场
+    const longMsgs = chats[roleId].map((m, i) => ({ ...m, originalIndex: i, length: (m.content || '').length }))
+        .filter(m => m.length > 500 && !(m.role === 'ai' && m.content.startsWith('[THEATER_CARD:')));
     
     if (longMsgs.length === 0) {
         return alert("当前没有长度超过 500 字的消息需要压缩。");
