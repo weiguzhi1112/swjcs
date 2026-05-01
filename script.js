@@ -2600,13 +2600,13 @@ ${promptText}
             <div class="view-container" id="view-theater-reader" style="z-index: 1000; background: var(--bg-color);">
                 <div class="view-header">
                     <button class="glass-icon-btn" onclick="closeTheaterReader()"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg></button>
-                    <div class="chat-title-glass"><div id="chat-title" style="font-style:normal;">剧场阅读与编辑</div></div>
-                    <button class="glass-icon-btn" onclick="saveTheaterEdit()"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg></button>
+                    <div class="chat-title-glass"><div id="chat-title" style="font-style:normal;">剧场阅读</div></div>
+                    <button class="glass-icon-btn" id="btn-theater-edit" onclick="window.toggleTheaterEdit()"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>
                 </div>
                 <div class="view-content" style="display: flex; flex-direction: column; gap: 10px;">
-                    <input type="text" id="theater-read-title" style="font-family: var(--font-serif); font-size: 20px; font-weight: bold; border: none; border-bottom: 1px dashed var(--border-color); background: transparent; color: var(--text-color); padding: 10px 0; outline: none;">
-                    <input type="text" id="theater-read-epigraph" style="font-size: 12px; font-style: italic; color: var(--text-secondary); border: none; border-bottom: 1px dashed var(--border-color); background: transparent; padding: 10px 0; outline: none;" placeholder="题记...">
-                    <div id="theater-read-content" contenteditable="true" style="width: 100%; min-height: 60vh; border: none; background: transparent; color: var(--text-color); font-size: 14px; line-height: 1.8; outline: none; padding: 10px 0; overflow-y: auto; word-break: break-word;"></div>
+                    <input type="text" id="theater-read-title" readonly style="font-family: var(--font-serif); font-size: 20px; font-weight: bold; border: none; background: transparent; color: var(--text-color); padding: 10px 0; outline: none;">
+                    <textarea id="theater-read-epigraph" readonly style="font-size: 12px; font-style: italic; color: var(--text-secondary); border: none; background: transparent; padding: 10px 0; outline: none; resize: none; overflow: hidden; min-height: 30px;" placeholder="题记..."></textarea>
+                    <div id="theater-read-content" contenteditable="false" style="width: 100%; min-height: 60vh; border: none; background: transparent; color: var(--text-color); font-size: 14px; line-height: 1.8; outline: none; padding: 10px 0; overflow-y: auto; word-break: break-word;"></div>
                     <button class="action-btn" style="border-color: #ff4d4d; color: #ff4d4d; padding: 12px; border-radius: 12px;" onclick="deleteTheater()">删除此剧场</button>
                 </div>
             </div>`;
@@ -2621,6 +2621,7 @@ ${promptText}
             $('#theater-read-epigraph').value = card.epigraph || '';
             $('#theater-read-content').innerHTML = card.content || '';
             $('#view-theater-reader').classList.add('active');
+const epiEl = $('#theater-read-epigraph'); epiEl.style.height = 'auto'; epiEl.style.height = epiEl.scrollHeight + 'px';
         } catch(e) {
             console.error("解析剧场数据失败:", e);
             alert("解析剧场数据失败，可能是数据格式损坏。");
@@ -2783,7 +2784,9 @@ ${promptText}
         if (type === 'voice') {
             html = `<label>VOICE DURATION / 语音时长(秒)</label><input type="number" id="qf-voice-dur" placeholder="例如: 5" value="5" style="margin-bottom:10px;"><label>VOICE TEXT / 语音文本</label><textarea id="qf-voice-text" placeholder="输入语音转文字的内容...">${cleanText}</textarea>`;
         } else if (type === 'image') {
-            html = `<label>IMAGE DESCRIPTION / 图片或表情包描述</label><input type="text" id="qf-img-desc" placeholder="例如: 一只可爱的小猫" value="${cleanText}">`;
+            const urlMatch = originalContent.match(/src=["'](.*?)["']/);
+            const url = urlMatch ? urlMatch[1] : '';
+            html = `<label>IMAGE URL / 图片链接</label><input type="text" id="qf-img-url" value="${url}" style="margin-bottom:10px;"><label>DESCRIPTION / 描述(可选)</label><input type="text" id="qf-img-desc" placeholder="例如: 摸摸头" value="${cleanText}">`;
         } else if (type === 'transfer') {
             html = `<label>TRANSFER AMOUNT / 转账金额 (¥)</label><input type="number" id="qf-tx-amount" placeholder="例如: 520" value="520">`;
         } else if (type === 'pay_req') {
@@ -2813,8 +2816,13 @@ ${promptText}
             const txt = $('#qf-voice-text').value.trim();
             newContent = `[VOICE:${dur}s|${txt}]`;
         } else if (type === 'image') {
+            const url = $('#qf-img-url').value.trim();
             const desc = $('#qf-img-desc').value.trim();
-            newContent = `[VIRTUAL_IMG:${desc}]`;
+            if (url) {
+                newContent = `<img src="${url}" class="chat-inline-img" data-virtual="${desc}">`;
+            } else {
+                newContent = `[VIRTUAL_IMG:${desc}]`;
+            }
         } else if (type === 'transfer') {
             const amt = parseFloat($('#qf-tx-amount').value) || 0;
             const payload = { id: 'TX_FIX_' + Date.now(), amount: amt, senderName: senderName, senderAvatar: senderAvatar, status: '待接收', time: Date.now() };
@@ -2926,7 +2934,7 @@ ${promptText}
         openModal('modal-call-history');
     }
 
-    function openRealCallScreen(initiator = 'user') {
+    async function openRealCallScreen(initiator = 'user') {
         if (!currentChatRoleId) return;
         currentCallInitiator = initiator;
         isVideoCall = false;
@@ -2938,8 +2946,8 @@ ${promptText}
 
         $('#call-avatar').src = role.avatar || DEFAULT_AVATAR;
         $('#call-name').innerText = getDisplayName(role);
-        $('#call-status').innerText = 'CONNECTING...';
-        $('#call-conversation').innerHTML = '<div style="font-size:10px; color:#888; text-align:center; margin-top:auto;">通话已接通...</div>';
+        $('#call-status').innerText = initiator === 'user' ? '拨号中...' : 'CONNECTING...';
+        $('#call-conversation').innerHTML = '';
         $('#real-call-input').value = '';
         $('#call-avatar-glow').style.boxShadow = '0 0 30px rgba(255,255,255,0.2)';
         
@@ -2951,11 +2959,11 @@ ${promptText}
         
         $('#view-real-call').classList.add('active');
         $('#mini-call-window').style.display = 'none';
-        
-        if (!callTimerInterval) {
-            callStartTimeout = setTimeout(() => {
-                $('#call-status').innerText = '00:00';
-                $('#mini-call-timer').innerText = '00:00';
+
+        const startCallTimer = () => {
+            $('#call-status').innerText = '00:00';
+            $('#call-conversation').innerHTML = '<div style="font-size:10px; color:#888; text-align:center; margin-top:auto;">通话已接通...</div>';
+            if (!callTimerInterval) {
                 callSeconds = 0;
                 callTimerInterval = setInterval(() => {
                     callSeconds++;
@@ -2965,7 +2973,39 @@ ${promptText}
                     $('#call-status').innerText = timeStr;
                     $('#mini-call-timer').innerText = timeStr;
                 }, 1000);
-            }, 1500);
+            }
+        };
+        
+        if (initiator === 'user') {
+            const prompt = `[系统提示：用户向你发起了语音通话。]\n请根据你当前的人设（${role.persona}）、时间、以及对用户的好感度决定是否接听。\n如果你决定接听，请回复 [ACCEPT_CALL]；\n如果你决定拒绝（比如在忙、生气、或者人设就是高冷不爱接电话），请回复 [REJECT_CALL] 并附上一句挂断后发给用户的文字消息（解释为什么不接或直接嘲讽）。\n只输出回复，不要加引号。`;
+            try {
+                const endpoint = getChatEndpoint(apiConfig.url);
+                const chatRes = await fetch(endpoint, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiConfig.key}` },
+                    body: JSON.stringify({ model: apiConfig.model, messages: [{ role: 'user', content: prompt }], max_tokens: 100, temperature: 0.8 })
+                });
+                const chatData = await chatRes.json();
+                let aiReply = chatData.choices[0].message.content.trim();
+
+                if (aiReply.includes('[ACCEPT_CALL]')) {
+                    startCallTimer();
+                } else {
+                    aiReply = aiReply.replace('[REJECT_CALL]', '').trim();
+                    $('#view-real-call').classList.remove('active');
+                    const now = new Date();
+                    chats[currentChatRoleId].push({ role: 'system', content: '对方拒绝了通话', time: now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }), rawTime: now.getTime(), mode: 'online' });
+                    if (aiReply) {
+                        chats[currentChatRoleId].push({ role: 'ai', content: aiReply, time: now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }), rawTime: now.getTime() + 1, mode: 'online' });
+                    }
+                    DB.set('chats', chats);
+                    renderMessages();
+                }
+            } catch (e) {
+                startCallTimer();
+            }
+        } else {
+            startCallTimer();
         }
     }
 
@@ -5695,7 +5735,10 @@ function updateRoleWbPreview() {
         $('#role-realname').dataset.id = isEditing ? id : ''; 
         $('#role-realname').value = isEditing ? role.realName : ''; 
         $('#role-remark').value = isEditing ? role.remark : ''; 
-        $('#role-title-color').value = isEditing && role.titleColor ? role.titleColor : (settings.theme === 'dark' ? '#ffffff' : '#000000');
+        const titleColorEl = $('#role-title-color');
+        if (titleColorEl) {
+            titleColorEl.value = isEditing && role.titleColor ? role.titleColor : (settings.theme === 'dark' ? '#ffffff' : '#000000');
+        }
         
         const roleAvatarUrl = isEditing && role.avatar ? role.avatar : DEFAULT_AVATAR;
         const userAvatarUrl = settings.userAvatar || DEFAULT_AVATAR;
@@ -5817,7 +5860,7 @@ window.newRoleTempWbs = null;
             id, 
             realName, 
             remark: $('#role-remark').value.trim(), 
-            titleColor: $('#role-title-color').value,
+            titleColor: $('#role-title-color') ? $('#role-title-color').value : (settings.theme === 'dark' ? '#ffffff' : '#000000'),
             avatar: $('#role-avatar').value.trim(), 
             persona: $('#role-persona').value.trim(), 
             chatBg: chatBgVal, 
@@ -6296,6 +6339,16 @@ window.newRoleTempWbs = null;
     Object.keys(walletData).forEach(k => {
         if (!walletData[k].bills) { walletData[k].bills = []; fixCount++; }
         if (!walletData[k].familyCards) { walletData[k].familyCards = []; fixCount++; }
+        
+        // 修复钱包账单时间错乱
+        if (walletData[k].bills.length > 0) {
+            walletData[k].bills.sort((a, b) => {
+                const timeA = new Date(a.time.replace(/-/g, '/')).getTime();
+                const timeB = new Date(b.time.replace(/-/g, '/')).getTime();
+                return (timeB || 0) - (timeA || 0);
+            });
+            fixCount++;
+        }
     });
     DB.set('walletData', walletData);
 
@@ -12001,7 +12054,14 @@ function onAiAvatarDblClick() {
                 </div>
             `).join('') : '<div style="font-size:9px; color:var(--text-secondary); margin-bottom:20px;">暂无送出的亲属卡</div>'}
 
-            <div class="wallet-section-title" style="margin-top: 20px;"><span>TRANSACTIONS / 账单明细</span></div>
+            <div class="wallet-section-title" style="margin-top: 20px; margin-bottom: 5px;">
+                <span>TRANSACTIONS / 账单明细</span>
+                <span style="font-size: 9px; color: var(--text-secondary); font-weight: normal;">本月收支统计</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; font-size: 9px; color: var(--text-secondary); margin-bottom: 10px; padding: 0 5px;">
+                <span>本月收入: ¥${fmtMoney(data.bills.filter(b => new Date(b.time.replace(/-/g, '/')).getMonth() === new Date().getMonth() && b.amount > 0).reduce((sum, b) => sum + b.amount, 0))}</span>
+                <span>本月支出: ¥${fmtMoney(data.bills.filter(b => new Date(b.time.replace(/-/g, '/')).getMonth() === new Date().getMonth() && b.amount < 0).reduce((sum, b) => sum + Math.abs(b.amount), 0))}</span>
+            </div>
                        ${data.bills.map((b, i) => `
                 <div class="wallet-list-item" style="cursor:pointer;" onclick="showWalletBillReceipt(${i})">
                     <div>
