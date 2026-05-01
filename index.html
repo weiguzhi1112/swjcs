@@ -1520,6 +1520,12 @@
 
 <div class="setting-group" style="border:none; padding:0; margin-top: 10px;"><label>CALL WALLPAPER / 语音通话背景图</label><input type="text" id="role-call-bg" placeholder="IMAGE URL (留空则为纯黑)" style="width: 100%; padding: 10px 12px; border: 1px solid var(--border-color); background: transparent; color: var(--text-color); font-family: var(--font-sans); font-size: 11px; outline: none;"><label class="file-upload-btn" style="margin-top:5px;">LOCAL UPLOAD<input type="file" style="display:none" accept="image/*" onchange="handleImageUpload(this, 'role-call-bg')"></label></div>
 
+<!-- 增加语音通话背景模糊度调节 -->
+<div class="setting-group" style="border:none; padding:0; margin-top: 10px;">
+    <label>CALL BLUR / 语音通话背景模糊度: <span id="val-call-blur">10</span>px</label>
+    <input type="range" id="role-call-blur" min="0" max="30" value="10" oninput="document.getElementById('val-call-blur').innerText=this.value" style="width: 100%; accent-color: var(--text-color);">
+</div>
+
 <div class="setting-group" style="border:none; padding:0; margin-top: 10px;"><label>CHAT INTERFACE CSS / 聊天界面专属CSS</label><textarea id="role-chat-css" placeholder="/* 例如: 修改聊天背景 */&#10;#chat-view { background-color: #000; }" style="width: 100%; height: 80px; padding: 10px 12px; border: 1px solid var(--border-color); background: transparent; color: var(--text-color); font-family: monospace; font-size: 11px; outline: none; resize: vertical;"></textarea></div>
 
 <div class="setting-group" style="border:none; padding:0; margin-top: 10px;"><label>CHAT BUBBLE CSS / 聊天气泡专属CSS</label><textarea id="role-bubble-css" placeholder="/* 例如: 修改气泡圆角 */&#10;.msg-bubble { border-radius: 8px !important; }" style="width: 100%; height: 80px; padding: 10px 12px; border: 1px solid var(--border-color); background: transparent; color: var(--text-color); font-family: monospace; font-size: 11px; outline: none; resize: vertical;"></textarea></div>
@@ -1733,8 +1739,8 @@
 
 <!-- 真实语音通话独立界面 (优化版) -->
 <div id="view-real-call" class="view-container" style="z-index: 990; background-color: #1a1a1a; background-size: cover; background-position: center; color: #fff;">
-    <!-- 黑色半透明遮罩，保证文字清晰 -->
-    <div style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); z-index: 1;"></div>
+    <!-- 黑色半透明遮罩，保证文字清晰，增加 ID 以便动态修改模糊度 -->
+    <div id="call-bg-overlay" style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); z-index: 1;"></div>
     
     <div class="view-header" style="background: transparent; border: none; z-index: 2;">
         <button class="text-btn" style="color: #fff;" onclick="minimizeRealCall()">
@@ -1759,12 +1765,16 @@
         <div style="width: 100%; max-width: 300px; display: flex; flex-direction: column; gap: 15px; margin-top: auto;">
             <textarea id="real-call-input" placeholder="输入你想对TA说的话... (按回车发送)" onkeydown="if(event.key==='Enter' && !event.shiftKey) { event.preventDefault(); startRealCall(); }" style="width: 100%; height: 80px; background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.3); border-radius: 16px; padding: 12px; color: #fff; font-size: 12px; outline: none; resize: none; box-shadow: inset 0 2px 10px rgba(0,0,0,0.2);"></textarea>
             
-            <div style="display: flex; justify-content: center; align-items: center; gap: 20px;">
+            <div style="display: flex; justify-content: center; align-items: center; gap: 15px;">
                 <button onclick="closeRealCall()" style="width: 50px; height: 50px; border-radius: 50%; background: rgba(239,68,68,0.8); border: 1px solid rgba(255,255,255,0.2); color: #fff; display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 4px 15px rgba(239,68,68,0.3); backdrop-filter: blur(10px);">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.68 13.31a16 16 0 0 0 3.41 2.6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7 2 2 0 0 1 1.72 2v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.42 19.42 0 0 1-3.33-2.67m-2.67-3.34a19.79 19.79 0 0 1-3.07-8.63A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91"></path><line x1="23" y1="1" x2="1" y2="23"></line></svg>
                 </button>
                 <button id="btn-toggle-video" onclick="toggleVideoCall()" style="width: 50px; height: 50px; border-radius: 50%; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); color: #fff; display: flex; align-items: center; justify-content: center; cursor: pointer; backdrop-filter: blur(10px);">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="23 7 16 12 23 17 23 7"></polygon><rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect></svg>
+                </button>
+                <!-- 增加重试按钮 -->
+                <button id="btn-retry-real-call" onclick="window.retryRealCall()" style="width: 50px; height: 50px; border-radius: 50%; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); color: #fff; display: flex; align-items: center; justify-content: center; cursor: pointer; backdrop-filter: blur(10px);">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.5 2v6h-6M2.13 15.57a10 10 0 1 0 3.43-8.9L2.5 10M2.5 10V4h6"/></svg>
                 </button>
                 <button id="btn-send-real-call" onclick="startRealCall()" style="width: 50px; height: 50px; border-radius: 50%; background: rgba(255,255,255,0.9); border: 1px solid rgba(255,255,255,1); color: #000; display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 4px 15px rgba(255,255,255,0.3); backdrop-filter: blur(10px);">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>

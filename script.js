@@ -2980,6 +2980,14 @@ ${promptText}
             $('#view-real-call').style.backgroundImage = 'none';
         }
         
+        /* 应用语音通话背景模糊度 */
+        const blurVal = role.callBlur !== undefined ? role.callBlur : 10;
+        const overlayEl = $('#call-bg-overlay');
+        if (overlayEl) {
+            overlayEl.style.backdropFilter = `blur(${blurVal}px)`;
+            overlayEl.style.webkitBackdropFilter = `blur(${blurVal}px)`;
+        }
+        
         $('#view-real-call').classList.add('active');
         $('#mini-call-window').style.display = 'none';
 
@@ -3107,7 +3115,8 @@ function renderCallMessage(name, text, isMe) {
             if (isMe) {
                 html += `<div style="color: #fff; text-align: left; background: rgba(255,255,255,0.15); padding: 10px 14px; border-radius: 16px; align-self: flex-end; max-width: 85%; margin-bottom: 8px; border: 1px solid rgba(255,255,255,0.2); box-shadow: 0 4px 15px rgba(0,0,0,0.2);"><span style="font-size:10px; font-weight:bold; color:#aaa; margin-bottom:4px; display:block;">${name}</span>${spoken}</div>`;
             } else {
-                html += `<div style="color: #000; text-align: left; background: rgba(255,255,255,0.9); padding: 10px 14px; border-radius: 16px; align-self: flex-start; max-width: 85%; border: 1px solid rgba(255,255,255,1); margin-bottom: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.3);"><span style="font-size:10px; font-weight:bold; color:#555; margin-bottom:4px; display:block;">${name}</span>${spoken}</div>`;
+                /* 优化逻辑：将AI的气泡也改为半透明暗色风格，与用户统一 */
+                html += `<div style="color: #fff; text-align: left; background: rgba(255,255,255,0.1); padding: 10px 14px; border-radius: 16px; align-self: flex-start; max-width: 85%; border: 1px solid rgba(255,255,255,0.15); margin-bottom: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.2);"><span style="font-size:10px; font-weight:bold; color:#aaa; margin-bottom:4px; display:block;">${name}</span>${spoken}</div>`;
             }
         }
         lastIndex = regex.lastIndex;
@@ -3118,7 +3127,8 @@ function renderCallMessage(name, text, isMe) {
             if (isMe) {
                 html += `<div style="color: #fff; text-align: left; background: rgba(255,255,255,0.15); padding: 10px 14px; border-radius: 16px; align-self: flex-end; max-width: 85%; margin-bottom: 8px; border: 1px solid rgba(255,255,255,0.2); box-shadow: 0 4px 15px rgba(0,0,0,0.2);"><span style="font-size:10px; font-weight:bold; color:#aaa; margin-bottom:4px; display:block;">${name}</span>${lastAction}</div>`;
             } else {
-                html += `<div style="color: #000; text-align: left; background: rgba(255,255,255,0.9); padding: 10px 14px; border-radius: 16px; align-self: flex-start; max-width: 85%; border: 1px solid rgba(255,255,255,1); margin-bottom: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.3);"><span style="font-size:10px; font-weight:bold; color:#555; margin-bottom:4px; display:block;">${name}</span>${lastAction}</div>`;
+                /* 优化逻辑：将AI的气泡也改为半透明暗色风格，与用户统一 */
+                html += `<div style="color: #fff; text-align: left; background: rgba(255,255,255,0.1); padding: 10px 14px; border-radius: 16px; align-self: flex-start; max-width: 85%; border: 1px solid rgba(255,255,255,0.15); margin-bottom: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.2);"><span style="font-size:10px; font-weight:bold; color:#aaa; margin-bottom:4px; display:block;">${name}</span>${lastAction}</div>`;
             }
         } else {
             html += `<div style="color: #999; text-align: center; font-size: 10px; margin: 8px 0; align-self: center; width: 100%; font-style: italic;">${lastAction}</div>`;
@@ -3258,9 +3268,15 @@ let currentCallAudioId = null;
         btn.style.opacity = '1';
     }
 };
-        async function startRealCall() {
-        const text = $('#real-call-input').value.trim();
-        if (!text || !currentChatRoleId) return;
+        /* 增加 isRetry 参数，用于支持重试按钮 */
+        async function startRealCall(isRetry = false) {
+        let text = '';
+        if (!isRetry) {
+            text = $('#real-call-input').value.trim();
+            if (!text || !currentChatRoleId) return;
+        } else {
+            if (!currentChatRoleId) return;
+        }
         
         const role = roles.find(r => r.id === currentChatRoleId);
         const targetVoiceId = (role && role.ttsVoiceId) ? role.ttsVoiceId : apiConfig.ttsVoiceId;
@@ -3276,9 +3292,11 @@ let currentCallAudioId = null;
         const aiName = getDisplayName(role);
 
         const convBox = $('#call-conversation');
-        convBox.innerHTML += renderCallMessage(userName, text, true);
-        convBox.scrollTop = convBox.scrollHeight;
-        $('#real-call-input').value = '';
+        if (!isRetry) {
+            convBox.innerHTML += renderCallMessage(userName, text, true);
+            convBox.scrollTop = convBox.scrollHeight;
+            $('#real-call-input').value = '';
+        }
 
         try {
             // 提取共同记忆
@@ -3291,8 +3309,12 @@ let currentCallAudioId = null;
             }
             const memorySummary = fullMemory ? `\n[你们的共同记忆]\n${fullMemory.substring(0, 500)}` : '';
             
-            // 提取最近的聊天记录
-            const recentChats = (chats[role.id] || []).slice(-1000).map(m => `${m.role === 'user' ? 'ME' : role.realName}: ${m.content.replace(/<[^>]*>/g, '')}`).join('\n');
+            /* 毒瘤修复：限制提取的聊天记录数量，并过滤掉AI未分享的小剧场，防止Token爆炸和幻觉 */
+            const contextLimit = role.contextLimit || 30;
+            const recentChats = (chats[role.id] || []).slice(-contextLimit).map(m => {
+                if (m.role === 'ai' && m.content.includes('[THEATER_CARD:')) return '';
+                return `${m.role === 'user' ? 'ME' : role.realName}: ${m.content.replace(/<[^>]*>/g, '')}`;
+            }).filter(s => s).join('\n');
             const chatContext = recentChats ? `\n[最近的聊天记录]\n${recentChats}` : '';
             
             // 提取本次通话的上下文
@@ -3303,7 +3325,13 @@ let currentCallAudioId = null;
                 : "【语音通话中】摄像头未开启。用户只能听到你的声音。你只能输出你说的话以及声音（如笑声、叹气声），绝对不能描写任何视觉上的动作、表情或环境！";
 
             // 将所有上下文整合进 Prompt
-            const prompt = `[CORE DIRECTIVE]\n你是${role.realName}。${role.persona}${memorySummary}${chatContext}${callContext}\n\n${videoPrompt}\n\n用户对你说：“${text}”\n请回复用户。要求：\n1. 必须包含你直接说出口的话（必须用双引号 "" 或 “” 包裹）。\n2. 语气自然，像真人在打电话，结合上下文连贯对话。`;
+            let prompt = `[CORE DIRECTIVE]\n你是${role.realName}。${role.persona}${memorySummary}${chatContext}${callContext}\n\n${videoPrompt}\n\n`;
+            if (!isRetry) {
+                prompt += `用户对你说：“${text}”\n请回复用户。`;
+            } else {
+                prompt += `请继续回复用户。`;
+            }
+            prompt += `要求：\n1. 必须包含你直接说出口的话（必须用双引号 "" 或 “” 包裹）。\n2. 语气自然，像真人在打电话，结合上下文连贯对话。`;
             
             const endpoint = getChatEndpoint(apiConfig.url);
             const chatRes = await fetch(endpoint, {
@@ -3317,54 +3345,63 @@ let currentCallAudioId = null;
             convBox.innerHTML += renderCallMessage(aiName, aiReply, false);
             convBox.scrollTop = convBox.scrollHeight;
             
-            currentCallText += `我: ${text}\n${aiName}: ${aiReply}\n`;
+            if (!isRetry) {
+                currentCallText += `我: ${text}\n${aiName}: ${aiReply}\n`;
+            } else {
+                currentCallText += `${aiName}: ${aiReply}\n`;
+            }
 
             let audioId = null;
             let base64Audio = null;
 
             if (useTTS) {
-                let dialogue = "";
-                const quoteMatches = aiReply.match(/"([^"]+)"|“([^”]+)”|「([^」]+)」/g);
-                if (quoteMatches) {
-                    dialogue = quoteMatches.map(m => m.replace(/["“”「」]/g, '')).join('，');
-                } else {
-                    dialogue = aiReply; 
-                }
-
-                const ttsRes = await fetch(`https://api.minimax.chat/v1/t2a_v2?GroupId=${apiConfig.ttsGroupId}`, {
-                    method: 'POST',
-                    headers: { 'Authorization': `Bearer ${apiConfig.ttsApiKey}`, 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        model: "speech-01-turbo",
-                        text: dialogue,
-                        stream: false,
-                        voice_setting: { voice_id: targetVoiceId, speed: 1, vol: 1, pitch: 0 }
-                    })
-                });
-                const ttsData = await ttsRes.json();
-                
-                if (ttsData.base_resp && ttsData.base_resp.status_code !== 0) {
-                    if (ttsData.base_resp.status_msg.includes("voice_id")) {
-                        throw new Error("音色ID无权限或不存在！");
+                try {
+                    let dialogue = "";
+                    const quoteMatches = aiReply.match(/"([^"]+)"|“([^”]+)”|「([^」]+)」/g);
+                    if (quoteMatches) {
+                        dialogue = quoteMatches.map(m => m.replace(/["“”「」]/g, '')).join('，');
+                    } else {
+                        dialogue = aiReply; 
                     }
-                    throw new Error("TTS Error: " + ttsData.base_resp.status_msg);
-                }
 
-                const hexString = ttsData.data.audio;
-                const bytes = new Uint8Array(Math.ceil(hexString.length / 2));
-                for (let i = 0; i < bytes.length; i++) bytes[i] = parseInt(hexString.substr(i * 2, 2), 16);
-                
-                let binary = '';
-                bytes.forEach(b => binary += String.fromCharCode(b));
-                base64Audio = 'data:audio/mp3;base64,' + window.btoa(binary);
-                
-                audioId = 'audio_' + Date.now();
-                if (window.idbStore) {
-                    await window.idbStore.put(base64Audio, audioId);
-                } else {
-                    localStorage.setItem('suowu_' + audioId, base64Audio);
+                    const ttsRes = await fetch(`https://api.minimax.chat/v1/t2a_v2?GroupId=${apiConfig.ttsGroupId}`, {
+                        method: 'POST',
+                        headers: { 'Authorization': `Bearer ${apiConfig.ttsApiKey}`, 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            model: "speech-01-turbo",
+                            text: dialogue,
+                            stream: false,
+                            voice_setting: { voice_id: targetVoiceId, speed: 1, vol: 1, pitch: 0 }
+                        })
+                    });
+                    const ttsData = await ttsRes.json();
+                    
+                    if (ttsData.base_resp && ttsData.base_resp.status_code !== 0) {
+                        if (ttsData.base_resp.status_msg.includes("voice_id")) {
+                            throw new Error("音色ID无权限或不存在！");
+                        }
+                        throw new Error("TTS Error: " + ttsData.base_resp.status_msg);
+                    }
+
+                    const hexString = ttsData.data.audio;
+                    const bytes = new Uint8Array(Math.ceil(hexString.length / 2));
+                    for (let i = 0; i < bytes.length; i++) bytes[i] = parseInt(hexString.substr(i * 2, 2), 16);
+                    
+                    let binary = '';
+                    bytes.forEach(b => binary += String.fromCharCode(b));
+                    base64Audio = 'data:audio/mp3;base64,' + window.btoa(binary);
+                    
+                    audioId = 'audio_' + Date.now();
+                    if (window.idbStore) {
+                        await window.idbStore.put(base64Audio, audioId);
+                    } else {
+                        localStorage.setItem('suowu_' + audioId, base64Audio);
+                    }
+                    currentCallAudioId = audioId;
+                } catch (ttsErr) {
+                    /* 毒瘤修复：TTS失败只打印警告，不中断主流程，保证文字能正常显示 */
+                    console.warn("TTS 生成失败，降级为纯文字显示:", ttsErr);
                 }
-                currentCallAudioId = audioId;
             }
 
             $('#call-avatar-glow').style.boxShadow = '0 0 50px rgba(34,197,94,0.6)';
@@ -3390,6 +3427,15 @@ let currentCallAudioId = null;
             btn.disabled = false;
         }
     }
+
+    /* 增加重试按钮的调用函数 */
+    window.retryRealCall = async function() {
+        const convBox = $('#call-conversation');
+        if (convBox.lastElementChild && convBox.lastElementChild.innerText.includes('通话异常')) {
+            convBox.removeChild(convBox.lastElementChild);
+        }
+        await startRealCall(true);
+    };
 
     window.editingImageUrls = [];
     function editMessageFromMenu() { 
@@ -4474,11 +4520,14 @@ ${modeRules}
                 return text.trim();
             };
 
+            /* 毒瘤修复：过滤掉 content 为空的消息，防止 API 报错 */
             const historyMsgs = msgs.slice(0, -1).slice(-contextLimit).map(m => {
                 let msgRole = m.role;
                 if (msgRole !== 'user' && msgRole !== 'system') msgRole = 'assistant';
                 
                 let content = cleanHistoryContent(m.content, m.role);
+                if (!content) return null; // 如果清理后为空，返回 null
+                
                 if (settings.timeAware && m.rawTime) {
                     const d = new Date(m.rawTime);
                     const timeStr = `[${d.getMonth()+1}月${d.getDate()}日 ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}]`;
@@ -4489,7 +4538,7 @@ ${modeRules}
                     role: msgRole,
                     content: content
                 };
-            });
+            }).filter(m => m !== null); // 过滤掉 null
             apiMessages.push(...historyMsgs);
 
             const endpoint = getChatEndpoint(apiConfig.url);
@@ -5785,6 +5834,11 @@ function updateRoleWbPreview() {
         $('#role-call-bg').dataset.realValue = callBg;
         $('#role-call-bg').value = callBg.length > 200 ? '已上传本地图片 (重新上传覆盖)' : callBg;
         
+        /* 读取并显示语音通话背景模糊度 */
+        const callBlur = isEditing && role.callBlur !== undefined ? role.callBlur : 10;
+        if ($('#role-call-blur')) $('#role-call-blur').value = callBlur;
+        if ($('#val-call-blur')) $('#val-call-blur').innerText = callBlur;
+        
         $('#role-chat-css').value = isEditing ? (role.chatCss || '') : ''; 
         $('#role-bubble-css').value = isEditing ? (role.bubbleCss || '') : ''; 
         $('#role-ai-bubble-color').value = isEditing && role.aiBubbleColor ? role.aiBubbleColor : '#333333';
@@ -5902,6 +5956,7 @@ window.newRoleTempWbs = null;
             persona: $('#role-persona').value.trim(), 
             chatBg: chatBgVal, 
             callBg: callBgVal, 
+            callBlur: parseInt($('#role-call-blur').value) || 0, /* 保存模糊度 */
             chatCss: $('#role-chat-css').value.trim(), 
             bubbleCss: $('#role-bubble-css').value.trim(), 
             aiBubbleColor: $('#role-ai-bubble-color').value, 
@@ -11696,14 +11751,20 @@ function extractStatusFromReply(roleId, replyText) {
     const config = statusBarData[roleId];
     if (!config || !config.enabled) return null;
     try {
-        const regex = /\[心声:\s*(.*?)\s*\|\s*好感度:\s*(.*?)\]/;
+        /* 修复逻辑：使用用户自定义的正则表达式，如果没有则使用默认的 */
+        const regexStr = config.regex || '\\[心声:\\s*(.*?)\\s*\\|\\s*好感度:\\s*(.*?)\\]';
+        const regex = new RegExp(regexStr);
         const match = replyText.match(regex);
         if (match) {
-            let html = `<div style="padding: 8px; background: var(--gray-light); border-radius: 8px; border-left: 3px solid #ff4d4d; margin-top: 5px;">
+            let html = config.htmlTemplate || `<div style="padding: 8px; background: var(--gray-light); border-radius: 8px; border-left: 3px solid #ff4d4d; margin-top: 5px;">
                 <div style="font-size: 11px; font-weight: bold; color: var(--text-color); margin-bottom: 4px;">💭 心声</div>
-                <div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 4px;">${match[1]}</div>
-                <div style="font-size: 10px; color: #ff4d4d; font-weight: bold;">好感度: ${match[2]}</div>
+                <div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 4px;">$1</div>
+                <div style="font-size: 10px; color: #ff4d4d; font-weight: bold;">好感度: $2</div>
             </div>`;
+            /* 动态替换模板中的 $1, $2 等捕获组 */
+            for (let i = 1; i < match.length; i++) {
+                html = html.replace(new RegExp('\\$' + i, 'g'), match[i] || '');
+            }
             return { html: html, rawMatch: match[0], time: new Date().toLocaleString('zh-CN') };
         }
     } catch (e) { console.error('Status extract error:', e); }
@@ -11722,7 +11783,10 @@ function cleanStatusFromText(roleId, text) {
     const config = statusBarData[roleId];
     if (!config || !config.enabled) return text;
     try {
-        return text.replace(/\[心声:\s*(.*?)\s*\|\s*好感度:\s*(.*?)\]/g, '').trim();
+        /* 修复逻辑：使用用户自定义的正则表达式清理原文 */
+        const regexStr = config.regex || '\\[心声:\\s*(.*?)\\s*\\|\\s*好感度:\\s*(.*?)\\]';
+        const regex = new RegExp(regexStr, 'g');
+        return text.replace(regex, '').trim();
     } catch (e) { return text; }
 }
 
