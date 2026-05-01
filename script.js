@@ -2193,6 +2193,26 @@ function updateKeepAliveUI(isOn) {
                 } catch(e) {}
             }
 
+            /* 渲染红包卡片 */
+            if (contentHtml.startsWith('[RED_PACKET:')) {
+                const raw = contentHtml.slice(12, -1);
+                try {
+                    const card = JSON.parse(decodeURIComponent(raw).replace(/&quot;/g, '"'));
+                    const isMe = m.role === 'user';
+                    const isOpened = card.status === '已领取';
+                    const bgStyle = isOpened ? 'background: #f8d0d0; opacity: 0.8;' : 'background: #ff4d4d;';
+                    const iconOpacity = isOpened ? 'opacity: 0.5;' : 'opacity: 1;';
+                    
+                    return `<div class="msg-row card-row ${isMe ? 'me' : 'ai'} ${isSelectionMode ? 'selection-mode' : ''}" onclick="handleMsgClick(${realIndex})" ${touchHandlers}>${checkboxHtml}${isMe ? '' : aiAvatarTag}<div class="msg-wrapper"><div class="daifu-card" style="${bgStyle} border: none; padding: 12px 16px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 12px; min-width: 200px;" onclick="if(isSelectionMode) return; openRedPacket(${realIndex})">
+                        <div style="width: 36px; height: 36px; background: rgba(255,255,255,0.2); border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 20px; ${iconOpacity}">🧧</div>
+                        <div style="flex: 1; overflow: hidden;">
+                            <div style="color: #fff; font-size: 13px; font-weight: 600; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${card.greeting || '恭喜发财，大吉大利'}</div>
+                            <div style="color: rgba(255,255,255,0.8); font-size: 9px;">${isOpened ? '红包已领取' : '微信红包'}</div>
+                        </div>
+                    </div><div class="msg-status">${displayTime}</div></div>${isMe ? userAvatarTag : ''}</div>`;
+                } catch(e) {}
+            }
+
             if (contentHtml.startsWith('[PAY_REQUEST:') || contentHtml.startsWith('[ORDER_RECEIPT_CARD:') || contentHtml.startsWith('[TRANSFER:') || contentHtml.startsWith('[FAMILY_CARD:')) {
                 const isPayReq = contentHtml.startsWith('[PAY_REQUEST:');
                 const isOrder = contentHtml.startsWith('[ORDER_RECEIPT_CARD:');
@@ -4862,6 +4882,36 @@ ${modeRules}
                     rawTime: now.getTime() + 3, 
                     mode: 'online' 
                 });
+            }
+
+            /* 拦截 AI 领取红包指令 */
+            if (fullReply.includes('[RECEIVE_REDPACKET]')) {
+                fullReply = fullReply.replace(/\[RECEIVE_REDPACKET\]/g, '').trim();
+                
+                // 往回找最近的一个未领取的红包
+                for (let i = chats[targetRoleId].length - 1; i >= 0; i--) {
+                    let m = chats[targetRoleId][i];
+                    if (m.role === 'user' && m.content.startsWith('[RED_PACKET:')) {
+                        try {
+                            let raw = m.content.match(/\[RED_PACKET:(.*?)\]/)[1];
+                            let card = JSON.parse(decodeURIComponent(raw));
+                            if (card.status === '未领取') {
+                                card.status = '已领取';
+                                m.content = `[RED_PACKET:${encodeURIComponent(JSON.stringify(card))}]`;
+                                
+                                // 角色钱包加钱并记录账单
+                                if (!walletData[targetRoleId]) walletData[targetRoleId] = { balance: 0, huabei: 0, bankCards: [], familyCards: [], bills: [] };
+                                walletData[targetRoleId].balance += card.amount;
+                                const nowStr = new Date().toLocaleString('zh-CN');
+                                walletData[targetRoleId].bills.unshift({ time: nowStr, location: '线上交易', merchant: `领取 ${settings.userName || 'ME'} 的红包`, amount: card.amount, method: '转入余额' });
+                                DB.set('walletData', walletData);
+                                
+                                chats[targetRoleId].push({ role: 'system', content: `${role.realName} 领取了你的红包`, time: timeStr, rawTime: now.getTime() + 1, mode: 'online' });
+                                break;
+                            }
+                        } catch(e) {}
+                    }
+                }
             }
 
             const transferMatch = fullReply.match(/\[转账\s*[¥￥]?\s*(\d+(\.\d+)?)\]/);
@@ -15669,4 +15719,141 @@ applySettings = function() {
     if (select && settings.timestampFormat) {
         select.value = settings.timestampFormat;
     }
+};
+/* ==================== 红包功能逻辑 ==================== */
+window.openRedPacketModal = function() {
+    if (!currentChatRoleId) return alert("请先进入聊天界面");
+    $('#attachment-popup').style.display = 'none';
+    
+    if (!walletData['ME']) walletData['ME'] = { balance: 0, huabei: 0, bankCards: [], familyCards: [], bills: [] };
+    const data = walletData['ME'];
+    
+    let options = `<option value="balance">钱包余额 (¥${fmtMoney(data.balance)})</option>`;
+    if (data.huabei > 0) options += `<option value="huabei">花呗 (可用 ¥${fmtMoney(data.huabei)})</option>`;
+    data.bankCards.forEach((c, i) => {
+        options += `<option value="bank_${i}">${c.bank}(${c.tail}) (¥${fmtMoney(c.balance)})</option>`;
+    });
+    
+    $('#red-packet-method-select').innerHTML = options;
+    $('#red-packet-amount').value = '';
+    $('#red-packet-greeting').value = '恭喜发财，大吉大利';
+    openModal('modal-red-packet');
+};
+
+window.confirmSendRedPacket = function() {
+    const amount = Number($('#red-packet-amount').value);
+    if (!amount || amount <= 0) return alert("请输入有效金额");
+    
+    const method = $('#red-packet-method-select').value;
+    const greeting = $('#red-packet-greeting').value.trim() || '恭喜发财，大吉大利';
+    const data = walletData['ME'];
+    let methodName = '钱包余额';
+    
+    /* 扣款逻辑 */
+    if (method === 'balance') {
+        if (data.balance < amount) return alert("余额不足");
+        data.balance -= amount;
+    } else if (method === 'huabei') {
+        if (data.huabei < amount) return alert("花呗额度不足");
+        data.huabei -= amount;
+        methodName = '花呗';
+    } else if (method.startsWith('bank_')) {
+        const idx = parseInt(method.split('_')[1]);
+        if (data.bankCards[idx].balance < amount) return alert("银行卡余额不足");
+        data.bankCards[idx].balance -= amount;
+        methodName = `${data.bankCards[idx].bank}(${data.bankCards[idx].tail})`;
+    }
+    
+    const role = roles.find(r => r.id === currentChatRoleId);
+    const roleName = role ? getDisplayName(role) : '未知角色';
+    
+    /* 记录账单 */
+    const nowStr = new Date().toLocaleString('zh-CN');
+    walletData['ME'].bills.unshift({ time: nowStr, location: '线上交易', merchant: `发红包给 ${roleName}`, amount: -amount, method: methodName });
+    DB.set('walletData', walletData);
+    
+    const activeMask = masks.find(m => m.id === role.activeMaskId) || masks.find(m => m.id === 'default') || masks[0];
+    const maskName = activeMask ? activeMask.name : (settings.userName || 'ME');
+    const senderAvatar = settings.userAvatar || DEFAULT_AVATAR;
+    const rpId = 'RP' + Date.now();
+    const now = new Date();
+
+    /* 构造红包卡片数据 */
+    const payload = { 
+        id: rpId, 
+        amount: amount, 
+        greeting: greeting,
+        senderName: maskName, 
+        senderAvatar: senderAvatar,
+        status: '未领取',
+        time: now.getTime()
+    };
+    const msgContent = `[RED_PACKET:${encodeURIComponent(JSON.stringify(payload))}]`;
+
+    if(!chats[currentChatRoleId]) chats[currentChatRoleId] = [];
+    chats[currentChatRoleId].push({ role: 'user', content: msgContent, time: now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }), rawTime: now.getTime(), status: 'SENT', mode: 'online' });
+    DB.set('chats', chats);
+    
+    closeModal('modal-red-packet');
+    renderMessages();
+    
+    /* 触发 AI 反应 */
+    triggerAI();
+};
+
+window.openRedPacket = function(msgIndex) {
+    const msg = chats[currentChatRoleId][msgIndex];
+    if (!msg) return;
+    
+    const raw = msg.content.slice(12, -1);
+    try {
+        const card = JSON.parse(decodeURIComponent(raw));
+        
+        if (card.status === '已领取') {
+            alert(`这个红包已经被领取过了。\n金额：¥${card.amount}`);
+            return;
+        }
+
+        /* 如果是 AI 发的红包，用户点击领取 */
+        if (msg.role === 'ai') {
+            card.status = '已领取';
+            msg.content = `[RED_PACKET:${encodeURIComponent(JSON.stringify(card))}]`;
+            
+            if (!walletData['ME']) walletData['ME'] = { balance: 0, huabei: 0, bankCards: [], familyCards: [], bills: [] };
+            walletData['ME'].balance += card.amount;
+            
+            const nowStr = new Date().toLocaleString('zh-CN');
+            walletData['ME'].bills.unshift({ time: nowStr, location: '线上交易', merchant: `领取 ${card.senderName} 的红包`, amount: card.amount, method: '转入余额' });
+            DB.set('walletData', walletData);
+            
+            const now = new Date();
+            chats[currentChatRoleId].push({ role: 'system', content: `你领取了 ${card.senderName} 的红包`, time: now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }), rawTime: now.getTime() });
+            DB.set('chats', chats);
+            
+            renderMessages();
+            alert(`🧧 恭喜！成功领取红包 ¥${card.amount}，已存入钱包余额。`);
+        } 
+        /* 如果是用户发的红包，提示等待 AI 领取 */
+        else {
+            alert("这是你发出的红包，等待对方领取中...");
+        }
+    } catch(e) {
+        console.error("红包解析失败", e);
+    }
+};
+
+/* 拦截 AI 自动领取红包的逻辑 */
+const originalCleanHistoryContent = cleanHistoryContent;
+cleanHistoryContent = function(content, msgRole) {
+    let text = originalCleanHistoryContent(content, msgRole);
+    text = text.replace(/\[RED_PACKET:(.*?)\]/g, (match, p1) => {
+        try { 
+            const data = JSON.parse(decodeURIComponent(p1)); 
+            if (data.status === '未领取' && msgRole === 'user') {
+                return `[系统提示：用户给你发了一个红包，金额：¥${data.amount}，留言：${data.greeting}。如果你想领取，请在回复中包含隐藏指令 [RECEIVE_REDPACKET]]`; 
+            }
+            return `[一个${data.status}的红包]`;
+        } catch(e) { return '[红包]'; }
+    });
+    return text;
 };

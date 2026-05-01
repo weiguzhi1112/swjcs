@@ -1333,6 +1333,10 @@
                         <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"></line><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
                         <span>转账</span>
                     </button>
+                    <button class="attach-btn" onclick="openRedPacketModal()" style="color: #ff4d4d;">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="#ff4d4d" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2" ry="2"></rect><path d="M12 4v16"></path><path d="M8 10h8"></path><path d="M12 10a2 2 0 0 0-2-2 2 2 0 0 0 2 2z"></path><path d="M12 10a2 2 0 0 1 2-2 2 2 0 0 1-2 2z"></path></svg>
+                        <span style="color: #ff4d4d;">发红包</span>
+                    </button>
                     <button class="attach-btn" onclick="locateCurrentRole()">
                         <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>
                         <span>查询定位</span>
@@ -1982,6 +1986,24 @@
         <div class="modal-btns">
             <button class="btn-cancel" onclick="closeModal('modal-transfer-input')">CANCEL<span>取消</span></button>
             <button class="btn-confirm" onclick="confirmTransferSend()">SEND<span>转账</span></button>
+        </div>
+    </div>
+</div>
+
+<!-- 发红包弹窗 -->
+<div class="modal-overlay" id="modal-red-packet">
+    <div class="modal" style="background: #f5f5f5; border-radius: 12px; padding: 0; overflow: hidden;">
+        <div style="background: #ff4d4d; padding: 20px; text-align: center; color: #fff;">
+            <h3 style="color: #fff; margin: 0; font-size: 18px;">发红包</h3>
+        </div>
+        <div style="padding: 20px;">
+            <select id="red-packet-method-select" style="width: 100%; padding: 12px; margin-bottom: 15px; border: 1px solid #ddd; background: #fff; color: #333; border-radius: 8px; outline: none; font-size: 12px;"></select>
+            <input type="number" id="red-packet-amount" placeholder="红包金额 (¥)" style="width: 100%; padding: 12px; margin-bottom: 15px; border: 1px solid #ddd; background: #fff; color: #333; border-radius: 8px; outline: none; font-size: 14px; font-weight: bold;">
+            <input type="text" id="red-packet-greeting" placeholder="恭喜发财，大吉大利" value="恭喜发财，大吉大利" style="width: 100%; padding: 12px; margin-bottom: 20px; border: 1px solid #ddd; background: #fff; color: #333; border-radius: 8px; outline: none; font-size: 12px;">
+            <div class="modal-btns" style="justify-content: center;">
+                <button class="btn-cancel" style="background: #fff; color: #333; border: 1px solid #ddd; border-radius: 20px; padding: 10px 30px;" onclick="closeModal('modal-red-packet')">取消</button>
+                <button class="btn-confirm" style="background: #ff4d4d; color: #fff; border: none; border-radius: 20px; padding: 10px 30px;" onclick="confirmSendRedPacket()">塞钱进红包</button>
+            </div>
         </div>
     </div>
 </div>
