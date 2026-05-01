@@ -2647,8 +2647,18 @@ ${promptText}
             });
         }
     window.readTheater = function(msgIndex) {
-        const msg = chats[currentChatRoleId][msgIndex];
-        if (!msg) return;
+        const msg = currentChatHistory[msgIndex];
+        if (!msg || !msg.theater) return;
+
+        /* 每次打开小剧场前，先在页面里找找有没有之前残留的旧剧场窗口，如果有就彻底删掉，防止互相干扰 */
+        const oldReader = document.getElementById('view-theater-reader');
+        if (oldReader) {
+            oldReader.remove();
+        }
+        const oldTheater = document.getElementById('view-theater');
+        if (oldTheater) {
+            oldTheater.remove();
+        }
         
         // 每次打开重置为只读状态
         if (isTheaterEditing) window.toggleTheaterEdit();
@@ -7424,7 +7434,7 @@ window.newRoleTempWbs = null;
                     <input type="text" id="comment-input-${f.id}" placeholder="Write a comment..." onkeydown="if(event.key==='Enter' && !event.isComposing && event.keyCode!==229) submitComment('${f.id}')" style="flex:1; padding: 8px 12px; border: 1px solid var(--border-color); border-radius: 16px; font-size: 10px; background: transparent; color: var(--text-color); outline: none;"> 
                     <button class="action-btn primary" style="margin:0; padding: 8px 12px; border-radius: 16px; font-size: 9px;" onclick="submitComment('${f.id}')">SEND</button> 
                 </div> 
-                <div style="display:${f.isReplying ? 'block' : 'none'}; margin-top: 8px; font-size: 9px; color: var(--text-secondary); font-style: italic;">${authorName} is replying...</div> 
+                <div style="display:${f.isReplying ? 'block' : 'none'}; margin-top: 8px; font-size: 9px; color: var(--text-secondary); font-style: italic;">${f.replyingRoleName || 'AI'} 正在输入评论...</div> 
             </div>`; 
         }).join(''); 
     }
@@ -7517,8 +7527,8 @@ window.newRoleTempWbs = null;
         const feed = feeds.find(f => f.id === feedId);
         const role = roles.find(r => r.id === roleId);
         if (!feed || !role || !apiConfig.url) return;
-
-        // 核心修复：开启正在回复的状态，并刷新 UI
+        /* 记录当前正在回复的AI角色的名字，存入feed数据中 */
+        feed.replyingRoleName = role.realName || role.name;
         feed.isReplying = true;
         renderFeeds();
 

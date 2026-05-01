@@ -1378,6 +1378,11 @@
                         <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 4H15.5L14.5 3H9.5L8.5 4H5V6H19M6 19A2 2 0 0 0 8 21H16A2 2 0 0 0 18 19V7H6V19Z"></path></svg>
                         <span style="color: #ff4d4d;">清空</span>
                     </button>
+                    <!-- 核心修复：直接将小剧场按钮硬编码到 HTML 中，防止 JS 注入失效 -->
+                    <button id="btn-open-theater" class="attach-btn" onclick="openTheaterModal()">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12h4l3-9 5 18 3-9h5"/></svg>
+                        <span>小剧场</span>
+                    </button>
                     <input type="file" id="chat-img-upload" style="display:none" accept="image/*" onchange="handleChatImageUpload(this)">
                 </div>
             </div>
@@ -2635,18 +2640,6 @@
         </div> 
     </div> 
 </div>
-
-<script>
-document.addEventListener('DOMContentLoaded', () => {
-    const popup = document.getElementById('attachment-popup');
-    if (popup && !document.getElementById('btn-open-theater')) {
-        const btnHtml = `<button id="btn-open-theater" class="attach-btn" onclick="openTheaterModal()">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12h4l3-9 5 18 3-9h5"/></svg>
-            <span>小剧场</span>
-        </button>`;
-        popup.insertAdjacentHTML('beforeend', btnHtml);
-    }
-});
 <!-- 请求角色评论动态弹窗 -->
 <div class="modal-overlay" id="modal-request-feed-comment">
     <div class="modal">
