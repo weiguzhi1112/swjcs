@@ -2262,7 +2262,7 @@ function updateKeepAliveUI(isOn) {
                         clickAction = `openTransactionDetail(${realIndex})`;
                     }
                     
-                    return `<div class="msg-row card-row ${isMe ? 'me' : 'ai'} ${isSelectionMode ? 'selection-mode' : ''}" onclick="handleMsgClick(${realIndex})" ${touchHandlers}>${checkboxHtml}${isMe ? '' : aiAvatarTag}<div class="msg-wrapper"><div class="daifu-card" onclick="if(isSelectionMode) return; ${clickAction}"><div class="daifu-icon">${iconText}</div><div class="daifu-info"><div class="daifu-title">${titleText}</div><div class="daifu-desc">${descText}</div><div class="daifu-bottom"><div class="daifu-price">${priceText}</div><div class="daifu-tag">${card.status || '待处理'}</div></div></div></div><div class="msg-status">${m.time}</div></div>${isMe ? userAvatarTag : ''}</div>`;
+                    return `<div class="msg-row card-row ${isMe ? 'me' : 'ai'} ${isSelectionMode ? 'selection-mode' : ''}" onclick="handleMsgClick(${realIndex})" ${touchHandlers}>${checkboxHtml}${isMe ? '' : aiAvatarTag}<div class="msg-wrapper"><div class="daifu-card" onclick="if(isSelectionMode) return; ${clickAction}"><div class="daifu-icon">${iconText}</div><div class="daifu-info"><div class="daifu-title">${titleText}</div><div class="daifu-desc">${descText}</div><div class="daifu-bottom"><div class="daifu-price">${priceText}</div><div class="daifu-tag">${card.status || '待处理'}</div></div></div></div><div class="msg-status">${displayTime}</div></div>${isMe ? userAvatarTag : ''}</div>`;
                 } catch(e) {}
             }
                 if (contentHtml.includes('===TRANSLATION===')) { 
@@ -2294,7 +2294,8 @@ function updateKeepAliveUI(isOn) {
             }
             const deliveryHtml = m.role === 'user' ? getDeliveryStatusHtml(realIndex) : '';
             const messageId = m.id ? `id="${m.id}"` : '';
-            return `<div class="msg-row bubble-row ${m.role === 'user' ? 'me' : 'ai'} ${isSelectionMode ? 'selection-mode' : ''}" ${messageId} onclick="handleMsgClick(${realIndex})">${checkboxHtml}${m.role === 'ai' ? aiAvatarTag : ''}<div class="msg-wrapper"><div class="msg-bubble ${m.mode === 'offline' && m.role === 'ai' ? 'offline-mode' : ''}" ${customBubbleStyle} ${touchHandlers}><div class="msg-bubble-content">${quoteHtml}${contentHtml}</div>${heartHtml}</div><div class="msg-status">${m.time}${deliveryHtml}</div></div>${m.role === 'user' ? userAvatarTag : ''}</div>`;
+            // 修复：将 m.time 替换为 displayTime
+            return `<div class="msg-row bubble-row ${m.role === 'user' ? 'me' : 'ai'} ${isSelectionMode ? 'selection-mode' : ''}" ${messageId} onclick="handleMsgClick(${realIndex})">${checkboxHtml}${m.role === 'ai' ? aiAvatarTag : ''}<div class="msg-wrapper"><div class="msg-bubble ${m.mode === 'offline' && m.role === 'ai' ? 'offline-mode' : ''}" ${customBubbleStyle} ${touchHandlers}><div class="msg-bubble-content">${quoteHtml}${contentHtml}</div>${heartHtml}</div><div class="msg-status">${displayTime}${deliveryHtml}</div></div>${m.role === 'user' ? userAvatarTag : ''}</div>`;
         }).join(''); 
         
         const rows = Array.from(container.children);
@@ -2431,7 +2432,7 @@ function updateKeepAliveUI(isOn) {
         let view = document.getElementById('view-theater');
         if (!view) {
             const html = `
-            <div class="view-container" id="view-theater" style="z-index: 1000; background: var(--bg-color);">
+            <div class="view-container" id="view-theater" style="z-index: 990; background: var(--bg-color);">
                 <div class="view-header">
                     <button class="glass-icon-btn" onclick="closeTheaterView()"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg></button>
                     <div class="chat-title-glass"><div id="chat-title" style="font-style:normal;">小剧场生成</div></div>
@@ -2443,7 +2444,7 @@ function updateKeepAliveUI(isOn) {
                     <button class="action-btn primary" id="btn-generate-theater" style="padding: 15px; border-radius: 12px; font-size: 14px;" onclick="generateTheater()">开始生成</button>
                 </div>
             </div>
-            <div class="view-container" id="view-theater-reader" style="z-index: 1000; background: var(--bg-color);">
+            <div class="view-container" id="view-theater-reader" style="z-index: 990; background: var(--bg-color);">
                 <div class="view-header">
                     <button class="glass-icon-btn" onclick="closeTheaterReader()"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg></button>
                     <div class="chat-title-glass"><div id="chat-title" style="font-style:normal;">剧场阅读</div></div>
@@ -4448,8 +4449,26 @@ function toRenderSearchResults() {
     }).join('');
 }
 
-function toInitApp(){toRenderShopList();toRenderAddresses();
-toRenderFavorites();toRenderSearchResults();}
+function toInitApp(){
+    toRenderShopList();
+    toRenderAddresses();
+    toRenderFavorites();
+    toRenderSearchResults();
+    
+    // 注入 CSS 强制外卖页面切换无动画，更丝滑
+    let styleEl = document.getElementById('takeout-no-anim-style');
+    if (!styleEl) {
+        styleEl = document.createElement('style');
+        styleEl.id = 'takeout-no-anim-style';
+        styleEl.innerHTML = `
+            #view-takeout .to-page {
+                transition: none !important;
+                animation: none !important;
+            }
+        `;
+        document.head.appendChild(styleEl);
+    }
+}
 
         async function triggerAI(isReroll = false) {
         if (!currentChatRoleId) return;
@@ -5906,7 +5925,29 @@ async function generateTodaySummary(roleId) {
     } catch (e) { alert('生成失败: ' + e.message); }
 }
     function saveCurrentMemory() { if (!currentMemoryRoleId) return; memories[currentMemoryRoleId] = $('#memory-editor-content').value.trim(); DB.set('memories', memories); closeMemoryEditorView(); renderMemoryView(); }
-    async function triggerMemorySummary() { if (!currentMemoryRoleId) return; const role = roles.find(r => r.id === currentMemoryRoleId); const chatHistory = (chats[currentMemoryRoleId] || []).map(m => { let text = m.content.replace(/\[THEATER_CARD:.*?\]/g, ''); return `${m.role === 'user' ? 'ME' : role.realName}: ${text}`; }).join('\n'); if (!chatHistory.trim()) return alert('NO DATA.'); const btn = $('#btn-generate-memory'); btn.innerText = '...'; btn.disabled = true; const prompt = `Synthesize the following dialogue into a concise, objective third-person summary of key events and relationship dynamics.\n---\n${chatHistory}\n---\nOUTPUT:`; try { const endpoint = getChatEndpoint(apiConfig.url); const response = await fetch(endpoint, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiConfig.key}` }, body: JSON.stringify({ model: apiConfig.model, messages: [{role: 'user', content: prompt}], max_tokens: 1000, temperature: 0.5 }) }); if (!response.ok) throw new Error(await parseApiError(response)); const data = await response.json(); $('#memory-editor-content').value = data.choices[0].message.content.trim(); } catch (err) { alert('ERROR:\n' + err.message); } finally { btn.innerHTML = 'SYNTHESIZE<span>生成概要</span>'; btn.disabled = false; } }
+    async function triggerMemorySummary() { 
+        if (!currentMemoryRoleId) return; 
+        
+        // 切换到剧情总结 Tab
+        switchMemoryTab(currentMemoryRoleId, 'plot');
+        
+        const msgs = chats[currentMemoryRoleId] || [];
+        initRoleMemory(currentMemoryRoleId);
+        const startIndex = advancedMemories[currentMemoryRoleId].lastSummarizedIndex || 0;
+        if (msgs.length <= startIndex) return alert("没有新的聊天记录需要总结！");
+        
+        const btn = $('#btn-generate-memory'); 
+        const originalText = btn.innerHTML;
+        btn.innerText = 'GENERATING...'; 
+        btn.disabled = true; 
+        
+        // 调用自动总结逻辑，存入 plot (剧情总结)
+        await autoGenerateSummary(currentMemoryRoleId, 'plot');
+        
+        btn.innerHTML = originalText; 
+        btn.disabled = false; 
+        alert("一键总结完成！已保存到剧情总结中。");
+    }
     function openAvatarSettingsModal() { const statusMap = { 'all': 'ALL', 'first': 'FIRST ONLY', 'hide_user': 'HIDE MINE', 'hide_ai': 'HIDE THEIRS', 'hide_all': 'HIDE ALL' }; $('#avatar-setting-current').innerText = `CURRENT: ${statusMap[settings.avatarDisplay]}`; openModal('modal-avatar-settings'); }
     function saveAvatarSettings(mode) { settings.avatarDisplay = mode; DB.set('settings', settings); openAvatarSettingsModal(); if (currentChatRoleId) renderMessages(); }
     function openMemoirSettingsModal() { updateMemoirLength(settings.memoirMaxLength); renderMemoirStylesList(); openModal('modal-memoir-settings'); }

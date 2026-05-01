@@ -2618,6 +2618,23 @@
         </div>
     </div>
 </div>
+<!-- 聊天记录搜索弹窗 (移出 script 标签修复报错) --> 
+<div class="modal-overlay" id="modal-chat-search" style="z-index: 100005;"> 
+    <div class="modal" style="max-height: 85vh; display: flex; flex-direction: column;"> 
+        <h3>Search <span>搜索聊天记录</span></h3> 
+        <div style="display: flex; gap: 8px; margin-bottom: 10px; flex-shrink: 0;"> 
+            <input type="text" id="chat-search-input-modal" placeholder="输入关键词..." style="flex: 1;" onkeydown="if(event.key==='Enter') window.executeChatSearchModal()"> 
+            <button class="action-btn primary" style="margin: 0; padding: 0 15px;" onclick="window.executeChatSearchModal()">搜索</button> 
+        </div> 
+        <div id="chat-search-results-container" style="flex: 1; overflow-y: auto; min-height: 200px; border: 1px solid var(--border-color); border-radius: 8px; padding: 10px; background: var(--gray-light); display: flex; flex-direction: column; gap: 10px;"> 
+            <div style="text-align:center; color:var(--text-secondary); font-size:10px; margin-top: 20px;">请输入关键词进行搜索</div> 
+        </div> 
+        <div class="modal-btns" style="flex-shrink: 0; margin-top: 10px;"> 
+            <button class="btn-confirm" style="width: 100%;" onclick="closeModal('modal-chat-search')">CLOSE<span>关闭</span></button> 
+        </div> 
+    </div> 
+</div>
+
 <script>
 document.addEventListener('DOMContentLoaded', () => {
     const popup = document.getElementById('attachment-popup');
@@ -2629,7 +2646,6 @@ document.addEventListener('DOMContentLoaded', () => {
         popup.insertAdjacentHTML('beforeend', btnHtml);
     }
 });
-<!-- 聊天记录搜索弹窗 --> <div class="modal-overlay" id="modal-chat-search" style="z-index: 100005;"> <div class="modal" style="max-height: 85vh; display: flex; flex-direction: column;"> <h3>Search <span>搜索聊天记录</span></h3> <div style="display: flex; gap: 8px; margin-bottom: 10px; flex-shrink: 0;"> <input type="text" id="chat-search-input-modal" placeholder="输入关键词..." style="flex: 1;" onkeydown="if(event.key==='Enter') window.executeChatSearchModal()"> <button class="action-btn primary" style="margin: 0; padding: 0 15px;" onclick="window.executeChatSearchModal()">搜索</button> </div> <div id="chat-search-results-container" style="flex: 1; overflow-y: auto; min-height: 200px; border: 1px solid var(--border-color); border-radius: 8px; padding: 10px; background: var(--gray-light); display: flex; flex-direction: column; gap: 10px;"> <div style="text-align:center; color:var(--text-secondary); font-size:10px; margin-top: 20px;">请输入关键词进行搜索</div> </div> <div class="modal-btns" style="flex-shrink: 0; margin-top: 10px;"> <button class="btn-confirm" style="width: 100%;" onclick="closeModal('modal-chat-search')">CLOSE<span>关闭</span></button> </div> </div> </div>
 </script>
 <script src="script.js" defer></script>
 <script src="https://unpkg.com/vconsole@latest/dist/vconsole.min.js"></script>
