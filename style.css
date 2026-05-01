@@ -195,11 +195,11 @@ body {
 
         .title-serif { font-family: var(--font-serif); font-size: 34px; font-weight: 300; color: var(--text-color); line-height: 1.2; letter-spacing: 1px; display: flex; flex-direction: column; align-items: center; }
         .title-sub { font-family: var(--font-sans); font-size: 9px; letter-spacing: 2px; color: var(--text-secondary); text-transform: uppercase; margin-top: 2px; }
-        .text-btn { font-family: var(--font-sans); font-size: 8px; font-weight: 600; letter-spacing: 2px; text-transform: uppercase; color: var(--text-color); cursor: pointer; background: none; border: none; outline: none; padding: 8px 0; display: flex; flex-direction: column; align-items: center; }
+        .text-btn { font-family: var(--font-sans); font-size: 7px; font-weight: 600; letter-spacing: 2px; text-transform: uppercase; color: var(--text-color); cursor: pointer; background: none; border: none; outline: none; padding: 8px 0; display: flex; flex-direction: column; align-items: center; }
         .text-btn span { font-size: calc(var(--font-size) * 0.55); color: var(--text-secondary); letter-spacing: 1px; margin-top: 2px; }
         .text-btn:active { opacity: 0.4; }
         .text-btn:disabled { opacity: 0.3; cursor: not-allowed; }
-        .action-btn { background: var(--bg-color); border: 1px solid var(--border-color); color: var(--text-color); padding: 10px; border-radius: 0; cursor: pointer; text-align: center; margin-bottom: 8px; font-family: var(--font-sans); font-size: 9px; font-weight: 600; letter-spacing: 2px; text-transform: uppercase; display: flex; justify-content: center; align-items: center; gap: 5px; }
+        .action-btn { background: var(--bg-color); border: 1px solid var(--border-color); color: var(--text-color); padding: 8px; border-radius: 0; cursor: pointer; text-align: center; margin-bottom: 8px; font-family: var(--font-sans); font-size: 8px; font-weight: 600; letter-spacing: 1.5px; text-transform: uppercase; display: flex; justify-content: center; align-items: center; gap: 5px; }
         .action-btn:active { background: var(--text-color); color: var(--bg-color); }
         .action-btn.primary { background: var(--text-color); color: var(--bg-color); }
         .action-btn.primary:active { opacity: 0.8; }
@@ -426,7 +426,7 @@ body {
         .item-name span { font-family: var(--font-sans); font-size: 9px; color: var(--text-secondary); font-weight: 400; letter-spacing: 1px; text-transform: uppercase; }
         .item-desc { font-family: var(--font-sans); font-size: 10px; color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 300; }
         .item-actions { display: flex; align-items: center; gap: 6px; }
-        .btn-edit, .btn-delete { font-family: var(--font-sans); font-size: 7px; font-weight: 600; letter-spacing: 1px; text-transform: uppercase; padding: 5px 6px; border: 1px solid var(--border-color); background: transparent; color: var(--text-color); cursor: pointer; display: flex; flex-direction: column; align-items: center; }
+        .btn-edit, .btn-delete { font-family: var(--font-sans); font-size: 7px; font-weight: 600; letter-spacing: 1px; text-transform: uppercase; padding: 6px; border: 1px solid var(--border-color); background: transparent; color: var(--text-color); cursor: pointer; display: flex; flex-direction: column; align-items: center; }
         .btn-delete { color: var(--bg-color); background: var(--text-color); }
 
         #chat-view { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background-color: var(--bg-color); background-size: cover; background-repeat: no-repeat; background-position: center; z-index: 960; display: flex; flex-direction: column; transform: translateX(100%); opacity: 0; transition: transform var(--transition-smooth), opacity var(--transition-smooth); pointer-events: none; }
@@ -576,7 +576,7 @@ body {
         .modal input::placeholder, .modal textarea::placeholder { color: var(--text-secondary); text-transform: uppercase; font-size: 8px; letter-spacing: 1px; }
         .modal textarea { height: 100px; resize: vertical; }
         .modal-btns { display: flex; gap: 10px; justify-content: flex-end; margin-top: 5px; }
-        .modal-btns button { flex: 1; padding: 10px; border-radius: 0; border: 1px solid var(--border-color); font-family: var(--font-sans); font-size: 8px; font-weight: 600; letter-spacing: 2px; text-transform: uppercase; cursor: pointer; display: flex; flex-direction: column; align-items: center; }
+        .modal-btns button { flex: 1; padding: 6px; border-radius: 0; border: 1px solid var(--border-color); font-family: var(--font-sans); font-size: 7px; font-weight: 600; letter-spacing: 2px; text-transform: uppercase; cursor: pointer; display: flex; flex-direction: column; align-items: center; }
         .modal-btns button span { font-size: 6px; opacity: 0.7; margin-top: 2px; }
         .btn-cancel { background: var(--bg-color); color: var(--text-color); }
         .btn-cancel:active { background: var(--gray-light); }

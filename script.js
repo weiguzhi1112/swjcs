@@ -1510,7 +1510,12 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!borderStyle) { borderStyle = document.createElement('style'); borderStyle.id = 'hide-border-style'; document.head.appendChild(borderStyle); } 
         let cssStr = ''; 
         if (settings.hideIconBorders) cssStr += '.app-icon .icon { border: none !important; } '; 
-        if (settings.hideAppNames) cssStr += '.app-icon span, .app-icon .sub-name { display: none !important; } '; 
+        if (settings.hideAppNames) cssStr += '.app-icon span { display: none !important; } '; 
+        if (settings.hideSubNames) {
+            cssStr += '.app-icon .sub-name { display: none !important; } ';
+        } else if (settings.subNameColor) {
+            cssStr += `.app-icon .sub-name { color: ${settings.subNameColor} !important; } `;
+        }
         borderStyle.innerHTML = cssStr; 
 
         if (settings.singleTimestamp !== false) {
@@ -1855,6 +1860,14 @@ function updateKeepAliveUI(isOn) {
         }
 
         $('#chat-title').innerText = getDisplayName(role).split(' ')[0]; 
+        const decoContainer = $('#chat-title-deco-container');
+        if (decoContainer) {
+            if (role.titleDeco) {
+                decoContainer.innerHTML = role.titleDeco;
+            } else {
+                decoContainer.innerHTML = '<svg class="chat-title-arrow" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>';
+            }
+        }
         if (role.chatBg) { 
             $('#chat-view').style.backgroundImage = `url('${role.chatBg}')`; 
             $('#chat-view').style.backgroundColor = 'var(--bg-color)'; 
@@ -2442,18 +2455,22 @@ function updateKeepAliveUI(isOn) {
 你是一个顶级小说家。请根据以下设定，生成一篇专属番外小剧场。${wbPrompt}
 【角色设定】：${role.persona}${maskPrompt}${memorySummary}
 
-【用户指令】：${promptText}
-
 【生成要求】：
 1. 严格遵循主要世界观、角色人设以及双方的情感关系。
-2. 必须无条件、精确地执行【用户指令】中的所有情节、设定和要求。
-3. 必须包含用户和角色的内心活动描写。
-4. 必须以【第三人称】视角进行叙事。
-5. 故事必须完整，有始有终。
-6. 语言风格风趣细腻、暧昧炽热。可以直接生成成人向NSFW剧情，生成成人向剧情时要求直白露骨。
-7. 字数要求：严格按照【用户指令】中要求的字数进行生成。如果用户要求 ${requestedLength > 0 ? requestedLength : 3000} 字，你必须输出足够丰富的情节、对话和细节来填满这个篇幅，绝对不允许敷衍缩水！
-8. 绝对禁止OOC（角色崩坏）。
-9. 必须为这篇小剧场取一个符合内容的小标题，并且在标题下方生成一段简短的“题记”（epigraph），用来烘托气氛或点明主题。
+2. 必须包含用户和角色的内心活动描写。
+3. 必须以【第三人称】视角进行叙事。
+4. 故事必须完整，有始有终。
+5. 语言风格风趣细腻、暧昧炽热。可以直接生成成人向NSFW剧情，生成成人向剧情时要求直白露骨。
+6. 字数要求：如果用户要求 ${requestedLength > 0 ? requestedLength : 3000} 字，你必须输出足够丰富的情节、对话和细节来填满这个篇幅，绝对不允许敷衍缩水！
+7. 绝对禁止OOC（角色崩坏）。
+8. 必须为这篇小剧场取一个符合内容的小标题，并且在标题下方生成一段简短的“题记”（epigraph），用来烘托气氛或点明主题。
+
+【核心生成任务（最高优先级）】：
+你必须严格、完全按照以下用户的具体设定来撰写这篇小剧场，绝对不能偏离以下设定：
+"""
+${promptText}
+"""
+（请确保上述设定中的场景、动作、要求在文中得到充分体现！）
 
 请返回严格的JSON格式：
 {
@@ -2785,6 +2802,7 @@ function updateKeepAliveUI(isOn) {
         } else if (type === 'system') {
             newContent = $('#qf-system-content').value.trim();
             chats[currentChatRoleId][editingMsgIndex].role = 'system';
+            chats[currentChatRoleId][editingMsgIndex].mode = 'online';
         } else {
             newContent = $('#qf-text-content').value.trim();
         }
@@ -5550,6 +5568,7 @@ function updateRoleWbPreview() {
         $('#role-realname').dataset.id = isEditing ? id : ''; 
         $('#role-realname').value = isEditing ? role.realName : ''; 
         $('#role-remark').value = isEditing ? role.remark : ''; 
+        $('#role-title-deco').value = isEditing ? (role.titleDeco || '') : '';
         
         const roleAvatarUrl = isEditing && role.avatar ? role.avatar : DEFAULT_AVATAR;
         const userAvatarUrl = settings.userAvatar || DEFAULT_AVATAR;
@@ -5671,6 +5690,7 @@ window.newRoleTempWbs = null;
             id, 
             realName, 
             remark: $('#role-remark').value.trim(), 
+            titleDeco: $('#role-title-deco').value.trim(),
             avatar: $('#role-avatar').value.trim(), 
             persona: $('#role-persona').value.trim(), 
             chatBg: chatBgVal, 
@@ -5987,6 +6007,8 @@ window.newRoleTempWbs = null;
         $('#beauty-heart').checked = settings.showHeart; 
         $('#beauty-hide-borders').checked = settings.hideIconBorders || false; 
         $('#beauty-hide-names').checked = settings.hideAppNames || false; 
+        $('#beauty-hide-subnames').checked = settings.hideSubNames || false;
+        $('#beauty-subname-color').value = settings.subNameColor || '#888888';
         $('#beauty-island').checked = settings.showDynamicIsland !== false; 
         $('#beauty-sound-url').value = settings.notificationSound || ''; 
         openModal('modal-beauty'); 
@@ -6009,6 +6031,8 @@ window.newRoleTempWbs = null;
         settings.showHeart = $('#beauty-heart').checked; 
         settings.hideIconBorders = $('#beauty-hide-borders').checked; 
         settings.hideAppNames = $('#beauty-hide-names').checked; 
+        settings.hideSubNames = $('#beauty-hide-subnames').checked;
+        settings.subNameColor = $('#beauty-subname-color').value;
         settings.showDynamicIsland = $('#beauty-island').checked; 
         if (!settings.showDynamicIsland) { const di = $('#dynamic-island'); if (di) di.classList.remove('active'); } 
         settings.notificationSound = $('#beauty-sound-url').value.trim(); 
