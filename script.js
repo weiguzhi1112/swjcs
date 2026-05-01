@@ -2388,6 +2388,8 @@ function updateKeepAliveUI(isOn) {
                 <div class="view-content" style="display: flex; flex-direction: column; gap: 10px;">
                     <input type="text" id="theater-read-title" readonly style="font-family: var(--font-serif); font-size: 20px; font-weight: bold; border: none; background: transparent; color: var(--text-color); padding: 10px 0; outline: none;">
                     <input type="text" id="theater-read-epigraph" readonly style="font-size: 12px; font-style: italic; color: var(--text-secondary); border: none; background: transparent; padding: 10px 0; outline: none;" placeholder="题记...">
+                    <!-- 用于显示小剧场字数/Token的容器 -->
+                    <div id="theater-read-token-count" style="font-size: 10px; color: var(--text-secondary); text-align: right;"></div>
                     <div id="theater-read-content" contenteditable="false" style="width: 100%; min-height: 60vh; border: none; background: transparent; color: var(--text-color); font-size: 14px; line-height: 1.8; outline: none; padding: 10px 0; overflow-y: auto; word-break: break-word;"></div>
                     <button class="action-btn" style="border-color: #ff4d4d; color: #ff4d4d; padding: 12px; border-radius: 12px;" onclick="deleteTheater()">删除此剧场</button>
                 </div>
@@ -2625,10 +2627,10 @@ ${promptText}
             $('#theater-read-epigraph').value = card.epigraph || '';
             $('#theater-read-content').innerHTML = card.content || '';
             
-            // 新增：计算这条消息的长度（近似Token），并显示在刚刚添加的 div 中
-            const tokenCount = msg.content ? msg.content.length : 0;
+            /* 计算小剧场正文的实际字数，去除HTML标签，使统计更准确 */
+            const tokenCount = card.content ? card.content.replace(/<[^>]*>/g, '').length : 0;
             const tokenEl = document.getElementById('theater-read-token-count');
-            if (tokenEl) tokenEl.innerText = `Token: 约 ${tokenCount}`;
+            if (tokenEl) tokenEl.innerText = `字数: 约 ${tokenCount} 字`;
             
             $('#view-theater-reader').classList.add('active');
             const epiEl = $('#theater-read-epigraph'); epiEl.style.height = 'auto'; epiEl.style.height = epiEl.scrollHeight + 'px';
@@ -2796,7 +2798,18 @@ ${promptText}
         } else if (type === 'image') {
             const urlMatch = originalContent.match(/src=["'](.*?)["']/);
             const url = urlMatch ? urlMatch[1] : '';
-            html = `<label>IMAGE URL / 图片链接</label><input type="text" id="qf-img-url" value="${url}" style="margin-bottom:10px;"><label>DESCRIPTION / 描述(可选)</label><input type="text" id="qf-img-desc" placeholder="例如: 摸摸头" value="${cleanText}">`;
+            const virtualMatch = originalContent.match(/data-virtual=["'](.*?)["']/);
+            let virtualText = virtualMatch ? virtualMatch[1] : '';
+            /* 如果没有匹配到 data-virtual，尝试匹配 [VIRTUAL_IMG:xxx] 格式，保留原本的表情包描述代码 */
+            if (!virtualText) {
+                const vImgMatch = originalContent.match(/\[VIRTUAL_IMG:(.*?)\]/);
+                if (vImgMatch) {
+                    virtualText = vImgMatch[1];
+                } else {
+                    virtualText = cleanText;
+                }
+            }
+            html = `<label>IMAGE URL / 图片链接</label><input type="text" id="qf-img-url" value="${url}" style="margin-bottom:10px;"><label>DESCRIPTION / 描述(可选)</label><input type="text" id="qf-img-desc" placeholder="例如: 摸摸头" value="${virtualText}">`;
         } else if (type === 'transfer') {
             html = `<label>TRANSFER AMOUNT / 转账金额 (¥)</label><input type="number" id="qf-tx-amount" placeholder="例如: 520" value="520">`;
         } else if (type === 'pay_req') {
@@ -3001,7 +3014,7 @@ ${promptText}
                 if (aiReply.includes('[ACCEPT_CALL]')) {
                     startCallTimer();
                 } else {
-                    aiReply = aiReply.replace('[REJECT_CALL]', '').trim();
+                    aiReply = aiReply.replace(/\[?REJECT_CALL\]?[:：\s]*/gi, '').trim();
                     $('#view-real-call').classList.remove('active');
                     const now = new Date();
                     chats[currentChatRoleId].push({ role: 'system', content: '对方拒绝了通话', time: now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }), rawTime: now.getTime(), mode: 'online' });
@@ -5678,7 +5691,7 @@ async function generateTodaySummary(roleId) {
     function deleteMemoirStyle(id) { if (id === 'default') return; if (confirm('删除风格？')) { memoirStyles = memoirStyles.filter(s => s.id !== id); if (settings.memoirStyleId === id) settings.memoirStyleId = 'default'; DB.set('memoirStyles', memoirStyles); renderMemoirStylesList(); } }
     function saveMemoirSettings() { settings.memoirMaxLength = parseInt($('#memoir-max-len').value); DB.set('settings', settings); closeModal('modal-memoir-settings'); }
         function openMemoirStyleEditor(id = null) { editingMemoirStyleId = id; if (id) { const s = memoirStyles.find(x => x.id === id); $('#memoir-style-editor-title').innerText = 'EDIT STYLE'; $('#memoir-style-name').value = s.name; $('#memoir-style-prompt').value = s.prompt; } else { editingMemoirStyleId = null; $('#memoir-style-editor-title').innerText = 'NEW STYLE'; $('#memoir-style-name').value = ''; $('#memoir-style-prompt').value = ''; } openModal('modal-memoir-style-editor'); }
-    function deleteRole() { const id = $('#role-realname').dataset.id; if (!id) return; const role = roles.find(r => r.id === id); if (!role) return; if (confirm(`删除角色 "${getDisplayName(role)}"? 所有数据将丢失。`)) { roles = roles.filter(r => r.id !== id); delete chats[id]; delete memories[id]; albums.forEach(a => { if (a.boundRoleId === id) a.boundRoleId = ''; }); feeds = feeds.filter(f => f.roleId !== id); DB.set('roles', roles); DB.set('chats', chats); DB.set('memories', memories); DB.set('albums', albums); DB.set('feeds', feeds); closeRoleView(); renderAll(); if (currentChatRoleId === id) closeChat(); } }
+    function deleteRole() { const id = $('#role-realname').dataset.id; if (!id) return; const role = roles.find(r => r.id === id); if (!role) return; if (confirm(`删除角色 "${getDisplayName(role)}"? 所有数据将丢失。`)) { roles = roles.filter(r => r.id !== id); delete chats[id]; delete memories[id]; albums.forEach(a => { if (a.boundRoleId === id) a.boundRoleId = ''; }); feeds = feeds.filter(f => f.roleId !== id); /* 清理拉黑列表中的该角色ID */ blockList.blockedByUser = blockList.blockedByUser.filter(bid => bid !== id); blockList.blockedByRole = blockList.blockedByRole.filter(bid => bid !== id); DB.set('blockList', blockList); DB.set('roles', roles); DB.set('chats', chats); DB.set('memories', memories); DB.set('albums', albums); DB.set('feeds', feeds); closeRoleView(); renderAll(); if (currentChatRoleId === id) closeChat(); } }
     function clearEntityData(id) { if(confirm("清空该角色的聊天记录和记忆？")) { delete chats[id]; delete memories[id]; DB.set('chats', chats); DB.set('memories', memories); renderContacts(); renderRecent(); renderMemoryView(); } }
     async function parseApiError(response) { let e = `HTTP ${response.status}`; try { const d = await response.json(); e += `: ${d.error?.message || d.message}`;} catch(err){} return e; }
     function openUserAvatarModal() { $('#user-avatar-url').value = settings.userAvatar || ''; openModal('modal-user-avatar'); }
@@ -5755,6 +5768,12 @@ function updateRoleWbPreview() {
         $('#role-avatar').value = isEditing && role.avatar ? role.avatar : ''; 
         $('#role-edit-role-avatar').style.backgroundImage = `url('${roleAvatarUrl}')`;
         $('#role-edit-user-avatar').style.backgroundImage = `url('${userAvatarUrl}')`;
+
+        /* 读取并显示保存的颜文字，如果没有则显示默认值 */
+        const userBubbleEl = $('#role-edit-user-bubble');
+        if (userBubbleEl) userBubbleEl.innerText = isEditing && role.userBubble ? role.userBubble : '˃ 𖥦 ˂';
+        const aiBubbleEl = $('#role-edit-ai-bubble');
+        if (aiBubbleEl) aiBubbleEl.innerText = isEditing && role.aiBubble ? role.aiBubble : '⩌⩊⩌';
 
         $('#role-persona').value = isEditing ? role.persona : ''; 
         
@@ -5866,12 +5885,20 @@ window.newRoleTempWbs = null;
         let callBgVal = $('#role-call-bg').value.trim();
         if (callBgVal === '已上传本地图片 (重新上传覆盖)') callBgVal = $('#role-call-bg').dataset.realValue || '';
 
+        /* 获取用户编辑后的颜文字内容 */
+        const userBubbleEl = $('#role-edit-user-bubble');
+        const aiBubbleEl = $('#role-edit-ai-bubble');
+        const userBubble = userBubbleEl ? userBubbleEl.innerText.trim() : '˃ 𖥦 ˂';
+        const aiBubble = aiBubbleEl ? aiBubbleEl.innerText.trim() : '⩌⩊⩌';
+
         const roleData = { 
             id, 
             realName, 
             remark: $('#role-remark').value.trim(), 
             titleColor: $('#role-title-color') ? $('#role-title-color').value : (settings.theme === 'dark' ? '#ffffff' : '#000000'),
             avatar: $('#role-avatar').value.trim(), 
+            userBubble: userBubble,
+            aiBubble: aiBubble,
             persona: $('#role-persona').value.trim(), 
             chatBg: chatBgVal, 
             callBg: callBgVal, 

@@ -1459,7 +1459,8 @@
         <div style="position: relative; display: flex; flex-direction: column; align-items: center; padding: 40px 0 20px 0; margin-bottom: 10px;">
             <div class="avatars-section" style="margin-top: 0; width: 100%; z-index: 2;">
         <div class="avatar-wrapper">
-    <div class="widget-bubble"> ˃ 𖥦 ˂ </div>
+    <!-- 增加id和可编辑属性，允许用户修改颜文字 -->
+    <div class="widget-bubble" id="role-edit-user-bubble" contenteditable="true" spellcheck="false"> ˃ 𖥦 ˂ </div>
     <div class="widget-avatar-circle" id="role-edit-user-avatar" onclick="document.getElementById('role-edit-user-avatar-upload').click()" style="background-image: url(''); border: none;"></div>
     <input type="file" id="role-edit-user-avatar-upload" style="display: none;" accept="image/*" onchange="handleRoleEditUserAvatarUpload(this)">
 </div>
@@ -1470,7 +1471,8 @@
                     </svg>
                 </div>
                 <div class="avatar-wrapper">
-                    <div class="widget-bubble"> ⩌⩊⩌ </div>
+                    <!-- 增加id和可编辑属性，允许用户修改颜文字 -->
+                    <div class="widget-bubble" id="role-edit-ai-bubble" contenteditable="true" spellcheck="false"> ⩌⩊⩌ </div>
                     <div class="widget-avatar-circle" id="role-edit-role-avatar" onclick="document.getElementById('role-avatar-upload').click()" style="background-image: url(''); border: none;"></div>
                     <input type="file" id="role-avatar-upload" style="display: none;" accept="image/*" onchange="handleImageUpload(this, 'role-avatar'); setTimeout(()=&gt;{ document.getElementById('role-edit-role-avatar').style.backgroundImage = 'url(' + document.getElementById('role-avatar').value + ')'; }, 200);">
                     <input type="hidden" id="role-avatar">
