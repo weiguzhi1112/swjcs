@@ -7518,6 +7518,10 @@ window.newRoleTempWbs = null;
         const role = roles.find(r => r.id === roleId);
         if (!feed || !role || !apiConfig.url) return;
 
+        // 核心修复：开启正在回复的状态，并刷新 UI
+        feed.isReplying = true;
+        renderFeeds();
+
         const memorySummary = memories[role.id] ? `\n[SHARED MEMORY]\n${memories[role.id]}` : ''; 
         const prompt = `[SYSTEM DIRECTIVE]
 你是${role.realName}。${role.persona}${memorySummary}
@@ -7536,11 +7540,14 @@ window.newRoleTempWbs = null;
             
             feed.comments.push({ role: 'ai', author: getDisplayName(role), replyTo: null, content: replyContent, time: new Date().getTime() }); 
             DB.set('feeds', feeds); 
-            renderFeeds();
             
             showSystemNotification(role.id, '动态新评论', `${getDisplayName(role)} 评论了你的动态: ${replyContent}`, role.avatar);
         } catch (e) {
             console.error("AI auto comment error:", e);
+        } finally {
+            // 核心修复：无论成功失败，关闭正在回复的状态，并刷新 UI
+            feed.isReplying = false;
+            renderFeeds();
         }
     }
 
@@ -9779,31 +9786,51 @@ async function autoGenerateSummary(roleId, type = 'episodic') {
         const msgsToSummarize = msgs.slice(startIndex, endIndex);
         const chatText = msgsToSummarize.map(m => {
             let text = m.content.replace(/<[^>]*>/g, '');
-            text = text.replace(/\[THEATER_CARD:.*?\]/g, ''); // 核心修复：过滤小剧场，防止污染记忆
+            text = text.replace(/\[THEATER_CARD:.*?\]/g, ''); // 过滤小剧场，防止污染记忆
             return `${m.role === 'user' ? 'ME' : role.realName}: ${text}`;
         }).join('\n');
-        const typeLabel = type === 'episodic' ? '最近发生了什么' : '我们之间的故事走到了哪里';
-        const prompt = `你是${role.realName}。${role.persona ? role.persona.substring(0, 200) : ''}\n\n以下是你和用户最新的一段对话记录：\n\n${chatText}\n\n以你（${role.realName}）的第一人称视角，用你自己的语气，用500字以内随手记下"${typeLabel}"。像真人在脑子里过一遍那种感觉，口语化，有主观感受，可以有情绪，可以不完整。禁止油腻，禁止物化用户，禁止书面腔。直接输出内容，不加任何标题。`;
+        
+        // 核心修复：让 AI 智能判断记忆类型并返回 JSON
+        const prompt = `你是${role.realName}。${role.persona ? role.persona.substring(0, 200) : ''}\n\n以下是你和用户最新的一段对话记录：\n\n${chatText}\n\n
+请以你（${role.realName}）的第一人称视角，用你自己的语气，用500字以内随手记下这段记忆。像真人在脑子里过一遍那种感觉，口语化，有主观感受。
+【分类要求】：
+请判断这段记忆的性质，并返回严格的JSON格式：
+{
+  "type": "core" 或 "episodic" 或 "plot",
+  "content": "你的记忆正文"
+}
+- 如果对话中包含用户表达喜欢你、重大誓言、确立关系等极其重要的情感转折，type 填 "core" (核心记忆)。
+- 如果对话主要是打电话、分享小剧场、或者某个特定的具体事件场景，type 填 "episodic" (情景记忆)。
+- 如果只是普通的日常聊天推进，type 填 "plot" (剧情总结)。
+直接输出JSON，不要加任何其他文字。`;
         
         const endpoint = getChatEndpoint(apiConfig.url);
         const res = await fetch(endpoint, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiConfig.key}` },
-            body: JSON.stringify({ model: apiConfig.model, messages: [{ role: 'user', content: prompt }], max_tokens: 400, temperature: 0.75 })
+            body: JSON.stringify({ model: apiConfig.model, messages: [{ role: 'user', content: prompt }], max_tokens: 600, temperature: 0.75 })
         });
         const data = await res.json();
-        const summary = data.choices[0].message.content.trim();
+        const resultStr = data.choices[0].message.content.trim();
+        
+        let parsedResult;
+        try {
+            parsedResult = JSON.parse(extractJSON(resultStr));
+        } catch (e) {
+            // 如果解析失败，默认存入剧情总结
+            parsedResult = { type: 'plot', content: resultStr.replace(/<[^>]*>/g, '') };
+        }
+
+        const summary = parsedResult.content;
+        const determinedType = parsedResult.type;
         const now = new Date().toLocaleString('zh-CN');
         
-        // 核心修复：根据用户需求，将不同类型的总结保存到对应的记忆库
-        if (type === 'episodic') {
-            // 如果是打电话/分享的小剧场，保存到情景记忆
-            advancedMemories[roleId].episodicMemories.push({ content: summary, time: now, auto: true });
-        } else if (type === 'core') {
-            // 如果是喜欢角色/重大誓言，保存到核心记忆
+        // 根据 AI 判断的类型存入对应的记忆库
+        if (determinedType === 'core') {
             advancedMemories[roleId].coreMemories.push({ content: summary, time: now, auto: true });
+        } else if (determinedType === 'episodic') {
+            advancedMemories[roleId].episodicMemories.push({ content: summary, time: now, auto: true });
         } else {
-            // 剧情总结保存到 plotSummaries
             advancedMemories[roleId].plotSummaries.push({ content: summary, time: now, auto: true });
         }
         
