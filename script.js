@@ -1731,7 +1731,8 @@ function showSystemNotification(roleId, title, body, icon) {
 
     let systemNotifSent = false;
 
-    if (!isCurrentChat && "Notification" in window && Notification.permission === "granted") {
+    /* 修复毒瘤：移除 !isCurrentChat 限制，只要开启了通知权限，即使在聊天界面也强制发送系统通知 */
+    if ("Notification" in window && Notification.permission === "granted") {
         const uniqueTag = 'msg_' + (roleId || 'test') + '_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6);
         const options = { body: cleanBody, icon: icon || DEFAULT_AVATAR, badge: icon || DEFAULT_AVATAR, tag: uniqueTag, renotify: true, silent: false, requireInteraction: false, data: { roleId: roleId } };
 
@@ -3008,7 +3009,8 @@ ${promptText}
         };
         
         if (initiator === 'user') {
-            const prompt = `[系统提示：用户向你发起了语音通话。]\n请根据你当前的人设（${role.persona}）、时间、以及对用户的好感度决定是否接听。\n如果你决定接听，请回复 [ACCEPT_CALL]；\n如果你决定拒绝（比如在忙、生气、或者人设就是高冷不爱接电话），请回复 [REJECT_CALL] 并附上一句挂断后发给用户的文字消息（解释为什么不接或直接嘲讽）。\n只输出回复，不要加引号。`;
+            /* 优化提示词，强制要求AI给出拒绝理由，防止回复为空 */
+            const prompt = `[系统提示：用户向你发起了语音通话。]\n请根据你当前的人设（${role.persona}）、时间、以及对用户的好感度决定是否接听。\n如果你决定接听，请仅回复 [ACCEPT_CALL]；\n如果你决定拒绝（比如在忙、生气、或者人设就是高冷不爱接电话），请回复 [REJECT_CALL] 并务必附上一句挂断后发给用户的文字消息（解释为什么不接或直接嘲讽）。例如：[REJECT_CALL] 我在开会，晚点说。\n只输出回复，不要加引号。`;
             try {
                 const endpoint = getChatEndpoint(apiConfig.url);
                 const chatRes = await fetch(endpoint, {
@@ -3342,13 +3344,20 @@ let currentCallAudioId = null;
             const chatData = await chatRes.json();
             const aiReply = chatData.choices[0].message.content.trim();
 
-            convBox.innerHTML += renderCallMessage(aiName, aiReply, false);
-            convBox.scrollTop = convBox.scrollHeight;
-            
-            if (!isRetry) {
-                currentCallText += `我: ${text}\n${aiName}: ${aiReply}\n`;
+            /* 修复空回毒瘤：如果AI回复为空，不渲染空气泡，而是显示沉默提示 */
+            if (aiReply) {
+                convBox.innerHTML += renderCallMessage(aiName, aiReply, false);
+                convBox.scrollTop = convBox.scrollHeight;
+                
+                if (!isRetry) {
+                    currentCallText += `我: ${text}\n${aiName}: ${aiReply}\n`;
+                } else {
+                    currentCallText += `${aiName}: ${aiReply}\n`;
+                }
             } else {
-                currentCallText += `${aiName}: ${aiReply}\n`;
+                convBox.innerHTML += `<div style="color: #888; text-align: center; font-size: 10px; margin: 8px 0; width: 100%; font-style: italic;">对方保持沉默...</div>`;
+                convBox.scrollTop = convBox.scrollHeight;
+                if (!isRetry) currentCallText += `我: ${text}\n${aiName}: (沉默)\n`;
             }
 
             let audioId = null;
@@ -4523,10 +4532,16 @@ ${modeRules}
             /* 毒瘤修复：过滤掉 content 为空的消息，防止 API 报错 */
             const historyMsgs = msgs.slice(0, -1).slice(-contextLimit).map(m => {
                 let msgRole = m.role;
-                if (msgRole !== 'user' && msgRole !== 'system') msgRole = 'assistant';
-                
                 let content = cleanHistoryContent(m.content, m.role);
                 if (!content) return null; // 如果清理后为空，返回 null
+                
+                /* 修复毒瘤：将 system 消息伪装成 user 发送，并加上前缀，强制大模型读取，防止被忽略报错 */
+                if (msgRole === 'system') {
+                    msgRole = 'user';
+                    content = `[系统提示：${content}]`;
+                } else if (msgRole !== 'user') {
+                    msgRole = 'assistant';
+                }
                 
                 if (settings.timeAware && m.rawTime) {
                     const d = new Date(m.rawTime);
@@ -11888,7 +11903,8 @@ function deleteSelectedStatus() {
 function getStatusPromptSuffix(roleId) {
     const config = statusBarData[roleId];
     if (!config || !config.enabled) return '';
-    return '\n\n【心声生成指令】\n请在回复的最末尾，换行并使用 [心声: 你的内心想法 | 好感度: 当前好感度/100] 的格式，输出你对用户刚才那句话的真实看法、心理活动以及当前的好感度。例如：[心声: 他居然这么说，有点开心 | 好感度: 85/100]。必须严格遵守此格式！不允许照搬示例';
+    /* 优化提示词，强制要求AI生成更丰富、细腻的心声 */
+    return '\n\n【心声生成指令】\n请在回复的最末尾，换行并使用 [心声: 你的内心想法 | 好感度: 当前好感度/100] 的格式，输出你对用户刚才那句话的真实看法、深层心理活动以及当前的好感度。心声内容请尽量丰富、细腻，展现你未说出口的真实情绪（至少20-50字）。例如：[心声: 听到他这么说，我心里其实猛地跳了一下，虽然表面上装作不在意，但真的很想立刻抱住他... | 好感度: 85/100]。必须严格遵守此格式！不允许照搬示例';
 }
 
 function onAiAvatarDblClick() {
