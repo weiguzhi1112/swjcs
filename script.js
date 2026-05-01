@@ -6031,13 +6031,12 @@ function updateRoleWbPreview() {
         const streakEl = document.getElementById('role-streak-display');
         if (streakEl) streakEl.innerText = streakDays > 0 ? `🔥 已连续对话 ${streakDays} 天` : '尚未开始连续对话';
         
-        const tokenCountEl = document.getElementById('role-token-count');
-        if (tokenCountEl) {
-            let tokenCount = 0;
-            if (isEditing && chats[id]) {
-                tokenCount = chats[id].reduce((acc, msg) => acc + (msg.content ? msg.content.length : 0), 0);
-            }
-            tokenCountEl.innerText = `当前聊天总计 Token: 约 ${tokenCount}`;
+        /* 调用专门的 Token 统计函数，显示人设、世界书、聊天等详细 Token */
+        if (isEditing) {
+            window.updateRoleTokenCountUI(id);
+        } else {
+            const tokenCountEl = document.getElementById('role-token-count');
+            if (tokenCountEl) tokenCountEl.innerHTML = `Token 消耗预估: 暂无数据`;
         }
 
         $('#btn-del-role').style.display = isEditing ? 'block' : 'none'; 
@@ -6342,8 +6341,50 @@ window.newRoleTempWbs = null;
         document.getElementById('sub-api-url').value = config.url || '';
         document.getElementById('sub-api-key').value = config.key || '';
         document.getElementById('sub-api-model').value = config.model || '';
+        document.getElementById('sub-api-model-select').style.display = 'none';
+        
+        /* 渲染主API的预设列表供副API快速选择 */
+        const presetList = document.getElementById('sub-api-presets-list');
+        if (apiPresets.length === 0) {
+            presetList.innerHTML = '<div style="text-align:center; color:var(--text-secondary); font-size:10px; padding:10px;">暂无预设</div>';
+        } else {
+            presetList.innerHTML = apiPresets.map(p => `
+                <div class="list-item" style="padding:8px 0; border-bottom:1px solid var(--gray-light);">
+                    <div class="item-name" style="font-size:11px;">${p.name}</div>
+                    <button class="action-btn" style="margin:0; padding:4px 10px; font-size:9px;" onclick="loadSubApiPreset('${p.id}')">LOAD</button>
+                </div>
+            `).join('');
+        }
+        
         openModal('modal-sub-api');
     }
+
+    window.loadSubApiPreset = function(presetId) {
+        const preset = apiPresets.find(p => p.id === presetId);
+        if (!preset) return;
+        document.getElementById('sub-api-url').value = preset.url || '';
+        document.getElementById('sub-api-key').value = preset.key || '';
+        document.getElementById('sub-api-model').value = preset.model || '';
+    };
+
+    window.fetchSubModels = async function() { 
+        const url = document.getElementById('sub-api-url').value.trim();
+        const key = document.getElementById('sub-api-key').value.trim(); 
+        if(!url || !key) return alert('请先填写 URL 和 KEY'); 
+        try { 
+            let modelsUrl = url.replace(/\/v1.*$/, '') + '/v1/models'; 
+            const res = await fetch(modelsUrl, { headers: { 'Authorization': `Bearer ${key}` } }); 
+            if (!res.ok) throw new Error(await parseApiError(res)); 
+            const data = await res.json(); 
+            if(data.data) { 
+                const select = document.getElementById('sub-api-model-select');
+                select.style.display = 'block'; 
+                select.innerHTML = '<option value="">选择模型</option>' + data.data.map(m => `<option value="${m.id}">${m.id}</option>`).join(''); 
+            } 
+        } catch(e) { 
+            alert('拉取失败:\n' + e.message); 
+        } 
+    };
 
     function saveSubApi() {
         if (!currentSubApiAppId) return;

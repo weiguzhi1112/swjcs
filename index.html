@@ -2454,14 +2454,22 @@
 </div>
 
 <!-- 通用副 API 配置弹窗 -->
-<div class="modal-overlay" id="modal-sub-api">
+<div class="modal-overlay" id="modal-sub-api" style="z-index: 100005;">
     <div class="modal">
         <h3>Sub Engine <span>应用专属副API配置</span></h3>
         <div class="setting-group" style="border:none; padding:0;">
             <input type="text" id="sub-api-url" placeholder="API ENDPOINT">
             <input type="password" id="sub-api-key" placeholder="API KEY" style="margin-top:10px;">
-            <input type="text" id="sub-api-model" placeholder="MODEL ID" style="margin-top:10px;">
+            <div style="display:flex; gap:10px; margin-top:10px;">
+                <input type="text" id="sub-api-model" placeholder="MODEL ID">
+                <button class="action-btn" onclick="fetchSubModels()" style="margin:0; padding: 0 15px;">FETCH</button>
+            </div>
+            <select id="sub-api-model-select" style="display:none; margin-top:10px;" onchange="document.getElementById('sub-api-model').value=this.value"></select>
             <div style="font-size: 9px; color: var(--text-secondary); margin-top: 10px; line-height: 1.5;">* 配置后，当前应用（如外卖、论坛、游戏等）的AI生成将优先使用此副API。留空则默认使用系统主API。</div>
+        </div>
+        <div class="setting-group" style="border:none; padding:0; border-top: 1px solid var(--border-color); padding-top: 20px;">
+            <h4 style="border:none; margin-bottom:10px;">Presets <span>主API预设</span></h4>
+            <div id="sub-api-presets-list" style="max-height: 150px; overflow-y: auto; border: 1px solid var(--border-color); padding: 5px;"></div>
         </div>
         <div class="modal-btns">
             <button class="btn-cancel" onclick="closeModal('modal-sub-api')">CANCEL<span>取消</span></button>
