@@ -555,6 +555,8 @@ async function checkDiscordCallback() {
 
     let currentChatRoleId = null;
     let currentChatMode = 'online';
+    let chatDisplayLimit = 50;
+    let callMsgPressTimer = null;
     let currentCallInitiator = 'user';
     let isVideoCall = false;
     let editingMsgIndex = -1;
@@ -1857,6 +1859,7 @@ function updateKeepAliveUI(isOn) {
 
     function openChat(roleId) { 
         currentChatRoleId = roleId; 
+        chatDisplayLimit = 50;
         const role = roles.find(r => r.id === roleId); 
         if (!role) return; 
         
@@ -1940,8 +1943,8 @@ function updateKeepAliveUI(isOn) {
         const container = $('#chat-messages'); 
         if (!currentChatRoleId) { container.innerHTML = ""; return; } 
         const allMsgs = chats[currentChatRoleId] || []; 
-        const msgs = allMsgs.slice(-50);
-        const startIndex = Math.max(0, allMsgs.length - 50);
+        const msgs = allMsgs.slice(-chatDisplayLimit);
+        const startIndex = Math.max(0, allMsgs.length - chatDisplayLimit);
         const role = roles.find(r => r.id === currentChatRoleId); 
         const userAvatar = settings.userAvatar || DEFAULT_AVATAR; 
         let lastRole = null; 
@@ -2259,6 +2262,16 @@ function updateKeepAliveUI(isOn) {
         const yesterdayStr = yesterday.toDateString();
 
         const fragment = document.createDocumentFragment();
+        if (allMsgs.length > chatDisplayLimit) {
+            const loadMoreBtn = document.createElement('div');
+            loadMoreBtn.style.cssText = 'text-align:center; padding:10px; color:var(--text-secondary); font-size:10px; cursor:pointer; text-decoration:underline;';
+            loadMoreBtn.innerText = '加载更多历史记录...';
+            loadMoreBtn.onclick = () => {
+                chatDisplayLimit += 50;
+                renderMessages();
+            };
+            fragment.appendChild(loadMoreBtn);
+        }
         rows.forEach((row, i) => {
             const msg = msgs[i];
             if (!msg || !msg.rawTime) {
@@ -2966,6 +2979,11 @@ ${promptText}
 
     async function openRealCallScreen(initiator = 'user') {
         if (!currentChatRoleId) return;
+        
+        currentCallText = "";
+        currentCallAudioId = null;
+        callSeconds = 0;
+        
         currentCallInitiator = initiator;
         isVideoCall = false;
         const videoStatusEl = document.getElementById('call-video-status');
@@ -3108,23 +3126,38 @@ ${promptText}
         $('#view-real-call').classList.add('active');
     }
 
+window.handleCallMsgTouchStart = function(e, el) {
+    callMsgPressTimer = setTimeout(() => {
+        if (navigator.vibrate) navigator.vibrate(50);
+        if (confirm("确定要从当前通话记录中删除这句话/旁白吗？")) {
+            const textToRemove = el.innerText.replace(/^[^\n]+\n/, '');
+            currentCallText = currentCallText.replace(textToRemove, '');
+            el.remove();
+        }
+    }, 600);
+};
+window.handleCallMsgTouchEnd = function() {
+    clearTimeout(callMsgPressTimer);
+};
+
 function renderCallMessage(name, text, isMe) {
     let html = '';
     const regex = /["“「](.*?)["”」]/g;
     let lastIndex = 0;
     let match;
+    const touchHandlers = `onmousedown="handleCallMsgTouchStart(event, this)" onmouseup="handleCallMsgTouchEnd()" onmouseleave="handleCallMsgTouchEnd()" ontouchstart="handleCallMsgTouchStart(event, this)" ontouchend="handleCallMsgTouchEnd()" ontouchcancel="handleCallMsgTouchEnd()"`;
+
     while ((match = regex.exec(text)) !== null) {
         const action = text.substring(lastIndex, match.index).trim();
         if (action) {
-            html += `<div style="color: #999; text-align: center; font-size: 10px; margin: 8px 0; align-self: center; width: 100%; font-style: italic;">${action}</div>`;
+            html += `<div ${touchHandlers} style="color: #999; text-align: center; font-size: 10px; margin: 8px 0; align-self: center; width: 100%; font-style: italic; cursor:pointer;">${action}</div>`;
         }
         const spoken = match[1].trim();
         if (spoken) {
             if (isMe) {
-                html += `<div style="color: #fff; text-align: left; background: rgba(255,255,255,0.15); padding: 10px 14px; border-radius: 16px; align-self: flex-end; max-width: 85%; margin-bottom: 8px; border: 1px solid rgba(255,255,255,0.2); box-shadow: 0 4px 15px rgba(0,0,0,0.2);"><span style="font-size:10px; font-weight:bold; color:#aaa; margin-bottom:4px; display:block;">${name}</span>${spoken}</div>`;
+                html += `<div ${touchHandlers} style="color: #fff; text-align: left; background: rgba(255,255,255,0.15); padding: 10px 14px; border-radius: 16px; align-self: flex-end; max-width: 85%; margin-bottom: 8px; border: 1px solid rgba(255,255,255,0.2); box-shadow: 0 4px 15px rgba(0,0,0,0.2); cursor:pointer;"><span style="font-size:10px; font-weight:bold; color:#aaa; margin-bottom:4px; display:block;">${name}</span>${spoken}</div>`;
             } else {
-                /* 优化逻辑：将AI的气泡也改为半透明暗色风格，与用户统一 */
-                html += `<div style="color: #fff; text-align: left; background: rgba(255,255,255,0.1); padding: 10px 14px; border-radius: 16px; align-self: flex-start; max-width: 85%; border: 1px solid rgba(255,255,255,0.15); margin-bottom: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.2);"><span style="font-size:10px; font-weight:bold; color:#aaa; margin-bottom:4px; display:block;">${name}</span>${spoken}</div>`;
+                html += `<div ${touchHandlers} style="color: #fff; text-align: left; background: rgba(255,255,255,0.1); padding: 10px 14px; border-radius: 16px; align-self: flex-start; max-width: 85%; border: 1px solid rgba(255,255,255,0.15); margin-bottom: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.2); cursor:pointer;"><span style="font-size:10px; font-weight:bold; color:#aaa; margin-bottom:4px; display:block;">${name}</span>${spoken}</div>`;
             }
         }
         lastIndex = regex.lastIndex;
@@ -3133,13 +3166,12 @@ function renderCallMessage(name, text, isMe) {
     if (lastAction) {
         if (lastIndex === 0) {
             if (isMe) {
-                html += `<div style="color: #fff; text-align: left; background: rgba(255,255,255,0.15); padding: 10px 14px; border-radius: 16px; align-self: flex-end; max-width: 85%; margin-bottom: 8px; border: 1px solid rgba(255,255,255,0.2); box-shadow: 0 4px 15px rgba(0,0,0,0.2);"><span style="font-size:10px; font-weight:bold; color:#aaa; margin-bottom:4px; display:block;">${name}</span>${lastAction}</div>`;
+                html += `<div ${touchHandlers} style="color: #fff; text-align: left; background: rgba(255,255,255,0.15); padding: 10px 14px; border-radius: 16px; align-self: flex-end; max-width: 85%; margin-bottom: 8px; border: 1px solid rgba(255,255,255,0.2); box-shadow: 0 4px 15px rgba(0,0,0,0.2); cursor:pointer;"><span style="font-size:10px; font-weight:bold; color:#aaa; margin-bottom:4px; display:block;">${name}</span>${lastAction}</div>`;
             } else {
-                /* 优化逻辑：将AI的气泡也改为半透明暗色风格，与用户统一 */
-                html += `<div style="color: #fff; text-align: left; background: rgba(255,255,255,0.1); padding: 10px 14px; border-radius: 16px; align-self: flex-start; max-width: 85%; border: 1px solid rgba(255,255,255,0.15); margin-bottom: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.2);"><span style="font-size:10px; font-weight:bold; color:#aaa; margin-bottom:4px; display:block;">${name}</span>${lastAction}</div>`;
+                html += `<div ${touchHandlers} style="color: #fff; text-align: left; background: rgba(255,255,255,0.1); padding: 10px 14px; border-radius: 16px; align-self: flex-start; max-width: 85%; border: 1px solid rgba(255,255,255,0.15); margin-bottom: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.2); cursor:pointer;"><span style="font-size:10px; font-weight:bold; color:#aaa; margin-bottom:4px; display:block;">${name}</span>${lastAction}</div>`;
             }
         } else {
-            html += `<div style="color: #999; text-align: center; font-size: 10px; margin: 8px 0; align-self: center; width: 100%; font-style: italic;">${lastAction}</div>`;
+            html += `<div ${touchHandlers} style="color: #999; text-align: center; font-size: 10px; margin: 8px 0; align-self: center; width: 100%; font-style: italic; cursor:pointer;">${lastAction}</div>`;
         }
     }
     return html;
@@ -5907,6 +5939,7 @@ function updateRoleWbPreview() {
         $('#role-auto-feed').checked = isEditing ? !!role.autoFeed : false;
         $('#role-auto-feed-interval').value = isEditing && role.autoFeedInterval ? role.autoFeedInterval : 60;
         $('#role-can-block').checked = isEditing ? !!role.canBlock : false;
+        $('#role-unblock-delay').value = isEditing && role.unblockDelay ? role.unblockDelay : '';
         $('#role-auto-msg').checked = isEditing ? !!role.autoMsg : false; 
         $('#role-auto-mem-save').checked = isEditing ? !!role.autoMemSave : false;
         $('#role-auto-msg-interval').value = isEditing && role.autoMsgInterval ? role.autoMsgInterval : 30;
@@ -6007,6 +6040,7 @@ window.newRoleTempWbs = null;
             autoFeed: $('#role-auto-feed').checked,
             autoFeedInterval: parseInt($('#role-auto-feed-interval').value) || 60,
             canBlock: $('#role-can-block').checked, 
+            unblockDelay: $('#role-unblock-delay').value.trim(),
             autoMsg: $('#role-auto-msg').checked, 
             autoMemSave: $('#role-auto-mem-save').checked, 
             autoMsgInterval: parseInt($('#role-auto-msg-interval').value) || 30, 
@@ -9897,6 +9931,22 @@ function updateBlockBtn() {
     const isBlocked = blockList.blockedByUser.includes(currentChatRoleId);
     btn.innerHTML = isBlocked ? 'UNBLOCK<span>解除</span>' : 'BLOCK<span>拉黑</span>';
     btn.style.color = isBlocked ? '#e05a8a' : 'var(--text-color)';
+    
+    let triggerBtn = document.getElementById('btn-trigger-unblock');
+    if (isBlocked) {
+        if (!triggerBtn) {
+            triggerBtn = document.createElement('button');
+            triggerBtn.id = 'btn-trigger-unblock';
+            triggerBtn.className = 'action-btn';
+            triggerBtn.style.flex = '1';
+            triggerBtn.style.marginLeft = '10px';
+            triggerBtn.innerHTML = 'FORCE REQ<span>立即触发请求</span>';
+            triggerBtn.onclick = () => scheduleBlockedRoleRequest(currentChatRoleId);
+            btn.parentNode.insertBefore(triggerBtn, btn.nextSibling);
+        }
+    } else {
+        if (triggerBtn) triggerBtn.remove();
+    }
 }
 
 async function scheduleBlockedRoleRequest(roleId) {
@@ -9961,21 +10011,33 @@ async function rejectUnblock(roleId, btn) {
     const banner = btn.closest('div[style]');
     if (banner && banner.parentNode) banner.remove();
     const role = roles.find(r => r.id === roleId);
-    if (!role || !apiConfig.url) { setTimeout(() => scheduleBlockedRoleRequest(roleId), 20000 + Math.random() * 20000); return; }
+    
+    if (!chats[roleId]) chats[roleId] = [];
+    const now = new Date();
+    chats[roleId].push({ role: 'system', content: '你拒绝了解除拉黑请求', time: now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }), rawTime: now.getTime() });
+    DB.set('chats', chats);
+    if (currentChatRoleId === roleId) renderMessages();
+
+    if (!role || !apiConfig.url) { 
+        const delay = role.unblockDelay ? parseInt(role.unblockDelay) * 1000 : 20000 + Math.random() * 20000;
+        setTimeout(() => scheduleBlockedRoleRequest(roleId), delay); 
+        return; 
+    }
     const prompt = `你是${role.realName}。${role.persona ? role.persona.substring(0,100) : ''}\n你刚刚发送了好友申请，但对方拒绝了你的解除拉黑请求。\n请用你的语气发一条失落、委屈或倔强的消息，不超过25字，不要解释，直接说话。`;
     try {
         const endpoint = getChatEndpoint(apiConfig.url);
         const res = await fetch(endpoint, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiConfig.key}` }, body: JSON.stringify({ model: apiConfig.model, messages: [{ role: 'user', content: prompt }], max_tokens: 60, temperature: 0.9 }) });
         const data = await res.json();
         const msg = data.choices[0].message.content.trim();
-        if (!chats[roleId]) chats[roleId] = [];
-        const now = new Date();
-        chats[roleId].push({ role: 'ai', content: msg, time: now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }), rawTime: now.getTime(), mode: 'online' });
+        const replyNow = new Date();
+        chats[roleId].push({ role: 'ai', content: msg, time: replyNow.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }), rawTime: replyNow.getTime(), mode: 'online' });
         DB.set('chats', chats);
         if (currentChatRoleId === roleId) renderMessages();
         showSystemNotification(roleId, getDisplayName(role), msg, role.avatar);
     } catch(e) { console.log('拒绝回复生成失败', e); }
-    setTimeout(() => scheduleBlockedRoleRequest(roleId), 25000 + Math.random() * 30000);
+    
+    const delay = role.unblockDelay ? parseInt(role.unblockDelay) * 1000 : 25000 + Math.random() * 30000;
+    setTimeout(() => scheduleBlockedRoleRequest(roleId), delay);
 }
 
 async function triggerRoleBlocksUserReply(roleId) {
@@ -15107,6 +15169,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 });
 
+window.addEventListener('beforeunload', () => {
+    const callView = document.getElementById('view-real-call');
+    if (callView && callView.classList.contains('active')) {
+        closeRealCall();
+    }
+});
+
 document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'hidden') {
         const criticalKeys = ['chats', 'roles', 'walletData', 'ourSpaceData'];
@@ -15114,9 +15183,7 @@ document.addEventListener('visibilitychange', () => {
             if (DB.cache[key]) {
                 try {
                     const dataStr = JSON.stringify(DB.cache[key]);
-                    if (dataStr.length < 4500000) { 
-                        localStorage.setItem('suowu_' + key, dataStr);
-                    }
+                    localStorage.setItem('suowu_' + key, dataStr);
                 } catch (e) {}
             }
         });
