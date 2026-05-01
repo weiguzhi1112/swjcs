@@ -3551,7 +3551,7 @@ function renderCallMessage(name, text, isMe) {
             let textToEdit = msg.content;
             
             // 【核心修复】：如果是卡片类型，将其解码为易读的 JSON 格式供用户编辑
-            const cardRegex = /\[(THEATER_CARD|FORUM_CARD|FEED_CARD|MUSIC_CARD|PAY_REQUEST|TRANSFER|FAMILY_CARD|OURSPACE_INVITE|GIFT_TO_AI|INCOMING_CALL):(.*?)\]/;
+            const cardRegex = /\[(THEATER_CARD|FORUM_CARD|FEED_CARD|MUSIC_CARD|PAY_REQUEST|TRANSFER|FAMILY_CARD|OURSPACE_INVITE|GIFT_TO_AI|INCOMING_CALL|RED_PACKET|TICKET):(.*?)\]/;
             const cardMatch = textToEdit.match(cardRegex);
             if (cardMatch) {
                 try {
@@ -3599,7 +3599,7 @@ function renderCallMessage(name, text, isMe) {
         
         if(newText) { 
             // 【核心修复】：检测用户编辑后的格式化 JSON 卡片，并重新编码
-            const editedCardRegex = /\[(THEATER_CARD|FORUM_CARD|FEED_CARD|MUSIC_CARD|PAY_REQUEST|TRANSFER|FAMILY_CARD|OURSPACE_INVITE|GIFT_TO_AI|INCOMING_CALL):\s*(\{[\s\S]*?\})\s*\]/;
+            const editedCardRegex = /\[(THEATER_CARD|FORUM_CARD|FEED_CARD|MUSIC_CARD|PAY_REQUEST|TRANSFER|FAMILY_CARD|OURSPACE_INVITE|GIFT_TO_AI|INCOMING_CALL|RED_PACKET|TICKET):\s*(\{[\s\S]*?\})\s*\]/;
             const editedCardMatch = newText.match(editedCardRegex);
             if (editedCardMatch) {
                 try {
@@ -7413,6 +7413,7 @@ window.newRoleTempWbs = null;
                         <button class="text-btn" style="padding:0; font-size:10px; color:${f.liked ? 'var(--text-color)' : 'var(--text-secondary)'}; flex-direction:row; gap:4px;" onclick="toggleFeedLike('${f.id}')"> ${f.liked ? '♥' : '♡'} ${f.likes > 0 ? f.likes : 'LIKE'} </button> 
                         <button class="text-btn" style="padding:0; font-size:10px; color:var(--text-secondary); flex-direction:row; gap:4px;" onclick="toggleCommentInput('${f.id}')"> 💬 COMMENT </button> 
                         <button class="text-btn" style="padding:0; font-size:10px; color:var(--text-secondary); flex-direction:row; gap:4px;" onclick="openShareFeedModal('${f.id}')"> ↗ SHARE </button> 
+                        ${isUserPost ? `<button class="text-btn" style="padding:0; font-size:10px; color:var(--text-secondary); flex-direction:row; gap:4px;" onclick="openRequestFeedCommentModal('${f.id}')"> COMMENT </button>` : ''}
                     </div> 
                     <button class="text-btn" style="padding:0; font-size:8px; color:var(--text-secondary);" onclick="deleteFeed('${f.id}')">DELETE</button> 
                 </div> 
@@ -9794,9 +9795,15 @@ async function autoGenerateSummary(roleId, type = 'episodic') {
         const summary = data.choices[0].message.content.trim();
         const now = new Date().toLocaleString('zh-CN');
         
+        // 核心修复：根据用户需求，将不同类型的总结保存到对应的记忆库
         if (type === 'episodic') {
+            // 如果是打电话/分享的小剧场，保存到情景记忆
             advancedMemories[roleId].episodicMemories.push({ content: summary, time: now, auto: true });
+        } else if (type === 'core') {
+            // 如果是喜欢角色/重大誓言，保存到核心记忆
+            advancedMemories[roleId].coreMemories.push({ content: summary, time: now, auto: true });
         } else {
+            // 剧情总结保存到 plotSummaries
             advancedMemories[roleId].plotSummaries.push({ content: summary, time: now, auto: true });
         }
         
@@ -10208,12 +10215,17 @@ function renderBubbleCountStatus() {
     el.innerText = `${min} ~ ${max} bubbles per reply`;
 }
 
+window.blockRequestTimers = window.blockRequestTimers || {};
+
 function toggleBlockRole() {
     if (!currentChatRoleId) return;
     const isBlocked = blockList.blockedByUser.includes(currentChatRoleId);
     if (isBlocked) {
         blockList.blockedByUser = blockList.blockedByUser.filter(id => id !== currentChatRoleId);
         DB.set('blockList', blockList);
+        if (window.blockRequestTimers[currentChatRoleId]) {
+            clearTimeout(window.blockRequestTimers[currentChatRoleId]);
+        }
         updateBlockBtn();
         const role = roles.find(r => r.id === currentChatRoleId);
         const now = new Date();
@@ -10230,7 +10242,7 @@ function toggleBlockRole() {
         chats[currentChatRoleId].push({ role: 'system', content: '你已拉黑 ' + getDisplayName(role), time: now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }), rawTime: now.getTime() });
         DB.set('chats', chats);
         renderMessages();
-        setTimeout(() => scheduleBlockedRoleRequest(currentChatRoleId), 3000);
+        window.blockRequestTimers[currentChatRoleId] = setTimeout(() => scheduleBlockedRoleRequest(currentChatRoleId), 3000);
     }
 }
 
@@ -10330,13 +10342,14 @@ function showBlockRequestBanner(roleId, role, plea) {
         </div>
     `;
     container.appendChild(banner);
-    setTimeout(() => { banner.style.opacity = '0'; setTimeout(() => { if (banner.parentNode) banner.remove(); if (blockList.blockedByUser.includes(roleId)) setTimeout(() => scheduleBlockedRoleRequest(roleId), 15000 + Math.random() * 20000); }, 300); }, 8000);
+    setTimeout(() => { banner.style.opacity = '0'; setTimeout(() => { if (banner.parentNode) banner.remove(); if (blockList.blockedByUser.includes(roleId)) { window.blockRequestTimers[roleId] = setTimeout(() => scheduleBlockedRoleRequest(roleId), 15000 + Math.random() * 20000); } }, 300); }, 8000);
 }
 
 function acceptUnblock(roleId, btn) {
     const banner = btn.closest('div[style]');
     blockList.blockedByUser = blockList.blockedByUser.filter(id => id !== roleId);
     DB.set('blockList', blockList);
+    if (window.blockRequestTimers && window.blockRequestTimers[roleId]) { clearTimeout(window.blockRequestTimers[roleId]); }
     if (banner && banner.parentNode) banner.remove();
     if (currentChatRoleId === roleId) updateBlockBtn();
     const role = roles.find(r => r.id === roleId);
@@ -15861,3 +15874,21 @@ window.jumpToChatMsg = function(index) {
     }
     alert(`已定位到第 ${index + 1} 条消息附近。\n(由于虚拟列表限制，请手动向上滑动查看)`);
 };
+    let feedToRequestComment = null;
+    window.openRequestFeedCommentModal = function(feedId) {
+        feedToRequestComment = feedId;
+        const sel = $('#request-comment-role-select');
+        if(sel) {
+            sel.innerHTML = roles.map(r => `<option value="${r.id}">${getDisplayName(r)}</option>`).join('');
+        }
+        if(roles.length === 0) return alert("请先在通讯录创建角色！");
+        openModal('modal-request-feed-comment');
+    };
+
+    window.confirmRequestFeedComment = function() {
+        const roleId = $('#request-comment-role-select').value;
+        if(!roleId || !feedToRequestComment) return;
+        
+        closeModal('modal-request-feed-comment');
+        triggerFeedCommentFromAI(feedToRequestComment, roleId);
+    };
