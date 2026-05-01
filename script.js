@@ -1711,12 +1711,12 @@ function showInAppNotification(roleId, title, body, icon) {
     container.appendChild(notify);
     setTimeout(() => { if (notify.parentNode) { notify.style.opacity = '0'; notify.style.transform = 'translateY(-10px)'; setTimeout(() => notify.remove(), 300); } }, 5000);
 }
-
 let lastNotifTime = 0;
 let lastNotifBody = '';
 function showSystemNotification(roleId, title, body, icon) {
     if (settings.notificationSound) {
         try {
+            // 【核心修复】：每次播放声音克隆一个新节点，防止多条消息同时到达时声音被吞
             const audio = new Audio(settings.notificationSound);
             audio.play().catch(e => console.log("Audio play failed:", e));
         } catch(e) {}
@@ -1724,9 +1724,10 @@ function showSystemNotification(roleId, title, body, icon) {
     const cleanBody = body.replace(/<[^>]*>/g, '').replace(/\[VIRTUAL_IMG:.*?\]/g, '[图片]').replace(/\[VOICE:.*?\]/g, '[语音]').replace(/\[MUSIC_CARD:.*?\]/g, '[一起听邀请]').replace(/\[FORUM_CARD:.*?\]/g, '[论坛帖子]');
     if (!cleanBody.trim()) return;
 
+    // 【核心修复】：移除 500ms 的拦截限制，允许极短时间内的多条不同消息连续弹出
     const now = Date.now();
-    if (now - lastNotifTime < 500 && lastNotifBody === cleanBody) {
-        return; 
+    if (now - lastNotifTime < 100 && lastNotifBody === cleanBody) {
+        return; // 仅拦截 100ms 内完全重复的幽灵触发
     }
     lastNotifTime = now;
     lastNotifBody = cleanBody;
@@ -1741,8 +1742,18 @@ function showSystemNotification(roleId, title, body, icon) {
 
     /* 修复毒瘤：移除 !isCurrentChat 限制，只要开启了通知权限，即使在聊天界面也强制发送系统通知 */
     if ("Notification" in window && Notification.permission === "granted") {
-        const uniqueTag = 'msg_' + (roleId || 'test') + '_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6);
-        const options = { body: cleanBody, icon: icon || DEFAULT_AVATAR, badge: icon || DEFAULT_AVATAR, tag: uniqueTag, renotify: true, silent: false, requireInteraction: false, data: { roleId: roleId } };
+        // 【核心修复】：使用极度随机的 tag，并强制 renotify 为 true，彻底打破操作系统的通知折叠/合并机制
+        const uniqueTag = 'msg_' + Date.now() + '_' + Math.random().toString(36).substr(2, 10);
+        const options = { 
+            body: cleanBody, 
+            icon: icon || DEFAULT_AVATAR, 
+            badge: icon || DEFAULT_AVATAR, 
+            tag: uniqueTag, 
+            renotify: true, // 强制重新提醒，不合并
+            silent: false, 
+            requireInteraction: false, 
+            data: { roleId: roleId } 
+        };
 
         if ('serviceWorker' in navigator && navigator.serviceWorker.ready) {
             navigator.serviceWorker.ready.then(function(registration) {
@@ -2976,13 +2987,13 @@ ${promptText}
         }
         openModal('modal-call-history');
     }
-
     async function openRealCallScreen(initiator = 'user') {
         if (!currentChatRoleId) return;
         
         currentCallText = "";
         currentCallAudioId = null;
         callSeconds = 0;
+        activeCallSessionId = Date.now(); // 生成当前通话会话ID
         
         currentCallInitiator = initiator;
         isVideoCall = false;
@@ -3036,12 +3047,17 @@ ${promptText}
             /* 优化提示词，强制要求AI给出拒绝理由，防止回复为空 */
             const prompt = `[系统提示：用户向你发起了语音通话。]\n请根据你当前的人设（${role.persona}）、时间、以及对用户的好感度决定是否接听。\n如果你决定接听，请仅回复 [ACCEPT_CALL]；\n如果你决定拒绝（比如在忙、生气、或者人设就是高冷不爱接电话），请回复 [REJECT_CALL] 并务必附上一句挂断后发给用户的文字消息（解释为什么不接或直接嘲讽）。例如：[REJECT_CALL] 我在开会，晚点说。\n只输出回复，不要加引号。`;
             try {
+                const currentSession = activeCallSessionId;
                 const endpoint = getChatEndpoint(apiConfig.url);
                 const chatRes = await fetch(endpoint, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiConfig.key}` },
                     body: JSON.stringify({ model: apiConfig.model, messages: [{ role: 'user', content: prompt }], max_tokens: 100, temperature: 0.8 })
                 });
+                
+                // 【核心修复】：如果用户已经挂断（session改变或清空），则直接丢弃AI的回复，不显示拒绝
+                if (activeCallSessionId !== currentSession) return;
+
                 const chatData = await chatRes.json();
                 let aiReply = chatData.choices[0].message.content.trim();
 
@@ -3057,9 +3073,10 @@ ${promptText}
                     }
                     DB.set('chats', chats);
                     renderMessages();
+                    activeCallSessionId = null; // 结束会话
                 }
             } catch (e) {
-                startCallTimer();
+                if (activeCallSessionId === currentSession) startCallTimer();
             }
         } else {
             startCallTimer();
@@ -3177,8 +3194,9 @@ function renderCallMessage(name, text, isMe) {
     return html;
 }
 
-let currentCallText = "";
-let currentCallAudioId = null;
+    let currentCallText = "";
+    let currentCallAudioId = null;
+    let activeCallSessionId = null; // 新增：用于追踪当前通话会话，防止取消后串线
 
     function closeRealCall() {
         $('#view-real-call').classList.remove('active');
@@ -3239,6 +3257,7 @@ let currentCallAudioId = null;
         callSeconds = 0; 
         currentCallText = "";
         currentCallAudioId = null;
+        activeCallSessionId = null; // 清空会话ID，拦截未完成的接听请求
     }
     window.toggleVideoCall = async function() {
     if (!currentChatRoleId) return;
@@ -3492,18 +3511,34 @@ let currentCallAudioId = null;
             
             window.editingImageUrls = [];
             let textToEdit = msg.content;
-            textToEdit = textToEdit.replace(/<img src="(.*?)" class="chat-inline-img">/g, (match, url) => {
-                window.editingImageUrls.push(url);
-                let desc = '图片';
-                for (let group of stickers) {
-                    let item = group.items.find(i => i.url === url);
-                    if (item && item.virtual) {
-                        desc = item.virtual;
-                        break;
-                    }
+            
+            // 【核心修复】：如果是卡片类型，将其解码为易读的 JSON 格式供用户编辑
+            const cardRegex = /\[(THEATER_CARD|FORUM_CARD|FEED_CARD|MUSIC_CARD|PAY_REQUEST|TRANSFER|FAMILY_CARD|OURSPACE_INVITE|GIFT_TO_AI|INCOMING_CALL):(.*?)\]/;
+            const cardMatch = textToEdit.match(cardRegex);
+            if (cardMatch) {
+                try {
+                    const tag = cardMatch[1];
+                    const decodedJson = decodeURIComponent(cardMatch[2]);
+                    const parsedObj = JSON.parse(decodedJson);
+                    // 格式化为带缩进的 JSON 字符串
+                    textToEdit = `[${tag}:\n${JSON.stringify(parsedObj, null, 2)}\n]`;
+                } catch (e) {
+                    console.warn("解码卡片失败", e);
                 }
-                return `[VIRTUAL_IMG:${desc}]`;
-            });
+            } else {
+                textToEdit = textToEdit.replace(/<img src="(.*?)" class="chat-inline-img">/g, (match, url) => {
+                    window.editingImageUrls.push(url);
+                    let desc = '图片';
+                    for (let group of stickers) {
+                        let item = group.items.find(i => i.url === url);
+                        if (item && item.virtual) {
+                            desc = item.virtual;
+                            break;
+                        }
+                    }
+                    return `[VIRTUAL_IMG:${desc}]`;
+                });
+            }
             
             $('#edit-msg-content').value = textToEdit; 
             
@@ -3525,15 +3560,31 @@ let currentCallAudioId = null;
         const newTimeStr = $('#edit-msg-timestamp').value;
         
         if(newText) { 
-            if (window.editingImageUrls && window.editingImageUrls.length > 0) {
-                let imgIndex = 0;
-                newText = newText.replace(/\[VIRTUAL_IMG:(.*?)\]/g, (match, desc) => {
-                    if (imgIndex < window.editingImageUrls.length) {
-                        const url = window.editingImageUrls[imgIndex++];
-                        return `<img src="${url}" class="chat-inline-img">`;
-                    }
-                    return match;
-                });
+            // 【核心修复】：检测用户编辑后的格式化 JSON 卡片，并重新编码
+            const editedCardRegex = /\[(THEATER_CARD|FORUM_CARD|FEED_CARD|MUSIC_CARD|PAY_REQUEST|TRANSFER|FAMILY_CARD|OURSPACE_INVITE|GIFT_TO_AI|INCOMING_CALL):\s*(\{[\s\S]*?\})\s*\]/;
+            const editedCardMatch = newText.match(editedCardRegex);
+            if (editedCardMatch) {
+                try {
+                    const tag = editedCardMatch[1];
+                    const jsonStr = editedCardMatch[2];
+                    // 验证 JSON 是否合法
+                    const parsedObj = JSON.parse(jsonStr);
+                    newText = `[${tag}:${encodeURIComponent(JSON.stringify(parsedObj))}]`;
+                } catch (e) {
+                    alert("JSON 格式错误，请检查括号和引号是否匹配！\n" + e.message);
+                    return; // 阻止保存
+                }
+            } else {
+                if (window.editingImageUrls && window.editingImageUrls.length > 0) {
+                    let imgIndex = 0;
+                    newText = newText.replace(/\[VIRTUAL_IMG:(.*?)\]/g, (match, desc) => {
+                        if (imgIndex < window.editingImageUrls.length) {
+                            const url = window.editingImageUrls[imgIndex++];
+                            return `<img src="${url}" class="chat-inline-img">`;
+                        }
+                        return match;
+                    });
+                }
             }
 
             // 拦截手动输入的转账格式并转换为卡片
@@ -4899,11 +4950,11 @@ ${modeRules}
                 if (finalChatMode === 'offline' || fullReply.includes('===TRANSLATION===')) {
                     showSystemNotification(targetRoleId, getDisplayName(role), formattedReply, role.avatar);
                 } else {
-                    // 线上模式：每个气泡单独弹一次通知，错开时间
+                    // 【核心修复】：缩短延迟时间，确保多条消息快速独立弹出，不合并
                     finalSentences.forEach((sentence, idx) => {
                         setTimeout(() => {
                             showSystemNotification(targetRoleId, getDisplayName(role), sentence, role.avatar);
-                        }, idx * 1200); 
+                        }, idx * 300); // 将 1200ms 缩短为 300ms
                     });
                 }
             }
@@ -9952,8 +10003,20 @@ function updateBlockBtn() {
 async function scheduleBlockedRoleRequest(roleId) {
     const role = roles.find(r => r.id === roleId);
     if (!role || !blockList.blockedByUser.includes(roleId)) return;
+    
+    // 按钮状态更新
+    const triggerBtn = document.getElementById('btn-trigger-unblock');
+    if (triggerBtn) {
+        triggerBtn.innerHTML = 'GENERATING...';
+        triggerBtn.disabled = true;
+    }
+
     const fallbackPleas = ['能解开我吗……', '我就想说句话', '你在吗？', '求你了', '……你还记得我吗'];
-    if (!apiConfig.url) { showBlockRequestBanner(roleId, role, fallbackPleas[Math.floor(Math.random() * fallbackPleas.length)]); return; }
+    if (!apiConfig.url) { 
+        showBlockRequestBanner(roleId, role, fallbackPleas[Math.floor(Math.random() * fallbackPleas.length)]); 
+        if (triggerBtn) { triggerBtn.innerHTML = 'FORCE REQ<span>立即触发请求</span>'; triggerBtn.disabled = false; }
+        return; 
+    }
     const memorySummary = memories[roleId] ? `\n[我们的共同记忆]\n${memories[roleId]}` : '';
     const recentChats = (chats[roleId] || []).filter(m => m.role !== 'system').slice(-8).map(m => `${m.role === 'user' ? '用户' : role.realName}: ${m.content.replace(/<[^>]*>/g, '').substring(0, 60)}`).join('\n');
     const chatContext = recentChats ? `\n[最近的对话记录]\n${recentChats}` : '';
@@ -9966,7 +10029,11 @@ async function scheduleBlockedRoleRequest(roleId) {
         const data = await res.json();
         const plea = (data.choices && data.choices[0]) ? data.choices[0].message.content.trim().replace(/["'""'']/g, '') : fallbackPleas[Math.floor(Math.random() * fallbackPleas.length)];
         showBlockRequestBanner(roleId, role, plea || fallbackPleas[0]);
-    } catch(e) { showBlockRequestBanner(roleId, role, fallbackPleas[Math.floor(Math.random() * fallbackPleas.length)]); }
+    } catch(e) { 
+        showBlockRequestBanner(roleId, role, fallbackPleas[Math.floor(Math.random() * fallbackPleas.length)]); 
+    } finally {
+        if (triggerBtn) { triggerBtn.innerHTML = 'FORCE REQ<span>立即触发请求</span>'; triggerBtn.disabled = false; }
+    }
 }
 
 function showBlockRequestBanner(roleId, role, plea) {
@@ -11986,8 +12053,8 @@ function deleteSelectedStatus() {
 function getStatusPromptSuffix(roleId) {
     const config = statusBarData[roleId];
     if (!config || !config.enabled) return '';
-    /* 优化提示词，强制要求AI生成更丰富、细腻的心声 */
-    return '\n\n【心声生成指令】\n请在回复的最末尾，换行并使用 [心声: 你的内心想法 | 好感度: 当前好感度/100] 的格式，输出你对用户刚才那句话的真实看法、深层心理活动以及当前的好感度。心声内容请尽量丰富、细腻，展现你未说出口的真实情绪（至少20-50字）。例如：[心声: 听到他这么说，我心里其实猛地跳了一下，虽然表面上装作不在意，但真的很想立刻抱住他... | 好感度: 85/100]。必须严格遵守此格式！不允许照搬示例';
+    /* 深度丰富心声提示词 */
+    return '\n\n【心声生成指令】\n请在回复的最末尾，换行并严格使用 [心声: 你的内心想法 | 好感度: 当前好感度/100] 的格式。心声内容必须极度丰富、私密且露骨（至少30-80字），包含以下元素：\n1. 你当前的具体动作或穿着细节（如：正扯着领带、手指无意识地敲击桌面、睡衣半褪）。\n2. 你对用户未说出口的真实情绪、坏心思、占有欲或性幻想。\n3. 表面回复与内心真实想法的反差,不强制性每次都要输出性幻想。\n例如：[心声: 表面上装作若无其事地喝水，其实睡衣下的身体已经因为她刚才那句话紧绷了。真想现在就把她按在沙发上狠狠欺负一顿，看她哭着求饶的样子... | 好感度: 95/100]。必须严格遵守此格式！绝对不允许照搬示例！';
 }
 
 function onAiAvatarDblClick() {
@@ -15202,7 +15269,7 @@ window.updateRoleTokenCountUI = function(roleId) {
 };
 
 window.openTokenInspector = function() {
-    const roleId = $('#role-realname').dataset.id;
+    const roleId = currentChatRoleId || $('#role-realname').dataset.id;
     if (!roleId || !chats[roleId]) return alert("暂无聊天记录");
     
     const msgs = chats[roleId].map((m, i) => ({ ...m, originalIndex: i, length: (m.content || '').length }))
@@ -15232,7 +15299,7 @@ window.openTokenInspector = function() {
 };
 
 window.compressMessageToken = async function(index, btn) {
-    const roleId = $('#role-realname').dataset.id;
+    const roleId = currentChatRoleId || $('#role-realname').dataset.id;
     const msg = chats[roleId][index];
     if (!msg || !msg.content) return;
     
@@ -15271,7 +15338,7 @@ window.compressMessageToken = async function(index, btn) {
 };
 
 window.compressAllTokens = async function() {
-    const roleId = $('#role-realname').dataset.id;
+    const roleId = currentChatRoleId || $('#role-realname').dataset.id;
     if (!roleId || !chats[roleId]) return alert("暂无聊天记录");
     if (!apiConfig.url) return alert("请先配置 API");
 
@@ -15328,7 +15395,7 @@ window.compressAllTokens = async function() {
 
 window.deleteMessageToken = function(index) {
     if (!confirm("确定删除这条长消息吗？")) return;
-    const roleId = $('#role-realname').dataset.id;
+    const roleId = currentChatRoleId || $('#role-realname').dataset.id;
     chats[roleId].splice(index, 1);
     DB.set('chats', chats);
     window.updateRoleTokenCountUI(roleId); // 更新总Token显示
