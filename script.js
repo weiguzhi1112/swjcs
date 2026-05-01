@@ -3417,8 +3417,8 @@ function renderCallMessage(name, text, isMe) {
             const callContext = currentCallText ? `\n[本次通话记录]\n${currentCallText}` : '';
 
             let videoPrompt = isVideoCall 
-                ? "【视频通话中】摄像头已开启。你必须在回复中详细描述你的动作、表情、穿着以及周围的环境细节（写在引号外面），然后再输出你说的话。"
-                : "【语音通话中】摄像头未开启。用户只能听到你的声音。你只能输出你说的话以及声音（如笑声、叹气声），绝对不能描写任何视觉上的动作、表情或环境！";
+                ? "【视频通话中】摄像头已开启。你必须在回复中用【第三人称】详细描述你的动作、表情、穿着以及周围的环境细节（写在引号外面），然后再输出你说的话。"
+                : "【语音通话中】摄像头未开启。用户只能听到你的声音。你只能输出你说的话以及声音（如笑声、叹气声），绝对不能描写任何视觉上的动作、表情或环境！如果有动作描写，必须使用【第三人称】。";
 
             // 将所有上下文整合进 Prompt
             let prompt = `[CORE DIRECTIVE]\n你是${role.realName}。${role.persona}${memorySummary}${chatContext}${callContext}\n\n${videoPrompt}\n\n`;
@@ -15720,277 +15720,103 @@ applySettings = function() {
         select.value = settings.timestampFormat;
     }
 };
-/* ==================== 控制中心逻辑 ==================== */
-window.ccStartY = 0;
-window.isDraggingCC = false;
-
-document.addEventListener('touchstart', function(e) {
-    const y = e.touches[0].clientY;
-    /* 如果在屏幕最顶部 30px 内向下滑动，触发控制中心 */
-    if (y < 30) {
-        window.ccStartY = y;
-        window.isDraggingCC = true;
-    }
-}, { passive: true });
-
-document.addEventListener('touchmove', function(e) {
-    if (!window.isDraggingCC) return;
-    const y = e.touches[0].clientY;
-    if (y - window.ccStartY > 50) {
-        window.openControlCenter();
-        window.isDraggingCC = false;
-    }
-}, { passive: true });
-
-document.addEventListener('touchend', function() {
-    window.isDraggingCC = false;
-});
-
-window.openControlCenter = function() {
-    const overlay = document.getElementById('control-center-overlay');
-    const panel = document.getElementById('control-center-panel');
-    if (overlay && panel) {
-        overlay.style.display = 'block';
-        /* 强制重绘以触发过渡动画 */
-        void overlay.offsetWidth;
-        overlay.style.opacity = '1';
-        panel.style.top = '0';
+/* ==================== 语音通话长按自由编辑逻辑 ==================== */
+window.handleCallMsgTouchStart = function(e, el) {
+    callMsgPressTimer = setTimeout(() => {
+        if (navigator.vibrate) navigator.vibrate(50);
         
-        const slider = document.getElementById('cc-font-slider');
-        if (slider) slider.value = settings.fontSize || 14;
-    }
+        // 提取旧文本（去除名字前缀）
+        const oldText = el.innerText.replace(/^[^\n]+\n/, '');
+        
+        // 弹出输入框让用户编辑
+        const newText = prompt("编辑此段内容（清空则删除）：", oldText);
+        
+        if (newText !== null) {
+            if (newText.trim() === '') {
+                // 清空则删除
+                currentCallText = currentCallText.replace(oldText, '');
+                el.remove();
+            } else {
+                // 替换文本
+                currentCallText = currentCallText.replace(oldText, newText);
+                const nameSpan = el.querySelector('span');
+                if (nameSpan) {
+                    el.innerHTML = '';
+                    el.appendChild(nameSpan);
+                    el.appendChild(document.createTextNode(newText));
+                } else {
+                    el.innerText = newText;
+                }
+            }
+        }
+    }, 600);
 };
 
-window.closeControlCenter = function() {
-    const overlay = document.getElementById('control-center-overlay');
-    const panel = document.getElementById('control-center-panel');
-    if (overlay && panel) {
-        overlay.style.opacity = '0';
-        panel.style.top = '-100%';
-        setTimeout(() => {
-            overlay.style.display = 'none';
-        }, 300);
-    }
+window.handleCallMsgTouchEnd = function() {
+    clearTimeout(callMsgPressTimer);
 };
 
-window.updateCCFontSize = function(val) {
-    settings.fontSize = val;
-    DB.set('settings', settings);
-    applySettings();
-};
-
-/* ==================== 聊天记录搜索逻辑 ==================== */
+/* ==================== 聊天记录搜索逻辑 (独立弹窗版) ==================== */
 window.chatSearchQuery = '';
 
-window.toggleChatSearch = function() {
-    const bar = document.getElementById('chat-search-bar');
-    const input = document.getElementById('chat-search-input');
-    if (bar.style.display === 'none' || bar.style.display === '') {
-        bar.style.display = 'flex';
-        input.value = '';
-        window.chatSearchQuery = '';
-        input.focus();
-    } else {
-        bar.style.display = 'none';
-        window.chatSearchQuery = '';
-        renderMessages(); /* 取消搜索时恢复正常显示 */
-    }
+window.openChatSearchModal = function() {
+    const roleId = $('#role-realname').dataset.id || currentChatRoleId;
+    if (!roleId || !chats[roleId] || chats[roleId].length === 0) return alert("暂无聊天记录");
+    $('#chat-search-input-modal').value = '';
+    $('#chat-search-results-container').innerHTML = '<div style="text-align:center; color:var(--text-secondary); font-size:10px; margin-top: 20px;">请输入关键词进行搜索</div>';
+    openModal('modal-chat-search');
 };
 
-window.executeChatSearch = function() {
-    const input = document.getElementById('chat-search-input');
-    window.chatSearchQuery = input.value.trim().toLowerCase();
-    renderMessages(); /* 触发重新渲染，应用过滤 */
-};
-
-/* 拦截 renderMessages 函数，注入搜索过滤逻辑 */
-const originalRenderMessages = renderMessages;
-renderMessages = function() {
-    /* 如果没有搜索词，执行原本的渲染逻辑 */
-    if (!window.chatSearchQuery) {
-        originalRenderMessages();
+window.executeChatSearchModal = function() {
+    const query = $('#chat-search-input-modal').value.trim().toLowerCase();
+    const container = $('#chat-search-results-container');
+    if (!query) {
+        container.innerHTML = '<div style="text-align:center; color:var(--text-secondary); font-size:10px; margin-top: 20px;">请输入关键词进行搜索</div>';
         return;
     }
-    
-    /* 如果有搜索词，执行过滤渲染 */
-    const container = $('#chat-messages'); 
-    if (!currentChatRoleId) { container.innerHTML = ""; return; } 
-    
-    const allMsgs = chats[currentChatRoleId] || []; 
-    /* 过滤包含搜索词的消息 */
+
+    const roleId = $('#role-realname').dataset.id || currentChatRoleId;
+    const allMsgs = chats[roleId] || [];
+    const role = roles.find(r => r.id === roleId);
+    const userAvatar = settings.userAvatar || DEFAULT_AVATAR;
+
     const filteredMsgs = allMsgs.map((m, index) => ({ msg: m, originalIndex: index }))
-                                .filter(item => item.msg.content && item.msg.content.toLowerCase().includes(window.chatSearchQuery));
-    
-    const role = roles.find(r => r.id === currentChatRoleId); 
-    const userAvatar = settings.userAvatar || DEFAULT_AVATAR; 
-    
+                                .filter(item => item.msg.content && item.msg.content.toLowerCase().includes(query));
+
     if (filteredMsgs.length === 0) {
-        container.innerHTML = `<div style="text-align:center; color:var(--text-secondary); padding: 40px; font-size:12px;">未找到包含 "${window.chatSearchQuery}" 的记录</div>`;
+        container.innerHTML = `<div style="text-align:center; color:var(--text-secondary); font-size:10px; margin-top: 20px;">未找到包含 "${query}" 的记录</div>`;
         return;
     }
 
-    container.innerHTML = filteredMsgs.map(item => { 
+    container.innerHTML = filteredMsgs.map(item => {
         const m = item.msg;
-        const realIndex = item.originalIndex;
-        
-        /* 简化渲染，仅用于展示搜索结果 */
         let contentHtml = escapeHTML(m.content).replace(/\n/g, '<br>');
-        /* 高亮搜索词 */
-        const regex = new RegExp(`(${window.chatSearchQuery})`, 'gi');
+        const regex = new RegExp(`(${query})`, 'gi');
         contentHtml = contentHtml.replace(regex, '<span style="background: #ffc300; color: #000;">$1</span>');
 
         const avatarSrc = m.role === 'user' ? userAvatar : (role.avatar || DEFAULT_AVATAR);
-        const align = m.role === 'user' ? 'flex-end' : 'flex-start';
-        const bgColor = m.role === 'user' ? 'var(--text-color)' : 'var(--gray-light)';
-        const textColor = m.role === 'user' ? 'var(--bg-color)' : 'var(--text-color)';
+        const senderName = m.role === 'user' ? 'ME' : (role.realName || 'AI');
 
         return `
-        <div style="display: flex; flex-direction: column; align-items: ${align}; margin-bottom: 15px; cursor: pointer;" onclick="handleMsgClick(${realIndex})">
-            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px; flex-direction: ${m.role === 'user' ? 'row-reverse' : 'row'};">
-                <img src="${avatarSrc}" style="width: 24px; height: 24px; border-radius: 50%; object-fit: cover;">
-                <span style="font-size: 9px; color: var(--text-secondary);">${m.time}</span>
+        <div style="background: var(--bg-color); border: 1px solid var(--border-color); border-radius: 8px; padding: 10px; cursor: pointer;" onclick="window.jumpToChatMsg(${item.originalIndex})">
+            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
+                <img src="${avatarSrc}" style="width: 20px; height: 20px; border-radius: 50%; object-fit: cover;">
+                <span style="font-size: 10px; font-weight: bold; color: var(--text-color);">${senderName}</span>
+                <span style="font-size: 9px; color: var(--text-secondary); margin-left: auto;">${m.time}</span>
             </div>
-            <div style="background: ${bgColor}; color: ${textColor}; padding: 10px 14px; border-radius: 12px; max-width: 80%; font-size: 13px; line-height: 1.5;">
+            <div style="font-size: 11px; color: var(--text-color); line-height: 1.5; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;">
                 ${contentHtml}
             </div>
         </div>`;
-    }).join(''); 
+    }).join('');
 };
 
-/* ==================== 红包功能逻辑 ==================== */
-window.openRedPacketModal = function() {
-    if (!currentChatRoleId) return alert("请先进入聊天界面");
-    $('#attachment-popup').style.display = 'none';
-    
-    if (!walletData['ME']) walletData['ME'] = { balance: 0, huabei: 0, bankCards: [], familyCards: [], bills: [] };
-    const data = walletData['ME'];
-    
-    let options = `<option value="balance">钱包余额 (¥${fmtMoney(data.balance)})</option>`;
-    if (data.huabei > 0) options += `<option value="huabei">花呗 (可用 ¥${fmtMoney(data.huabei)})</option>`;
-    data.bankCards.forEach((c, i) => {
-        options += `<option value="bank_${i}">${c.bank}(${c.tail}) (¥${fmtMoney(c.balance)})</option>`;
-    });
-    
-    $('#red-packet-method-select').innerHTML = options;
-    $('#red-packet-amount').value = '';
-    $('#red-packet-greeting').value = '恭喜发财，大吉大利';
-    openModal('modal-red-packet');
-};
-
-window.confirmSendRedPacket = function() {
-    const amount = Number($('#red-packet-amount').value);
-    if (!amount || amount <= 0) return alert("请输入有效金额");
-    
-    const method = $('#red-packet-method-select').value;
-    const greeting = $('#red-packet-greeting').value.trim() || '恭喜发财，大吉大利';
-    const data = walletData['ME'];
-    let methodName = '钱包余额';
-    
-    /* 扣款逻辑 */
-    if (method === 'balance') {
-        if (data.balance < amount) return alert("余额不足");
-        data.balance -= amount;
-    } else if (method === 'huabei') {
-        if (data.huabei < amount) return alert("花呗额度不足");
-        data.huabei -= amount;
-        methodName = '花呗';
-    } else if (method.startsWith('bank_')) {
-        const idx = parseInt(method.split('_')[1]);
-        if (data.bankCards[idx].balance < amount) return alert("银行卡余额不足");
-        data.bankCards[idx].balance -= amount;
-        methodName = `${data.bankCards[idx].bank}(${data.bankCards[idx].tail})`;
+window.jumpToChatMsg = function(index) {
+    closeModal('modal-chat-search');
+    closeRoleView();
+    const roleId = $('#role-realname').dataset.id || currentChatRoleId;
+    if (currentChatRoleId !== roleId) {
+        openChat(roleId);
     }
-    
-    const role = roles.find(r => r.id === currentChatRoleId);
-    const roleName = role ? getDisplayName(role) : '未知角色';
-    
-    /* 记录账单 */
-    const nowStr = new Date().toLocaleString('zh-CN');
-    walletData['ME'].bills.unshift({ time: nowStr, location: '线上交易', merchant: `发红包给 ${roleName}`, amount: -amount, method: methodName });
-    DB.set('walletData', walletData);
-    
-    const activeMask = masks.find(m => m.id === role.activeMaskId) || masks.find(m => m.id === 'default') || masks[0];
-    const maskName = activeMask ? activeMask.name : (settings.userName || 'ME');
-    const senderAvatar = settings.userAvatar || DEFAULT_AVATAR;
-    const rpId = 'RP' + Date.now();
-    const now = new Date();
-
-    /* 构造红包卡片数据 */
-    const payload = { 
-        id: rpId, 
-        amount: amount, 
-        greeting: greeting,
-        senderName: maskName, 
-        senderAvatar: senderAvatar,
-        status: '未领取',
-        time: now.getTime()
-    };
-    const msgContent = `[RED_PACKET:${encodeURIComponent(JSON.stringify(payload))}]`;
-
-    if(!chats[currentChatRoleId]) chats[currentChatRoleId] = [];
-    chats[currentChatRoleId].push({ role: 'user', content: msgContent, time: now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }), rawTime: now.getTime(), status: 'SENT', mode: 'online' });
-    DB.set('chats', chats);
-    
-    closeModal('modal-red-packet');
-    renderMessages();
-    
-    /* 触发 AI 反应 */
-    triggerAI();
-};
-
-window.openRedPacket = function(msgIndex) {
-    const msg = chats[currentChatRoleId][msgIndex];
-    if (!msg) return;
-    
-    const raw = msg.content.slice(12, -1);
-    try {
-        const card = JSON.parse(decodeURIComponent(raw));
-        
-        if (card.status === '已领取') {
-            alert(`这个红包已经被领取过了。\n金额：¥${card.amount}`);
-            return;
-        }
-
-        /* 如果是 AI 发的红包，用户点击领取 */
-        if (msg.role === 'ai') {
-            card.status = '已领取';
-            msg.content = `[RED_PACKET:${encodeURIComponent(JSON.stringify(card))}]`;
-            
-            if (!walletData['ME']) walletData['ME'] = { balance: 0, huabei: 0, bankCards: [], familyCards: [], bills: [] };
-            walletData['ME'].balance += card.amount;
-            
-            const nowStr = new Date().toLocaleString('zh-CN');
-            walletData['ME'].bills.unshift({ time: nowStr, location: '线上交易', merchant: `领取 ${card.senderName} 的红包`, amount: card.amount, method: '转入余额' });
-            DB.set('walletData', walletData);
-            
-            const now = new Date();
-            chats[currentChatRoleId].push({ role: 'system', content: `你领取了 ${card.senderName} 的红包`, time: now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }), rawTime: now.getTime() });
-            DB.set('chats', chats);
-            
-            renderMessages();
-            alert(`🧧 恭喜！成功领取红包 ¥${card.amount}，已存入钱包余额。`);
-        } 
-        /* 如果是用户发的红包，提示等待 AI 领取 */
-        else {
-            alert("这是你发出的红包，等待对方领取中...");
-        }
-    } catch(e) {
-        console.error("红包解析失败", e);
-    }
-};
-
-/* 拦截 AI 自动领取红包的逻辑 */
-const originalCleanHistoryContent = cleanHistoryContent;
-cleanHistoryContent = function(content, msgRole) {
-    let text = originalCleanHistoryContent(content, msgRole);
-    text = text.replace(/\[RED_PACKET:(.*?)\]/g, (match, p1) => {
-        try { 
-            const data = JSON.parse(decodeURIComponent(p1)); 
-            if (data.status === '未领取' && msgRole === 'user') {
-                return `[系统提示：用户给你发了一个红包，金额：¥${data.amount}，留言：${data.greeting}。如果你想领取，请在回复中包含隐藏指令 [RECEIVE_REDPACKET]]`; 
-            }
-            return `[一个${data.status}的红包]`;
-        } catch(e) { return '[红包]'; }
-    });
-    return text;
+    alert(`已定位到第 ${index + 1} 条消息附近。\n(由于虚拟列表限制，请手动向上滑动查看)`);
 };

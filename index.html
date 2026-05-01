@@ -115,21 +115,27 @@
 
 <div id="msg-banner-container" style="display:none;"></div>
     <!-- 极简状态栏，点击即可打开控制中心 -->
-    <div id="status-bar" onclick="window.openControlCenter()" style="background: var(--bg-color); cursor: pointer; z-index: 10000; border-bottom: 1px solid var(--border-color);">
-        <div class="status-time" id="time" style="display:flex; align-items:center; gap:4px;">
-            12:00 <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
-        </div>
-        <div class="status-icons" style="display:flex; gap:8px; align-items:center;">
-            <!-- 极简信号 -->
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M2 22h20V2L2 22z"/></svg>
-            <!-- 极简WiFi -->
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 3C7.95 3 4.21 4.34 1.2 6.6L12 22l10.8-15.4C19.79 4.34 16.05 3 12 3z"/></svg>
-            <!-- 极简电池 -->
+    <!-- 全新极简状态栏 -->
+    <div id="status-bar" style="background: var(--bg-color); z-index: 10000; border-bottom: none; pointer-events: none;">
+        <div class="status-time" id="time" style="font-weight: 600; font-size: 13px;">12:00</div>
+        <div class="status-icons" style="display:flex; gap:5px; align-items:center;">
+            <!-- 阶梯信号 -->
+            <div style="display:flex; align-items:flex-end; gap:1.5px; height:10px; margin-right: 2px;">
+                <div style="width:2.5px; height:4px; background:currentColor; border-radius:1px;"></div>
+                <div style="width:2.5px; height:6px; background:currentColor; border-radius:1px;"></div>
+                <div style="width:2.5px; height:8px; background:currentColor; opacity:0.3; border-radius:1px;"></div>
+                <div style="width:2.5px; height:10px; background:currentColor; opacity:0.3; border-radius:1px;"></div>
+            </div>
+            <!-- 4G -->
+            <div style="font-size: 10px; font-weight: 800; font-family: sans-serif; letter-spacing: 0; margin-right: 2px;">4G</div>
+            <!-- WiFi -->
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" style="margin-right: 2px;"><path d="M12 3C7.95 3 4.21 4.34 1.2 6.6L12 22l10.8-15.4C19.79 4.34 16.05 3 12 3z"/></svg>
+            <!-- 电池 -->
             <div style="display:flex; align-items:center;">
                 <div style="width:20px; height:10px; border:1px solid currentColor; border-radius:3px; padding:1px; position:relative;">
-                    <div id="battery-level" style="width:80%; height:100%; background:currentColor; border-radius:1px;"></div>
+                    <div id="battery-level" style="width:35%; height:100%; background:currentColor; border-radius:1px;"></div>
                 </div>
-                <div style="width:2px; height:4px; background:currentColor; border-radius:0 2px 2px 0;"></div>
+                <div style="width:2px; height:4px; background:currentColor; border-radius:0 2px 2px 0; margin-left:1px;"></div>
             </div>
         </div>
     </div>
