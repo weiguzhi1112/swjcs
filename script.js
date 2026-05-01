@@ -2632,20 +2632,6 @@ ${promptText}
             btn.disabled = false;
         }
     }
-            // 拦截小剧场内的点击事件，防止未定义函数报错，并支持链接在新标签页打开
-        const readerContent = document.getElementById('theater-read-content');
-        if (readerContent && !readerContent.dataset.clickBound) {
-            readerContent.dataset.clickBound = "true";
-            readerContent.addEventListener('click', function(e) {
-                if (e.target.tagName === 'A') {
-                    e.preventDefault();
-                    window.open(e.target.href, '_blank');
-                } else if (e.target.tagName === 'BUTTON') {
-                    // 阻止按钮的默认报错行为
-                    e.preventDefault();
-                }
-            });
-        }
     window.readTheater = function(msgIndex) {
         const msg = currentChatHistory[msgIndex];
         if (!msg || !msg.theater) return;
@@ -2666,7 +2652,7 @@ ${promptText}
         // 核心修复：确保阅读器的 DOM 元素存在（防止刷新页面后直接点击报错）
         if (!document.getElementById('view-theater-reader')) {
             const html = `
-            <div class="view-container" id="view-theater" style="z-index: 1000; background: var(--bg-color);">
+            <div class="view-container" id="view-theater" style="z-index: 990; background: var(--bg-color);">
                 <div class="view-header">
                     <button class="glass-icon-btn" onclick="closeTheaterView()"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg></button>
                     <div class="chat-title-glass"><div id="chat-title" style="font-style:normal;">小剧场生成</div></div>
@@ -2678,7 +2664,7 @@ ${promptText}
                     <button class="action-btn primary" id="btn-generate-theater" style="padding: 15px; border-radius: 12px; font-size: 14px;" onclick="generateTheater()">开始生成</button>
                 </div>
             </div>
-            <div class="view-container" id="view-theater-reader" style="z-index: 1000; background: var(--bg-color);">
+            <div class="view-container" id="view-theater-reader" style="z-index: 990; background: var(--bg-color);">
                 <div class="view-header">
                     <button class="glass-icon-btn" onclick="closeTheaterReader()"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg></button>
                     <div class="chat-title-glass"><div id="chat-title" style="font-style:normal;">剧场阅读</div></div>
@@ -2696,6 +2682,21 @@ ${promptText}
                 </div>
             </div>`;
             document.body.insertAdjacentHTML('beforeend', html);
+
+            // 拦截小剧场内的点击事件，防止未定义函数报错，并支持链接在新标签页打开
+            const readerContent = document.getElementById('theater-read-content');
+            if (readerContent && !readerContent.dataset.clickBound) {
+                readerContent.dataset.clickBound = "true";
+                readerContent.addEventListener('click', function(e) {
+                    if (e.target.tagName === 'A') {
+                        e.preventDefault();
+                        window.open(e.target.href, '_blank');
+                    } else if (e.target.tagName === 'BUTTON') {
+                        // 阻止按钮的默认报错行为
+                        e.preventDefault();
+                    }
+                });
+            }
         }
 
         try {
@@ -7489,7 +7490,8 @@ window.newRoleTempWbs = null;
         const role = roles.find(r => r.id === feed.roleId); 
         if (!role) { feed.isReplying = false; renderFeeds(); return; } 
         
-        if (replyTo && replyTo !== getDisplayName(role)) {
+        // 修复：兼容角色的展示名和真实姓名，确保回复角色时能正确触发
+        if (replyTo && replyTo !== getDisplayName(role) && replyTo !== role.realName) {
             feed.isReplying = false; renderFeeds(); return;
         }
 
