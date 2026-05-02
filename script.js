@@ -4646,6 +4646,7 @@ ${modeRules}
                 text = text.replace(/<div style="opacity:0\.6;[^>]*>[\s\S]*?<\/div>/gi, '');
                 text = text.replace(/<thought>[\s\S]*?<\/thought>\n*/gi, '');
                 text = text.replace(/思考：[\s\S]*?\n\n/gi, '');
+                text = text.replace(/<status>[\s\S]*?<\/status>/gi, ''); // 清理 XML 状态标签
 
                 text = text.replace(/<img[^>]*data-virtual="([^"]+)"[^>]*>/g, '[发送了一个表情包: $1]');
                 text = text.replace(/<img[^>]*class="chat-inline-img"[^>]*>/g, '[发送了一张图片/表情包]');
@@ -4697,8 +4698,10 @@ ${modeRules}
                 text = text.replace(/<div class="virtual-img-box" data-text="(.*?)".*?<\/div>/g, '[图片: $1]');
                 
                 text = text.replace(/<[^>]*>/g, ''); 
-                if (text.length > 2000) {
-                    text = text.substring(0, 2000) + '...[内容过长已截断]';
+                
+                /* 极致省 Token 优化：发给 AI 的历史记录单条最多只保留 120 个字 */
+                if (text.length > 120) {
+                    text = text.substring(0, 120) + '...';
                 }
                 return text.trim();
             };
@@ -12355,22 +12358,31 @@ function importStatusPresets(event) {
 function getStatusPromptSuffix(roleId) {
     const config = statusBarData[roleId];
     if (!config || !config.enabled) return '';
-    return `\n\n【强制状态感知】\n你必须在回复的最末尾，换行并严格按照以下格式输出你当前的状态（必须包含所有字段，用 | 分隔）：\n[状态感知 | 网名: 你的网名 | 标签: 2个字的性格标签 | 穿着: 当前穿着 | 动作: 当前动作 | 好感度: 数字/100 | 心声: 你的真实想法]`;
+    
+    let basePrompt = '\n\n【最高机密：状态强制输出指令】\n你必须在回复的最末尾，使用 XML 标签严格包裹你的状态信息！大模型对 XML 标签最敏感，绝对不允许遗漏标签或将其混入正文！\n\n必须严格复制以下格式（不要修改标签名）：\n<status>\n网名: 你的网名\n标签: 2个字的性格标签\n穿着: 当前穿着细节\n动作: 当前具体动作\n好感度: 数字/100\n心声: 你的真实想法(30-80字，展现表面与内心的反差)\n</status>';
+    
+    if (settings.forceFormat) {
+        basePrompt += '\n\n【强制格式优化警告】\n如果你不使用 <status> 标签包裹，系统将直接崩溃！\n正确示例：\n"你今天看起来很累啊。"\n<status>\n网名: 孤狼\n标签: 傲娇\n穿着: 略微凌乱的白衬衫\n动作: 烦躁地揉了揉眉心\n好感度: 85/100\n心声: 其实我只是昨晚想你想得睡不着，但这种话我怎么可能说得出口...\n</status>';
+    }
+    
+    return basePrompt;
 }
 
 function extractStatusFromReply(roleId, replyText) {
     const config = statusBarData[roleId];
     if (!config || !config.enabled) return null;
     try {
-        // 强力正则：兼容各种可能的括号、冒号和缺失字段
-        const regex = /\[?【?(?:状态感知|状态|心声).*?(?:网名|标签|穿着|动作|好感度|心声).*?\]?】?/g;
+        // 优先匹配 XML 标签，如果 AI 还是犯蠢用了中括号，也兼容提取
+        const regex = /<status>([\s\S]*?)<\/status>|\[?【?(?:状态感知|状态|心声).*?(?:网名|标签|穿着|动作|好感度|心声).*?\]?】?/g;
         const matches = [...replyText.matchAll(regex)];
         if (matches.length > 0) {
             const rawMatch = matches[matches.length - 1][0]; 
+            const innerText = matches[matches.length - 1][1] || rawMatch; // 获取标签内部文本
             
             const parseField = (field) => {
-                const reg = new RegExp(`${field}[:：]\\s*([^|\\]】]+)`);
-                const m = rawMatch.match(reg);
+                // 兼容换行符和竖线分隔
+                const reg = new RegExp(`${field}[:：]\\s*([^|\\n\\]】<]+)`);
+                const m = innerText.match(reg);
                 return m ? m[1].trim() : '未知';
             };
             
@@ -12383,9 +12395,8 @@ function extractStatusFromReply(roleId, replyText) {
                 thought: parseField('心声')
             };
             
-            // 如果连心声都没提取到，说明格式彻底烂了，直接把整个匹配块当心声
             if (data.thought === '未知') {
-                data.thought = rawMatch.replace(/\[?【?(?:状态感知|状态|心声)[:：]?/g, '').replace(/\]?】?$/g, '').trim();
+                data.thought = innerText.replace(/(?:网名|标签|穿着|动作|好感度)[:：].*?(?:\n|\|)/g, '').trim();
             }
 
             return { data: data, rawMatch: rawMatch, time: new Date().toLocaleString('zh-CN') };
