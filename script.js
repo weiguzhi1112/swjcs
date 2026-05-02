@@ -4509,7 +4509,6 @@ function toInitApp(){
 
         const now = new Date();
         const timeStr = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
-        const msgId = `msg-${now.getTime()}`;
 
         let finalChatMode = currentChatMode; 
         
@@ -4524,22 +4523,20 @@ function toInitApp(){
             }
         }
 
-        const placeholderMsg = { 
+        // 插入初始的打字机占位气泡，并标记为 isStreaming
+        chats[targetRoleId].push({ 
             role: 'ai', 
             content: '<div class="bubble-typing-indicator"><div></div><div></div><div></div></div>', 
             time: timeStr, 
             rawTime: now.getTime(), 
             mode: finalChatMode, 
-            id: msgId 
-        };
-        chats[targetRoleId].push(placeholderMsg);
+            isStreaming: true 
+        });
         if (currentChatRoleId === targetRoleId) renderMessages();
-        const bubbleContentEl = document.querySelector(`#${msgId} .msg-bubble-content`);
 
         try {
             const activeMask = masks.find(m => m.id === role.activeMaskId) || masks.find(m => m.id === 'default') || masks[0];
             
-            /* 毒瘤修复：限制世界书长度，防止设定过长导致 Token 爆炸 */
             const globalWbs = worldbooks.filter(w => w.isGlobal).map(w => w.content).join('\n\n').substring(0, 10000);
             const localWbs = worldbooks.filter(w => role.localWbs?.includes(w.id)).map(w => w.content).join('\n\n').substring(0, 10000);
             
@@ -4614,7 +4611,7 @@ ${memories[role.id] ? `<shared_memory>\n${memories[role.id]}\n</shared_memory>` 
 1. 【去油腻】绝对禁止使用：轻笑、挑眉、眼眸深邃、喉结滚动、丫头、女人、呵、嘴角勾起一抹邪魅的弧度。说话必须口语化、自然。
 2. 【互动反应】对转账、礼物、代付、一起听歌、动态分享等系统提示，必须给出符合人设的真实反应。
 3. 【情侣空间】收到绑定邀请且同意时，回复必须包含隐藏指令 [ACCEPT_OURSPACE:配对码]，并且你必须在回复的文字中，自己编造一个全新的 6 位数字发给用户，让用户去输入。
-4. 你的头像URL: "${role.avatar || '默认'}"。换头像回复 [CHANGE_AVATAR:图片URL]。保存图片回复 [SAVE_PHOTO:图片URL|相册名]。
+4. 换头像回复 [CHANGE_AVATAR:图片URL]。保存图片回复 [SAVE_PHOTO:图片URL|相册名]。
 5. 【票根生成】当你们约定去看电影、演唱会、展览或旅行时，你必须在回复中包含隐藏指令生成票根：[TICKET:{"type":"movie/concert/travel/exhibit","title":"活动名称","subtitle":"副标题","label1":"地点","value1":"具体地点","label2":"座位/时间","value2":"具体信息","label3":"时间","value3":"具体时间","single":false}]。如果是你单人出行（比如飞过来找用户），请务必将 "single" 设为 true，这样系统只会生成一张你的票。
 6. 【主动转账】当你想给用户转账时，在回复中包含：[转账 ¥金额]${translationRule}
 7. 【记忆提取】如果用户在聊天中提到了喜欢的歌曲、食物等，请自然地记住并在后续对话中提及。
@@ -4633,11 +4630,12 @@ ${modeRules}
             }
             const apiMessages = [{ role: 'system', content: finalSystemPrompt }];
             
-            /* 毒瘤修复：优先使用角色设置的条数，如果没有则使用全局设置的条数 */
             const contextLimit = role.contextLimit || apiConfig.maxTokens || 50;
             
             const cleanHistoryContent = (content, msgRole) => {
                 let text = content;
+                // 清理历史记录中的思维链和状态，防止污染上下文
+                text = text.replace(/<div style="opacity:0\.6;[^>]*>[\s\S]*?<\/div>/gi, '');
                 text = text.replace(/<thought>[\s\S]*?<\/thought>\n*/gi, '');
                 text = text.replace(/思考：[\s\S]*?\n\n/gi, '');
 
@@ -4690,7 +4688,6 @@ ${modeRules}
                 });
                 text = text.replace(/<div class="virtual-img-box" data-text="(.*?)".*?<\/div>/g, '[图片: $1]');
                 
-                /* 毒瘤修复：彻底清除 HTML 标签，并强制截断超长文本，防止 Base64 图片残留导致 118万 Token 爆炸 */
                 text = text.replace(/<[^>]*>/g, ''); 
                 if (text.length > 2000) {
                     text = text.substring(0, 2000) + '...[内容过长已截断]';
@@ -4723,7 +4720,6 @@ ${modeRules}
             }).filter(m => m !== null); 
             apiMessages.push(...historyMsgs);
 
-            /* 合并连续的同角色消息，防止严格模型报错 */
             const mergedApiMessages = [];
             for (const msg of apiMessages) {
                 if (mergedApiMessages.length > 0 && mergedApiMessages[mergedApiMessages.length - 1].role === msg.role) {
@@ -4733,7 +4729,6 @@ ${modeRules}
                 }
             }
             
-            /* 强制保证最后一条消息是 user，否则严格模型必报 400 */
             if (mergedApiMessages.length > 0 && mergedApiMessages[mergedApiMessages.length - 1].role !== 'user') {
                 mergedApiMessages.push({ role: 'user', content: '请继续。' });
             }
@@ -4741,7 +4736,6 @@ ${modeRules}
             apiMessages.length = 0;
             apiMessages.push(...mergedApiMessages);
 
-            /* 安全解析 temperature 和 top_p，防止 NaN 变成 null 导致 400 */
             let tempVal = parseFloat(apiConfig.temperature);
             if (isNaN(tempVal)) tempVal = 0.8;
             let topPVal = parseFloat(apiConfig.topP);
@@ -4794,10 +4788,8 @@ ${modeRules}
             if (isStreamEnabled) {
                 const reader = response.body.getReader();
                 const decoder = new TextDecoder("utf-8");
-                let isFirstChunk = true;
                 let buffer = ""; 
                 let lastUpdateTime = 0;
-                let cleanDisplay = "";
 
                 while (true) {
                     const { value, done } = await reader.read();
@@ -4815,7 +4807,6 @@ ${modeRules}
                         if (jsonStr === '' || jsonStr === '[DONE]') continue;
                         
                         try {
-                            /* 拦截流内部的隐式报错，防止静默空回 */
                             if (jsonStr.includes('"error"')) {
                                 const errObj = JSON.parse(jsonStr);
                                 if (errObj.error) throw new Error(errObj.error.message || "API 流内部返回错误");
@@ -4824,29 +4815,50 @@ ${modeRules}
                             const parsed = JSON.parse(jsonStr);
                             const delta = parsed.choices[0]?.delta?.content;
                             if (delta) {
-                                if (isFirstChunk) { if (bubbleContentEl) bubbleContentEl.innerHTML = ''; isFirstChunk = false; }
                                 fullReply += delta;
                                 
-                                const now = Date.now();
-                                if (now - lastUpdateTime > 150) { 
-                                    lastUpdateTime = now;
-                                    cleanDisplay = fullReply;
+                                const nowTime = Date.now();
+                                if (nowTime - lastUpdateTime > 150) { 
+                                    lastUpdateTime = nowTime;
+                                    let cleanDisplay = fullReply;
+                                    
+                                    // 隐藏心声和状态标签，防止在流式输出时暴露
+                                    cleanDisplay = cleanDisplay.replace(/\[(?:状态|心声)[:：][\s\S]*?(?:\]|$)/g, '').trim();
+
                                     if (!settings.showCoT) {
                                         cleanDisplay = cleanDisplay.replace(/<thought>[\s\S]*?(<\/thought>|$)/gi, '')
                                                                    .replace(/思考：[\s\S]*?(?=\n\n|$)/gi, '');
                                     } else {
-                                        cleanDisplay = cleanDisplay.replace(/<thought>([\s\S]*?)(<\/thought>|$)/gi, '<div style="opacity:0.6; font-size:0.85em; border-left:2px solid currentColor; padding-left:8px; margin-bottom:8px; font-style:italic;">$1</div>');
+                                        cleanDisplay = cleanDisplay.replace(/<thought>([\s\S]*?)(<\/thought>|$)/gi, '<div style="opacity:0.6; font-size:0.85em; border-left:2px solid currentColor; padding-left:8px; margin-bottom:8px; font-style:italic; white-space:pre-wrap;">$1</div>');
                                     }
                                     
-                                    requestAnimationFrame(() => {
-                                        const currentBubbleEl = document.querySelector(`#${msgId} .msg-bubble-content`);
-                                        if (currentBubbleEl) {
-                                            currentBubbleEl.innerHTML = cleanDisplay.replace(/\n/g, '<br>');
-                                        }
-                                        if (currentChatRoleId === targetRoleId) {
-                                            $('#chat-messages').scrollTop = $('#chat-messages').scrollHeight;
-                                        }
+                                    // 实时分割气泡并去除句号
+                                    let displayLines = cleanDisplay.split('\n').map(s => s.trim()).filter(s => s);
+                                    displayLines = displayLines.map(s => {
+                                        if (s.endsWith('。') || s.endsWith('.')) return s.slice(0, -1);
+                                        return s;
                                     });
+
+                                    if (displayLines.length === 0) displayLines = ['<div class="bubble-typing-indicator"><div></div><div></div><div></div></div>'];
+
+                                    // 动态更新 chats 数组，实现一句话一个气泡的弹跳效果
+                                    chats[targetRoleId] = chats[targetRoleId].filter(m => !m.isStreaming);
+                                    displayLines.forEach((dl, idx) => {
+                                        chats[targetRoleId].push({
+                                            role: 'ai',
+                                            content: dl,
+                                            time: timeStr,
+                                            rawTime: now.getTime() + idx,
+                                            mode: finalChatMode,
+                                            isStreaming: true
+                                        });
+                                    });
+
+                                    if (currentChatRoleId === targetRoleId) {
+                                        requestAnimationFrame(() => {
+                                            renderMessages();
+                                        });
+                                    }
                                 }
                             }
                         } catch (e) {
@@ -4860,27 +4872,7 @@ ${modeRules}
                 rawFullReply = fullReply;
             }
             
-            let cleanDisplay = fullReply;
-            if (!settings.showCoT) {
-                cleanDisplay = cleanDisplay.replace(/<thought>[\s\S]*?(<\/thought>|$)/gi, '')
-                                           .replace(/思考：[\s\S]*?(?=\n\n|$)/gi, '');
-            } else {
-                cleanDisplay = cleanDisplay.replace(/<thought>([\s\S]*?)(<\/thought>|$)/gi, '<div style="opacity:0.6; font-size:0.85em; border-left:2px solid currentColor; padding-left:8px; margin-bottom:8px; font-style:italic;">$1</div>');
-            }
-            const finalBubbleEl = document.querySelector(`#${msgId} .msg-bubble-content`);
-            if (finalBubbleEl) {
-                finalBubbleEl.innerHTML = cleanDisplay.replace(/\n/g, '<br>');
-            }
-            if (currentChatRoleId === targetRoleId) {
-                $('#chat-messages').scrollTop = $('#chat-messages').scrollHeight;
-            }
-
-            if (!settings.showCoT) {
-                fullReply = fullReply.replace(/<thought>[\s\S]*?<\/thought>/gi, '').replace(/思考：[\s\S]*?(?=\n\n|$)/gi, '').trim();
-            } else {
-                fullReply = fullReply.replace(/<thought>([\s\S]*?)<\/thought>/gi, '<div style="opacity:0.6; font-size:0.85em; border-left:2px solid currentColor; padding-left:8px; margin-bottom:8px; font-style:italic;">$1</div>').trim();
-            }
-            
+            // 提取并保存状态感知
             const statusEntry = extractStatusFromReply(targetRoleId, fullReply);
             if (statusEntry) {
                 saveStatusHistory(targetRoleId, statusEntry);
@@ -5032,15 +5024,35 @@ ${modeRules}
                 }
             }
             
-            const pIndex = chats[targetRoleId].findIndex(m => m.id === msgId);
-            if (pIndex > -1) {
-                chats[targetRoleId].splice(pIndex, 1);
+            // 最终清理和分割
+            let cleanDisplay = fullReply;
+            if (!settings.showCoT) {
+                cleanDisplay = cleanDisplay.replace(/<thought>[\s\S]*?<\/thought>/gi, '').replace(/思考：[\s\S]*?(?=\n\n|$)/gi, '').trim();
             } else {
-                chats[targetRoleId].pop();
+                cleanDisplay = cleanDisplay.replace(/<thought>([\s\S]*?)<\/thought>/gi, '<div style="opacity:0.6; font-size:0.85em; border-left:2px solid currentColor; padding-left:8px; margin-bottom:8px; font-style:italic; white-space:pre-wrap;">$1</div>').trim();
             }
-            
-            let formattedReply = fullReply.replace(/\n+/g, '\n');
-            chats[targetRoleId].push({ role: 'ai', content: formattedReply, rawContent: rawFullReply, time: timeStr, rawTime: now.getTime(), mode: finalChatMode });
+
+            let finalLines = cleanDisplay.split('\n').map(s => s.trim()).filter(s => s);
+            finalLines = finalLines.map(s => {
+                if (s.endsWith('。') || s.endsWith('.')) return s.slice(0, -1);
+                return s;
+            });
+
+            if (finalLines.length === 0) finalLines = ['(沉默)'];
+
+            // 移除所有流式占位符
+            chats[targetRoleId] = chats[targetRoleId].filter(m => !m.isStreaming);
+
+            finalLines.forEach((line, idx) => {
+                chats[targetRoleId].push({
+                    role: 'ai',
+                    content: line,
+                    rawContent: idx === 0 ? rawFullReply : undefined,
+                    time: timeStr,
+                    rawTime: now.getTime() + idx,
+                    mode: finalChatMode
+                });
+            });
             
             for (let i = chats[targetRoleId].length - 1; i >= 0; i--) {
                 let m = chats[targetRoleId][i];
@@ -5067,7 +5079,7 @@ ${modeRules}
             if (currentChatRoleId === targetRoleId) renderMessages();
             
             if (document.hidden) {
-                showSystemNotification(targetRoleId, getDisplayName(role), formattedReply, role.avatar);
+                showSystemNotification(targetRoleId, getDisplayName(role), finalLines.join(' '), role.avatar);
             }
 
         } catch (err) {
@@ -5086,14 +5098,9 @@ ${modeRules}
                 solution = "API 返回的数据格式异常。可能是模型不支持流式输出，或者接口地址填错了。";
             }
 
-            const lastMsg = chats[targetRoleId][chats[targetRoleId].length - 1];
-            if (lastMsg && lastMsg.id === msgId) {
-                lastMsg.content = `<span style="color:#ff4d4d;">[API 请求中断/报错] ${err.message}<br><br>💡 建议：${solution}</span>`;
-                lastMsg.role = 'system';
-                lastMsg.mode = 'online';
-            } else {
-                chats[targetRoleId].push({ role: 'system', content: `<span style="color:#ff4d4d;">[API 请求中断/报错] ${err.message}<br><br>💡 建议：${solution}</span>`, time: timeStr, rawTime: now.getTime(), mode: 'online' });
-            }
+            chats[targetRoleId] = chats[targetRoleId].filter(m => !m.isStreaming);
+            chats[targetRoleId].push({ role: 'system', content: `<span style="color:#ff4d4d;">[API 请求中断/报错] ${err.message}<br><br>💡 建议：${solution}</span>`, time: timeStr, rawTime: now.getTime(), mode: 'online' });
+            
             DB.set('chats', chats);
             if (currentChatRoleId === targetRoleId) renderMessages();
             
