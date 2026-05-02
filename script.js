@@ -4833,8 +4833,8 @@ ${modeRules}
                                     lastUpdateTime = nowTime;
                                     let cleanDisplay = fullReply;
                                     
-                                    // 隐藏心声和状态标签，防止在流式输出时暴露
-                                    cleanDisplay = cleanDisplay.replace(/\[(?:状态|心声)[:：][\s\S]*?(?:\]|$)/g, '').trim();
+                                    // 隐藏心声和状态标签，防止在流式输出时暴露（使用终极截断正则）
+                                    cleanDisplay = cleanDisplay.replace(/\[?【?(?:状态感知|状态|心声)(?:[:：|\s]|\]|】)[\s\S]*$/g, '').trim();
 
                                     if (!settings.showCoT) {
                                         cleanDisplay = cleanDisplay.replace(/<thought>[\s\S]*?(<\/thought>|$)/gi, '')
@@ -12414,8 +12414,8 @@ function cleanStatusFromText(roleId, text) {
     const config = statusBarData[roleId];
     if (!config || !config.enabled) return text;
     try {
-        /* 强力截断逻辑：只要检测到状态标签的开头，就把后面的所有内容全部删掉，彻底解决AI忘记写闭合括号导致的掉格式 */
-        let cleaned = text.replace(/\[?【?(?:状态感知|状态|心声)[:：][\s\S]*$/g, '').trim();
+        /* 终极截断逻辑：只要检测到“状态感知”、“状态”或“心声”，不管后面跟的是冒号、竖线还是空格，直接把后面的所有内容全部删掉，绝对不让它出现在气泡里 */
+        let cleaned = text.replace(/\[?【?(?:状态感知|状态|心声)(?:[:：|\s]|\]|】)[\s\S]*$/g, '').trim();
         if (settings.forceFormat) {
             /* 如果开启了强制格式优化，再扫一遍可能漏网的片段 */
             cleaned = cleaned.replace(/\|?\s*好感度[:：][\s\S]*$/g, '').trim();
