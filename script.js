@@ -5037,6 +5037,10 @@ ${modeRules}
             
             // 最终清理和分割
             let cleanDisplay = fullReply;
+            
+            /* 强力清理AI可能模仿生成的时间戳前缀 (如 [10月24日 12:00])，防止气泡开头掉格式 */
+            cleanDisplay = cleanDisplay.replace(/^\[\d{1,2}月\d{1,2}日\s\d{2}:\d{2}\]\s*/g, '');
+            
             if (!settings.showCoT) {
                 cleanDisplay = cleanDisplay.replace(/<thought>[\s\S]*?<\/thought>/gi, '').replace(/思考：[\s\S]*?(?=\n\n|$)/gi, '').trim();
             } else {
@@ -12365,13 +12369,14 @@ function extractStatusFromReply(roleId, replyText) {
     const config = statusBarData[roleId];
     if (!config || !config.enabled) return null;
     try {
-        // 强力正则：兼容各种可能的括号、冒号和缺失字段
-        const regex = /\[?【?(?:状态感知|状态|心声).*?(?:网名|标签|穿着|动作|好感度|心声).*?\]?】?/g;
+        /* 强力正则：兼容各种可能的括号、冒号和缺失字段，即使没有闭合括号也能匹配到结尾 */
+        const regex = /\[?【?(?:状态感知|状态|心声).*?(?:网名|标签|穿着|动作|好感度|心声).*?(?:\]|】|$)/g;
         const matches = [...replyText.matchAll(regex)];
         if (matches.length > 0) {
             const rawMatch = matches[matches.length - 1][0]; 
             
             const parseField = (field) => {
+                /* 修改正则，使其在没有 ] 的情况下也能匹配到 | 或者字符串结尾 */
                 const reg = new RegExp(`${field}[:：]\\s*([^|\\]】]+)`);
                 const m = rawMatch.match(reg);
                 return m ? m[1].trim() : '未知';
@@ -12386,7 +12391,7 @@ function extractStatusFromReply(roleId, replyText) {
                 thought: parseField('心声')
             };
             
-            // 如果连心声都没提取到，说明格式彻底烂了，直接把整个匹配块当心声
+            /* 如果连心声都没提取到，说明格式彻底烂了，直接把整个匹配块当心声 */
             if (data.thought === '未知') {
                 data.thought = rawMatch.replace(/\[?【?(?:状态感知|状态|心声)[:：]?/g, '').replace(/\]?】?$/g, '').trim();
             }
@@ -12409,11 +12414,11 @@ function cleanStatusFromText(roleId, text) {
     const config = statusBarData[roleId];
     if (!config || !config.enabled) return text;
     try {
-        // 毒瘤修复：极其宽泛的正则，只要出现 [心声: 或 [状态: 就一直删到结尾，绝对不让它掉落在正文里
-        let cleaned = text.replace(/\[?【?(?:状态感知|状态|心声)[:：][\s\S]*?(?:\]|】|$)/g, '').trim();
+        /* 强力截断逻辑：只要检测到状态标签的开头，就把后面的所有内容全部删掉，彻底解决AI忘记写闭合括号导致的掉格式 */
+        let cleaned = text.replace(/\[?【?(?:状态感知|状态|心声)[:：][\s\S]*$/g, '').trim();
         if (settings.forceFormat) {
-            // 如果开启了强制格式优化，再扫一遍可能漏网的 | 好感度: xxx ]
-            cleaned = cleaned.replace(/\|?\s*好感度[:：][\s\S]*?(?:\]|】|$)/g, '').trim();
+            /* 如果开启了强制格式优化，再扫一遍可能漏网的片段 */
+            cleaned = cleaned.replace(/\|?\s*好感度[:：][\s\S]*$/g, '').trim();
         }
         return cleaned;
     } catch (e) { return text; }
@@ -12425,20 +12430,6 @@ function saveStatusHistory(roleId, statusEntry) {
     if (config.history.length > 20) config.history = config.history.slice(0, 20);
     statusBarData[roleId] = config;
     DB.set('statusBarData', statusBarData);
-}
-
-function cleanStatusFromText(roleId, text) {
-    const config = statusBarData[roleId];
-    if (!config || !config.enabled) return text;
-    try {
-        // 毒瘤修复：极其宽泛的正则，只要出现 [心声: 或 [状态: 就一直删到结尾，绝对不让它掉落在正文里
-        let cleaned = text.replace(/\[?【?(?:状态感知|状态|心声)[:：][\s\S]*?(?:\]|】|$)/g, '').trim();
-        if (settings.forceFormat) {
-            // 如果开启了强制格式优化，再扫一遍可能漏网的 | 好感度: xxx ]
-            cleaned = cleaned.replace(/\|?\s*好感度[:：][\s\S]*?(?:\]|】|$)/g, '').trim();
-        }
-        return cleaned;
-    } catch (e) { return text; }
 }
 
 function updateStatusBarButton() {
@@ -12631,7 +12622,7 @@ function getStatusPromptSuffix(roleId) {
     let basePrompt = '\n\n【心声与状态强制生成指令】\n请在回复的最末尾，换行并严格使用以下完整格式输出你的状态（必须包含所有字段，绝对不能遗漏“穿着”和“动作”）：\n[状态感知 | 网名: 你的网名 | 标签: 2个字的性格标签 | 穿着: 当前穿着细节 | 动作: 当前具体动作 | 好感度: 数字/100 | 心声: 你的真实想法]\n\n要求：\n1. “穿着”和“动作”必须具体且符合当前情境（例如 穿着: 宽松的黑色睡衣 | 动作: 正单手解开领带）。\n2. “心声”必须极度丰富、私密（至少30-80字），展现表面回复与内心真实想法的反差。';
     
     if (settings.forceFormat) {
-        basePrompt += '\n\n【强制格式优化已开启：绝对服从示例】\n你必须严格模仿以下输出结构，绝对不允许把格式标签混入正文对话中，也绝对不允许遗漏时间戳或状态括号！\n\n正确输出示例：\n"你今天看起来很累啊。"\n[状态感知 | 网名: 孤狼 | 标签: 傲娇 | 穿着: 略微凌乱的白衬衫 | 动作: 烦躁地揉了揉眉心 | 好感度: 85/100 | 心声: 其实我只是昨晚想你想得睡不着，但这种话我怎么可能说得出口...]';
+        basePrompt += '\n\n【强制格式优化已开启：绝对服从示例】\n你必须严格模仿以下输出结构，绝对不允许把格式标签混入正文对话中，绝对不允许遗漏状态括号，也绝对禁止使用 JSON 数组格式！\n\n正确输出示例：\n"你今天看起来很累啊。"\n[状态感知 | 网名: 孤狼 | 标签: 傲娇 | 穿着: 略微凌乱的白衬衫 | 动作: 烦躁地揉了揉眉心 | 好感度: 85/100 | 心声: 其实我只是昨晚想你想得睡不着，但这种话我怎么可能说得出口...]';
     }
     
     return basePrompt;
