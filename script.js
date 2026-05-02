@@ -4480,7 +4480,6 @@ function toInitApp(){
         document.head.appendChild(styleEl);
     }
 }
-
     async function triggerAI(isReroll = false) {
         if (!currentChatRoleId) return;
         
@@ -4612,7 +4611,7 @@ ${memories[role.id] ? `<shared_memory>\n${memories[role.id]}\n</shared_memory>` 
 <rules>
 1. 【去油腻】绝对禁止使用：轻笑、挑眉、眼眸深邃、喉结滚动、丫头、女人、呵、嘴角勾起一抹邪魅的弧度。说话必须口语化、自然。
 2. 【互动反应】对转账、礼物、代付、一起听歌、动态分享等系统提示，必须给出符合人设的真实反应。
-3. 【情侣空间】收到绑定邀请且同意时，回复必须包含隐藏指令 [ACCEPT_OURSPACE:配令人码]，并且你必须在回复的文字中，自己编造一个全新的 6 位数字发给用户，让用户去输入。
+3. 【情侣空间】收到绑定邀请且同意时，回复必须包含隐藏指令 [ACCEPT_OURSPACE:配对码]，并且你必须在回复的文字中，自己编造一个全新的 6 位数字发给用户，让用户去输入。
 4. 你的头像URL: "${role.avatar || '默认'}"。换头像回复 [CHANGE_AVATAR:图片URL]。保存图片回复 [SAVE_PHOTO:图片URL|相册名]。
 5. 【票根生成】当你们约定去看电影、演唱会、展览或旅行时，你必须在回复中包含隐藏指令生成票根：[TICKET:{"type":"movie/concert/travel/exhibit","title":"活动名称","subtitle":"副标题","label1":"地点","value1":"具体地点","label2":"座位/时间","value2":"具体信息","label3":"时间","value3":"具体时间","single":false}]。如果是你单人出行（比如飞过来找用户），请务必将 "single" 设为 true，这样系统只会生成一张你的票。
 6. 【主动转账】当你想给用户转账时，在回复中包含：[转账 ¥金额]${translationRule}
@@ -4714,26 +4713,38 @@ ${modeRules}
             }).filter(m => m !== null); 
             apiMessages.push(...historyMsgs);
 
-            /* 合并连续的同角色消息，防止严格模型报错 */
+            /* 毒瘤修复 1：合并连续的同角色消息，防止严格模型报错 */
             const mergedApiMessages = [];
             for (const msg of apiMessages) {
                 if (mergedApiMessages.length > 0 && mergedApiMessages[mergedApiMessages.length - 1].role === msg.role) {
                     mergedApiMessages[mergedApiMessages.length - 1].content += `\n\n${msg.content}`;
                 } else {
-                    mergedApiMessages.push(msg);
+                    mergedApiMessages.push({ role: msg.role, content: msg.content }); // 毒瘤修复：深拷贝防止污染
                 }
             }
+            
+            /* 毒瘤修复 2：强制保证最后一条消息是 user，否则严格模型必报 400 */
+            if (mergedApiMessages.length > 0 && mergedApiMessages[mergedApiMessages.length - 1].role !== 'user') {
+                mergedApiMessages.push({ role: 'user', content: '请继续。' });
+            }
+
             apiMessages.length = 0;
             apiMessages.push(...mergedApiMessages);
+
+            /* 毒瘤修复 3：安全解析 temperature 和 top_p，防止 NaN 变成 null 导致 400 */
+            let tempVal = parseFloat(apiConfig.temperature);
+            if (isNaN(tempVal)) tempVal = 0.8;
+            let topPVal = parseFloat(apiConfig.topP);
+            if (isNaN(topPVal)) topPVal = 1.0;
 
             const endpoint = getChatEndpoint(apiConfig.url);
             const isStreamEnabled = apiConfig.stream !== false;
             const requestBody = {
-                model: apiConfig.model,
+                model: apiConfig.model || 'gpt-4o',
                 messages: apiMessages,
-                temperature: parseFloat(apiConfig.temperature),
-                top_p: parseFloat(apiConfig.topP) || 1.0,
-                max_tokens: 4096,
+                temperature: tempVal,
+                top_p: topPVal,
+                max_tokens: 4096, // 毒瘤修复 4：强制限制输出长度，防止传入 128000 导致 400
                 stream: isStreamEnabled
             };
             
@@ -4795,7 +4806,7 @@ ${modeRules}
                         if (jsonStr === '' || jsonStr === '[DONE]') continue;
                         
                         try {
-                            /* 拦截流内部的隐式报错，防止静默空回 */
+                            /* 毒瘤修复 5：拦截流内部的隐式报错，防止静默空回 */
                             if (jsonStr.includes('"error"')) {
                                 const errObj = JSON.parse(jsonStr);
                                 if (errObj.error) throw new Error(errObj.error.message || "API 流内部返回错误");
@@ -5020,6 +5031,7 @@ ${modeRules}
             }
             
             let formattedReply = fullReply.replace(/\n+/g, '\n');
+            /* 毒瘤修复 6：取消强制气泡分割，保留完整的回复作为一个气泡 */
             chats[targetRoleId].push({ role: 'ai', content: formattedReply, rawContent: rawFullReply, time: timeStr, rawTime: now.getTime(), mode: finalChatMode });
             
             for (let i = chats[targetRoleId].length - 1; i >= 0; i--) {
@@ -5084,8 +5096,7 @@ ${modeRules}
                 try { hideGlobalTyping(); } catch(e) {}
             }
         }
-    }
-    
+    }   
     function renderWeather() { 
         const form = $('#weather-form'); 
         form.innerHTML = Object.entries({ 
@@ -10014,77 +10025,76 @@ function checkAllAutoMsgRoles() {
         }
     });
 }
-
-async function generateAutoMsg(roleId) {
-    const role = roles.find(r => r.id === roleId);
-    if (!role) return;
-    
-    if (!apiConfig.url) {
-        sendAutoMsgFallback(roleId, role);
-        return;
-    }
-    
-    if (typeof showGlobalTyping === 'function') showGlobalTyping(role.realName);
-
-    const now = new Date();
-    const hour = now.getHours();
-    const weekdays = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
-    const weekday = weekdays[now.getDay()];
-    
-    const minB = settings.bubbleCountMin || 1;
-    const maxB = settings.bubbleCountMax || 5;
-    
-    const contextLimit = role.contextLimit || 30;
-    const chatHistory = chats[roleId] || [];
-    
-    let fullMemory = memories[roleId] || '';
-    if (advancedMemories[roleId]) {
-        const adv = advancedMemories[roleId];
-        if (adv.coreMemories && adv.coreMemories.length > 0) {
-            fullMemory += '\n' + adv.coreMemories.slice(-3).map(m => m.content).join('\n');
+    async function generateAutoMsg(roleId) {
+        const role = roles.find(r => r.id === roleId);
+        if (!role) return;
+        
+        if (!apiConfig.url) {
+            sendAutoMsgFallback(roleId, role);
+            return;
         }
-        if (adv.episodicMemories && adv.episodicMemories.length > 0) {
-            fullMemory += '\n' + adv.episodicMemories.slice(-2).map(m => m.content).join('\n');
-        }
-    }
-    const memorySummary = fullMemory ? `\n[你们的共同记忆]\n${fullMemory.substring(0, 500)}` : '';
-    
-    let osContext = '';
-    if (typeof ourSpaceData !== 'undefined' && ourSpaceData.isPaired && ourSpaceData.partnerId === roleId) {
-        const osDiaries = (ourSpaceData.diaries || []).slice(0, 2).map(d => `${d.author}: ${d.text.substring(0, 40)}`).join('\n');
-        if (osDiaries) osContext = `\n[心动日常最近动态]\n${osDiaries}`;
-    }
-    
-    const activeMask = masks.find(m => m.id === role.activeMaskId) || masks.find(m => m.id === 'default') || masks[0];
-    const maskPrompt = activeMask ? `\n[用户身份设定]\n${activeMask.content}` : '';
-    
-    const globalWbs = worldbooks.filter(w => w.isGlobal).map(w => w.content).join('\n');
-    const localWbs = worldbooks.filter(w => role.localWbs?.includes(w.id)).map(w => w.content).join('\n');
-    const wbPrompt = (globalWbs || localWbs) ? `\n[世界观设定]\n${globalWbs}\n${localWbs}`.substring(0, 600) : ''; 
-    const mapContext = virtualLocations.length > 0 ? `\n[当前世界地图已知地点]\n${virtualLocations.map(l => `${l.name} (${l.desc})`).join(', ')}` : '';
-    
-    let silenceDuration = '';
-    let lastUserMsgTime = null;
-    let lastTopic = '无';
-    
-    if (chatHistory.length > 0) {
-        const lastFewMsgs = chatHistory.slice(-3).map(m => `${m.role === 'user' ? '用户' : role.realName}: ${m.content.replace(/<[^>]*>/g, '').substring(0, 30)}`).join(' | ');
-        lastTopic = lastFewMsgs || '无';
+        
+        if (typeof showGlobalTyping === 'function') showGlobalTyping(role.realName);
 
-        for (let i = chatHistory.length - 1; i >= 0; i--) {
-            if (chatHistory[i].role === 'user') { lastUserMsgTime = chatHistory[i].rawTime; break; }
+        const now = new Date();
+        const hour = now.getHours();
+        const weekdays = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
+        const weekday = weekdays[now.getDay()];
+        
+        const minB = settings.bubbleCountMin || 1;
+        const maxB = settings.bubbleCountMax || 5;
+        
+        const contextLimit = role.contextLimit || 30;
+        const chatHistory = chats[roleId] || [];
+        
+        let fullMemory = memories[roleId] || '';
+        if (advancedMemories[roleId]) {
+            const adv = advancedMemories[roleId];
+            if (adv.coreMemories && adv.coreMemories.length > 0) {
+                fullMemory += '\n' + adv.coreMemories.slice(-3).map(m => m.content).join('\n');
+            }
+            if (adv.episodicMemories && adv.episodicMemories.length > 0) {
+                fullMemory += '\n' + adv.episodicMemories.slice(-2).map(m => m.content).join('\n');
+            }
         }
-    }
+        const memorySummary = fullMemory ? `\n[你们的共同记忆]\n${fullMemory.substring(0, 500)}` : '';
+        
+        let osContext = '';
+        if (typeof ourSpaceData !== 'undefined' && ourSpaceData.isPaired && ourSpaceData.partnerId === roleId) {
+            const osDiaries = (ourSpaceData.diaries || []).slice(0, 2).map(d => `${d.author}: ${d.text.substring(0, 40)}`).join('\n');
+            if (osDiaries) osContext = `\n[心动日常最近动态]\n${osDiaries}`;
+        }
+        
+        const activeMask = masks.find(m => m.id === role.activeMaskId) || masks.find(m => m.id === 'default') || masks[0];
+        const maskPrompt = activeMask ? `\n[用户身份设定]\n${activeMask.content}` : '';
+        
+        const globalWbs = worldbooks.filter(w => w.isGlobal).map(w => w.content).join('\n');
+        const localWbs = worldbooks.filter(w => role.localWbs?.includes(w.id)).map(w => w.content).join('\n');
+        const wbPrompt = (globalWbs || localWbs) ? `\n[世界观设定]\n${globalWbs}\n${localWbs}`.substring(0, 600) : ''; 
+        const mapContext = virtualLocations.length > 0 ? `\n[当前世界地图已知地点]\n${virtualLocations.map(l => `${l.name} (${l.desc})`).join(', ')}` : '';
+        
+        let silenceDuration = '';
+        let lastUserMsgTime = null;
+        let lastTopic = '无';
+        
+        if (chatHistory.length > 0) {
+            const lastFewMsgs = chatHistory.slice(-3).map(m => `${m.role === 'user' ? '用户' : role.realName}: ${m.content.replace(/<[^>]*>/g, '').substring(0, 30)}`).join(' | ');
+            lastTopic = lastFewMsgs || '无';
 
-    if (lastUserMsgTime) {
-        const gapMs = Date.now() - lastUserMsgTime;
-        const gapMins = Math.floor(gapMs / 60000);
-        if (gapMins < 60) silenceDuration = `${gapMins}分钟`;
-        else if (gapMins < 1440) silenceDuration = `${Math.floor(gapMins/60)}小时`;
-        else silenceDuration = `${Math.floor(gapMins/1440)}天`;
-    }
-    
-    let timeContext = '';
+            for (let i = chatHistory.length - 1; i >= 0; i--) {
+                if (chatHistory[i].role === 'user') { lastUserMsgTime = chatHistory[i].rawTime; break; }
+            }
+        }
+
+        if (lastUserMsgTime) {
+            const gapMs = Date.now() - lastUserMsgTime;
+            const gapMins = Math.floor(gapMs / 60000);
+            if (gapMins < 60) silenceDuration = `${gapMins}分钟`;
+            else if (gapMins < 1440) silenceDuration = `${Math.floor(gapMins/60)}小时`;
+            else silenceDuration = `${Math.floor(gapMins/1440)}天`;
+        }
+        
+        let timeContext = '';
         if (hour >= 0 && hour < 6) timeContext = '现在是深夜/凌晨';
         else if (hour >= 6 && hour < 9) timeContext = '现在是早晨';
         else if (hour >= 9 && hour < 12) timeContext = '现在是上午';
@@ -10092,7 +10102,7 @@ async function generateAutoMsg(roleId) {
         else if (hour >= 14 && hour < 18) timeContext = '现在是下午';
         else if (hour >= 18 && hour < 21) timeContext = '现在是傍晚';
         else timeContext = '现在是晚上';
-        
+            
         const apiMessages = [];
 
         const systemPrompt = `[CORE DIRECTIVE - 活人感主动消息模式]\n你是${role.realName}。以下是你的完整人设，你必须100%遵守，绝对不能OOC：\n${role.persona}${maskPrompt}${wbPrompt}${mapContext}${memorySummary}${osContext}\n\n[当前情境与时间感知]\n- ${timeContext}，${weekday}，${now.getFullYear()}年${now.getMonth()+1}月${now.getDate()}日 ${String(hour).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}\n- 距离用户上一条消息已经过去了 ${silenceDuration || '一段时间'}。\n- 你们上次聊天的最后内容是：【${lastTopic}】\n\n[活人感终极要求]\n1. 【承上启下】结合上次聊天的内容和流逝的时间，自然地开启话题。比如上次聊到睡觉，现在是早晨，就可以说“昨晚睡得好吗”。绝对不要像机器人一样干巴巴地问“在吗”。\n2. 【去油腻】说话必须口语化、自然、接地气。绝对禁止使用霸总、娇妻等夸张做作的语调。\n3. 【格式限制】严格输出 ${minB} 到 ${maxB} 句话！每句话独占一行。日常聊天绝对不要在句末加句号。\n4. 直接输出消息内容，不加引号，不加任何解释。`;
@@ -10103,25 +10113,25 @@ async function generateAutoMsg(roleId) {
             let textContent = m.content;
             textContent = textContent.replace(/<thought>[\s\S]*?<\/thought>\n*/gi, '');
             textContent = textContent.replace(/思考：[\s\S]*?\n\n/gi, '');
-            textContent = textContent.replace(/$$GIFT_TO_AI:(.*?)$$/g, (match, p1) => {
+            textContent = textContent.replace(/\[GIFT_TO_AI:(.*?)\]/g, (match, p1) => {
                 try { const data = JSON.parse(decodeURIComponent(p1)); return `[系统提示：用户为你点了一份礼物/外卖，物品：${data.itemName}，来自：${data.shopName}，价值：¥${data.price}]`; } catch(e) { return '[收到一份礼物]'; }
             });
-            textContent = textContent.replace(/$$TRANSFER:(.*?)$$/g, (match, p1) => {
+            textContent = textContent.replace(/\[TRANSFER:(.*?)\]/g, (match, p1) => {
                 try { const data = JSON.parse(decodeURIComponent(p1)); return `[系统提示：用户向你转账了 ¥${data.amount}]`; } catch(e) { return '[收到一笔转账]'; }
             });
-            textContent = textContent.replace(/$$FAMILY_CARD:(.*?)$$/g, (match, p1) => {
+            textContent = textContent.replace(/\[FAMILY_CARD:(.*?)\]/g, (match, p1) => {
                 try { const data = JSON.parse(decodeURIComponent(p1)); return `[系统提示：用户赠送了你一张亲属卡，每月额度：¥${data.limit}]`; } catch(e) { return '[收到一张亲属卡]'; }
             });
-            textContent = textContent.replace(/$$PAY_REQUEST:(.*?)$$/g, (match, p1) => {
+            textContent = textContent.replace(/\[PAY_REQUEST:(.*?)\]/g, (match, p1) => {
                 try { const data = JSON.parse(decodeURIComponent(p1)); return `[系统提示：用户向你发送了代付请求，物品：${data.shopName}，需要你支付：¥${data.total}]`; } catch(e) { return '[收到一个代付请求]'; }
             });
-            textContent = textContent.replace(/$$OURSPACE_INVITE:(.*?)$$/g, (match, p1) => {
+            textContent = textContent.replace(/\[OURSPACE_INVITE:(.*?)\]/g, (match, p1) => {
                 try { 
                     const data = JSON.parse(decodeURIComponent(p1)); 
                     return `[系统提示：用户向你发送了专属情侣空间(OurSpace)的绑定邀请，用户的配对码为：${data.code}。如果你同意绑定，请务必在回复中包含隐藏指令 [ACCEPT_OURSPACE:${data.code}]，并且你需要自己编造一个全新的 6 位数字配对码发给用户，让用户去输入。]`; 
                 } catch(e) { return '[收到情侣空间绑定邀请]'; }
             });
-            textContent = textContent.replace(/$$MUSIC_CARD:(.*?)$$/g, (match, p1) => {
+            textContent = textContent.replace(/\[MUSIC_CARD:(.*?)\]/g, (match, p1) => {
                 try { const data = JSON.parse(decodeURIComponent(p1)); return `[系统提示：用户邀请你一起听歌：《${data.name}》- ${data.artist}]`; } catch(e) { return '[收到一起听歌邀请]'; }
             });
             textContent = textContent.replace(/\[TICKET:(.*?)\]/g, (match, p1) => {
@@ -10141,7 +10151,7 @@ async function generateAutoMsg(roleId) {
                 try { const data = JSON.parse(decodeURIComponent(p1)); return `[系统提示：用户向你分享了一条动态，作者：${data.author}，内容：${data.content}]`; } catch(e) { return '[分享了一条动态]'; }
             });
             textContent = textContent.replace(/\[THEATER_CARD:(.*?)\]/g, (match, p1) => {
-                if (m.role === 'ai') return ''; // 核心修复：AI自己生成的剧场卡片，对AI隐形
+                if (m.role === 'ai') return ''; 
                 try { 
                     const data = JSON.parse(decodeURIComponent(p1)); 
                     return `[系统提示：这是一篇名为《${data.title}》的同人小剧场，不计入正文剧情。如果你看到了这条提示，说明用户把这篇剧场分享给了你，请你以角色本人的身份对里面的情节进行吐槽或发表看法。]`; 
@@ -10164,17 +10174,27 @@ async function generateAutoMsg(roleId) {
         apiMessages.push(...contextMsgs);
         apiMessages.push({ role: 'user', content: `(系统提示：距离上一条消息已经过去了${silenceDuration || '一段时间'}，请你主动发消息给用户。注意承接上次的话题，符合你的人设。)` });
 
-        /* 合并连续的同角色消息，防止严格模型报错 */
+        /* 毒瘤修复 1：合并连续的同角色消息，防止严格模型报错 */
         const mergedApiMessages = [];
         for (const msg of apiMessages) {
             if (mergedApiMessages.length > 0 && mergedApiMessages[mergedApiMessages.length - 1].role === msg.role) {
                 mergedApiMessages[mergedApiMessages.length - 1].content += `\n\n${msg.content}`;
             } else {
-                mergedApiMessages.push(msg);
+                mergedApiMessages.push({ role: msg.role, content: msg.content }); // 毒瘤修复：深拷贝防止污染
             }
         }
+        
+        /* 毒瘤修复 2：强制保证最后一条消息是 user，否则严格模型必报 400 */
+        if (mergedApiMessages.length > 0 && mergedApiMessages[mergedApiMessages.length - 1].role !== 'user') {
+            mergedApiMessages.push({ role: 'user', content: '请继续。' });
+        }
+
         apiMessages.length = 0;
         apiMessages.push(...mergedApiMessages);
+
+        /* 毒瘤修复 3：安全解析 temperature，防止 NaN 变成 null 导致 400 */
+        let tempVal = parseFloat(apiConfig.temperature);
+        if (isNaN(tempVal)) tempVal = 0.8;
 
         try {
             const endpoint = getChatEndpoint(apiConfig.url);
@@ -10182,10 +10202,10 @@ async function generateAutoMsg(roleId) {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiConfig.key}` },
                 body: JSON.stringify({
-                    model: apiConfig.model,
+                    model: apiConfig.model || 'gpt-4o',
                     messages: apiMessages,
-                    max_tokens: 300,
-                    temperature: 0.85
+                    max_tokens: 4096, // 毒瘤修复 4：强制限制输出长度，防止传入 128000 导致 400
+                    temperature: tempVal
                 })
             });
             
@@ -10195,31 +10215,23 @@ async function generateAutoMsg(roleId) {
             let msgContent = '';
             if (data.choices && data.choices[0]) {
                 msgContent = data.choices[0].message.content.trim().replace(/["'""'']/g, '');
-                msgContent = msgContent.replace(/$$\d{4}\/\d{2}\/\d{2}\s+周.\s+\d{2}:\d{2}$$\s*/g, '');
+                msgContent = msgContent.replace(/\[\d{4}\/\d{2}\/\d{2}\s+周.\s+\d{2}:\d{2}\]\s*/g, '');
             }
             if (!msgContent) { sendAutoMsgFallback(roleId, role); return; }
             
             if (!chats[roleId]) chats[roleId] = [];
             const nowTime = new Date();
             
-            let sentences = msgContent.split('\n').map(s => s.trim()).filter(s => s).slice(0, maxB);
-            sentences = sentences.map(s => {
-                if (s.length < 50 && (s.endsWith('。') || s.endsWith('.'))) {
-                    return s.slice(0, -1);
-                }
-                return s;
+            /* 毒瘤修复 6：取消强制气泡分割，保留完整的回复作为一个气泡 */
+            chats[roleId].push({
+                role: 'ai', content: msgContent,
+                time: nowTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }),
+                rawTime: nowTime.getTime(), mode: 'online', isAutoMsg: true
             });
             
-            for (const sentence of sentences) {
-                chats[roleId].push({
-                    role: 'ai', content: sentence,
-                    time: nowTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }),
-                    rawTime: nowTime.getTime(), mode: 'online', isAutoMsg: true
-                });
-            }
             DB.set('chats', chats);
             
-    showSystemNotification(roleId, getDisplayName(role), sentences.join(' '), role.avatar);
+            showSystemNotification(roleId, getDisplayName(role), msgContent, role.avatar);
             if (settings.notificationSound) { try { new Audio(settings.notificationSound).play(); } catch(e) {} }
             if (currentChatRoleId === roleId) renderMessages();
             renderRecent();
@@ -10231,7 +10243,6 @@ async function generateAutoMsg(roleId) {
             if (typeof hideGlobalTyping === 'function') hideGlobalTyping();
         }
     }
-
 function openBubbleCountModal() {
     const min = settings.bubbleCountMin || 1;
     const max = settings.bubbleCountMax || 5;
