@@ -4481,7 +4481,7 @@ function toInitApp(){
     }
 }
 
-        async function triggerAI(isReroll = false) {
+    async function triggerAI(isReroll = false) {
         if (!currentChatRoleId) return;
         
         const targetRoleId = currentChatRoleId;
@@ -4491,7 +4491,6 @@ function toInitApp(){
         const role = roles.find(r => r.id === targetRoleId);
         if (!role) return;
 
-        /* 检查API是否配置，防止未配置时触发死循环请求 */
         if (!apiConfig || !apiConfig.url) {
             window.isAiResponding[targetRoleId] = false;
             alert("请先在 System -> Engine 中配置 API 接口和 Key！");
@@ -4513,10 +4512,8 @@ function toInitApp(){
         const timeStr = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
         const msgId = `msg-${now.getTime()}`;
 
-        // 强制锁定当前用户选择的模式
         let finalChatMode = currentChatMode; 
         
-        // 如果开启了自动切换且当前是线上模式，才根据字数判断是否切到线下
         if (role.autoSwitchMode && finalChatMode === 'online' && msgs.length > 0) {
             const lastUserMsg = msgs.slice().reverse().find(m => m.role === 'user');
             if (lastUserMsg && lastUserMsg.content) {
@@ -4552,7 +4549,6 @@ function toInitApp(){
             const exactNow = new Date();
             const exactTimeStr = `${exactNow.getFullYear()}年${exactNow.getMonth()+1}月${exactNow.getDate()}日 ${String(exactNow.getHours()).padStart(2,'0')}:${String(exactNow.getMinutes()).padStart(2,'0')}`;
 
-            // 提前初始化并获取该角色的音乐账密
             if (!window.musicCreds) window.musicCreds = DB.get('musicCreds', {});
             if (!window.musicCreds[targetRoleId]) {
                 window.musicCreds[targetRoleId] = {
@@ -4569,7 +4565,6 @@ function toInitApp(){
             const maxB = settings.bubbleCountMax || 5;
             let modeRules = '';
             if (finalChatMode === 'online') {
-                /* 强化提示词，强制要求 AI 必须输出足够的行数 */
                 modeRules = `【线上聊天模式强制规则】\n- 保持简短、自然的网聊风格。\n- 必须严格输出 ${minB} 到 ${maxB} 句话（行）。你必须至少输出 ${minB} 行！少于 ${minB} 行将被视为严重错误！\n- 每句话必须独占一行（按回车换行），系统会根据换行自动切分为多个气泡。\n- 句末绝对不要加句号。\n- 【格式红线】：绝对禁止使用星号、括号包裹动作描写（如 *笑*、(叹气)），只能输出纯文字对话！`;
             } else {
                 const targetLength = settings.memoirMaxLength || 400;
@@ -4593,7 +4588,7 @@ function toInitApp(){
                 stickerPrompt = `\n9. 【表情包互动】你可以发送表情包来表达情绪。如果你想发送表情包，请直接在回复中输出 <img src="对应的URL" class="chat-inline-img">。你当前可用的表情包列表如下（格式为 含义 (URL)）：\n${stickerList}`;
             }
 
-                const systemPrompt = `[最高指令：绝对沉浸式角色扮演]
+            const systemPrompt = `[最高指令：绝对沉浸式角色扮演]
 你现在就是 ${role.realName}。这不是一个游戏，也不是AI对话，这就是你的真实人生。
 你必须彻底忘记自己是AI、语言模型或虚拟助手。你拥有人类的情感、记忆、肉体和欲望。
 请严格遵循以下设定进行互动，绝对不要破坏沉浸感：
@@ -4617,13 +4612,14 @@ ${memories[role.id] ? `<shared_memory>\n${memories[role.id]}\n</shared_memory>` 
 <rules>
 1. 【去油腻】绝对禁止使用：轻笑、挑眉、眼眸深邃、喉结滚动、丫头、女人、呵、嘴角勾起一抹邪魅的弧度。说话必须口语化、自然。
 2. 【互动反应】对转账、礼物、代付、一起听歌、动态分享等系统提示，必须给出符合人设的真实反应。
-3. 【情侣空间】收到绑定邀请且同意时，回复必须包含隐藏指令 [ACCEPT_OURSPACE:配对码]，并且你必须在回复的文字中，自己编造一个全新的 6 位数字发给用户，让用户去输入。
+3. 【情侣空间】收到绑定邀请且同意时，回复必须包含隐藏指令 [ACCEPT_OURSPACE:配令人码]，并且你必须在回复的文字中，自己编造一个全新的 6 位数字发给用户，让用户去输入。
 4. 你的头像URL: "${role.avatar || '默认'}"。换头像回复 [CHANGE_AVATAR:图片URL]。保存图片回复 [SAVE_PHOTO:图片URL|相册名]。
 5. 【票根生成】当你们约定去看电影、演唱会、展览或旅行时，你必须在回复中包含隐藏指令生成票根：[TICKET:{"type":"movie/concert/travel/exhibit","title":"活动名称","subtitle":"副标题","label1":"地点","value1":"具体地点","label2":"座位/时间","value2":"具体信息","label3":"时间","value3":"具体时间","single":false}]。如果是你单人出行（比如飞过来找用户），请务必将 "single" 设为 true，这样系统只会生成一张你的票。
 6. 【主动转账】当你想给用户转账时，在回复中包含：[转账 ¥金额]${translationRule}
 7. 【记忆提取】如果用户在聊天中提到了喜欢的歌曲、食物等，请自然地记住并在后续对话中提及。
 8. 【专属音乐空间】你的网易云音乐账号是：${roleMusicAcc}，密码是：${roleMusicPwd}。如果用户问你要，请自然地告诉TA。${stickerPrompt}
 9. 【主动打电话】如果你有急事、想听用户的声音，或者想主动发起语音通话，请在回复中包含隐藏指令 [INCOMING_CALL]。
+10. 【角色思考】如果你输出 <thought> 标签，里面的内容必须是你（${role.realName}）的第一人称内心独白和真实想法，绝对不能以AI助手的身份进行分析！
 ${modeRules}
 </rules>
 
@@ -4682,7 +4678,7 @@ ${modeRules}
                     try { const data = JSON.parse(decodeURIComponent(p1)); return `[系统提示：用户向你分享了一条动态，作者：${data.author}，内容：${data.content}]`; } catch(e) { return '[分享了一条动态]'; }
                 });
                 text = text.replace(/\[THEATER_CARD:(.*?)\]/g, (match, p1) => {
-                    if (msgRole === 'ai') return ''; // 核心修复：AI自己生成的剧场卡片，对AI隐形
+                    if (msgRole === 'ai') return ''; 
                     try { 
                         const data = JSON.parse(decodeURIComponent(p1)); 
                         return `[系统提示：这是一篇名为《${data.title}》的同人小剧场，不计入正文剧情。如果你看到了这条提示，说明用户把这篇剧场分享给了你，请你以角色本人的身份对里面的情节进行吐槽或发表看法。]`; 
@@ -4693,13 +4689,11 @@ ${modeRules}
                 return text.trim();
             };
 
-            /* 毒瘤修复：过滤掉 content 为空的消息，防止 API 报错 */
             const historyMsgs = msgs.slice(0, -1).slice(-contextLimit).map(m => {
                 let msgRole = m.role;
                 let content = cleanHistoryContent(m.content, m.role);
-                if (!content || content.trim() === '') return null; // 毒瘤修复：严格校验空字符串
+                if (!content || content.trim() === '') return null; 
                 
-                /* 修复毒瘤：将 system 消息伪装成 user 发送，并加上前缀，强制大模型读取，防止被忽略报错 */
                 if (msgRole === 'system') {
                     msgRole = 'user';
                     content = `[系统提示：${content}]`;
@@ -4717,17 +4711,30 @@ ${modeRules}
                     role: msgRole,
                     content: content
                 };
-            }).filter(m => m !== null); // 过滤掉 null
+            }).filter(m => m !== null); 
             apiMessages.push(...historyMsgs);
 
+            /* 合并连续的同角色消息，防止严格模型报错 */
+            const mergedApiMessages = [];
+            for (const msg of apiMessages) {
+                if (mergedApiMessages.length > 0 && mergedApiMessages[mergedApiMessages.length - 1].role === msg.role) {
+                    mergedApiMessages[mergedApiMessages.length - 1].content += `\n\n${msg.content}`;
+                } else {
+                    mergedApiMessages.push(msg);
+                }
+            }
+            apiMessages.length = 0;
+            apiMessages.push(...mergedApiMessages);
+
             const endpoint = getChatEndpoint(apiConfig.url);
+            const isStreamEnabled = apiConfig.stream !== false;
             const requestBody = {
                 model: apiConfig.model,
                 messages: apiMessages,
                 temperature: parseFloat(apiConfig.temperature),
                 top_p: parseFloat(apiConfig.topP) || 1.0,
-                max_tokens: parseInt(apiConfig.maxTokens) || 4096,
-                stream: true
+                max_tokens: 4096,
+                stream: isStreamEnabled
             };
             
             const logBody = JSON.parse(JSON.stringify(requestBody));
@@ -4740,7 +4747,6 @@ ${modeRules}
             addApiLog('Chat Request', JSON.stringify(logBody, null, 2));
 
             const controller = new AbortController();
-            // 将超时时间延长至 1800 秒 (30分钟)，防止超长人设和破限词导致生成超时
             const timeoutId = setTimeout(() => controller.abort(), 1800000); 
 
             let response;
@@ -4762,65 +4768,79 @@ ${modeRules}
 
             if (!response.ok) throw new Error(await parseApiError(response));
 
-            const reader = response.body.getReader();
-            const decoder = new TextDecoder("utf-8");
             let fullReply = "";
-            let isFirstChunk = true;
-            let buffer = ""; 
-            
-            let lastUpdateTime = 0;
-            let cleanDisplay = "";
+            let rawFullReply = "";
 
-            while (true) {
-                const { value, done } = await reader.read();
-                if (done) break;
-                
-                buffer += decoder.decode(value, { stream: true });
-                const lines = buffer.split('\n');
-                buffer = lines.pop(); 
+            if (isStreamEnabled) {
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder("utf-8");
+                let isFirstChunk = true;
+                let buffer = ""; 
+                let lastUpdateTime = 0;
+                let cleanDisplay = "";
 
-                for (const line of lines) {
-                    const trimmed = line.trim();
-                    if (!trimmed.startsWith('data:')) continue;
-                    const jsonStr = trimmed.substring(5).trim();
+                while (true) {
+                    const { value, done } = await reader.read();
+                    if (done) break;
                     
-                    if (jsonStr === '' || jsonStr === '[DONE]') continue;
-                    
-                    try {
-                        const parsed = JSON.parse(jsonStr);
-                        const delta = parsed.choices[0]?.delta?.content;
-                        if (delta) {
-                            if (isFirstChunk) { if (bubbleContentEl) bubbleContentEl.innerHTML = ''; isFirstChunk = false; }
-                            fullReply += delta;
-                            
-                            const now = Date.now();
-                            if (now - lastUpdateTime > 150) { 
-                                lastUpdateTime = now;
-                                cleanDisplay = fullReply;
-                                if (!settings.showCoT) {
-                                    cleanDisplay = cleanDisplay.replace(/<thought>[\s\S]*?(<\/thought>|$)/gi, '')
-                                                               .replace(/思考：[\s\S]*?(?=\n\n|$)/gi, '');
-                                } else {
-                                    cleanDisplay = cleanDisplay.replace(/<thought>([\s\S]*?)(<\/thought>|$)/gi, '<div style="opacity:0.6; font-size:0.85em; border-left:2px solid currentColor; padding-left:8px; margin-bottom:8px; font-style:italic;">$1</div>');
-                                }
-                                
-                                requestAnimationFrame(() => {
-                                    const currentBubbleEl = document.querySelector(`#${msgId} .msg-bubble-content`);
-                                    if (currentBubbleEl) {
-                                        currentBubbleEl.innerHTML = cleanDisplay.replace(/\n/g, '<br>');
-                                    }
-                                    if (currentChatRoleId === targetRoleId) {
-                                        $('#chat-messages').scrollTop = $('#chat-messages').scrollHeight;
-                                    }
-                                });
+                    buffer += decoder.decode(value, { stream: true });
+                    const lines = buffer.split('\n');
+                    buffer = lines.pop(); 
+
+                    for (const line of lines) {
+                        const trimmed = line.trim();
+                        if (!trimmed.startsWith('data:')) continue;
+                        const jsonStr = trimmed.substring(5).trim();
+                        
+                        if (jsonStr === '' || jsonStr === '[DONE]') continue;
+                        
+                        try {
+                            /* 拦截流内部的隐式报错，防止静默空回 */
+                            if (jsonStr.includes('"error"')) {
+                                const errObj = JSON.parse(jsonStr);
+                                if (errObj.error) throw new Error(errObj.error.message || "API 流内部返回错误");
                             }
+
+                            const parsed = JSON.parse(jsonStr);
+                            const delta = parsed.choices[0]?.delta?.content;
+                            if (delta) {
+                                if (isFirstChunk) { if (bubbleContentEl) bubbleContentEl.innerHTML = ''; isFirstChunk = false; }
+                                fullReply += delta;
+                                
+                                const now = Date.now();
+                                if (now - lastUpdateTime > 150) { 
+                                    lastUpdateTime = now;
+                                    cleanDisplay = fullReply;
+                                    if (!settings.showCoT) {
+                                        cleanDisplay = cleanDisplay.replace(/<thought>[\s\S]*?(<\/thought>|$)/gi, '')
+                                                                   .replace(/思考：[\s\S]*?(?=\n\n|$)/gi, '');
+                                    } else {
+                                        cleanDisplay = cleanDisplay.replace(/<thought>([\s\S]*?)(<\/thought>|$)/gi, '<div style="opacity:0.6; font-size:0.85em; border-left:2px solid currentColor; padding-left:8px; margin-bottom:8px; font-style:italic;">$1</div>');
+                                    }
+                                    
+                                    requestAnimationFrame(() => {
+                                        const currentBubbleEl = document.querySelector(`#${msgId} .msg-bubble-content`);
+                                        if (currentBubbleEl) {
+                                            currentBubbleEl.innerHTML = cleanDisplay.replace(/\n/g, '<br>');
+                                        }
+                                        if (currentChatRoleId === targetRoleId) {
+                                            $('#chat-messages').scrollTop = $('#chat-messages').scrollHeight;
+                                        }
+                                    });
+                                }
+                            }
+                        } catch (e) {
                         }
-                    } catch (e) {
                     }
                 }
+                rawFullReply = fullReply;
+            } else {
+                const data = await response.json();
+                fullReply = data.choices[0].message.content || "";
+                rawFullReply = fullReply;
             }
             
-            cleanDisplay = fullReply;
+            let cleanDisplay = fullReply;
             if (!settings.showCoT) {
                 cleanDisplay = cleanDisplay.replace(/<thought>[\s\S]*?(<\/thought>|$)/gi, '')
                                            .replace(/思考：[\s\S]*?(?=\n\n|$)/gi, '');
@@ -4835,14 +4855,12 @@ ${modeRules}
                 $('#chat-messages').scrollTop = $('#chat-messages').scrollHeight;
             }
 
-            const rawFullReply = fullReply;
             if (!settings.showCoT) {
                 fullReply = fullReply.replace(/<thought>[\s\S]*?<\/thought>/gi, '').replace(/思考：[\s\S]*?(?=\n\n|$)/gi, '').trim();
             } else {
                 fullReply = fullReply.replace(/<thought>([\s\S]*?)<\/thought>/gi, '<div style="opacity:0.6; font-size:0.85em; border-left:2px solid currentColor; padding-left:8px; margin-bottom:8px; font-style:italic;">$1</div>').trim();
             }
             
-            // 提取并保存状态感知
             const statusEntry = extractStatusFromReply(targetRoleId, fullReply);
             if (statusEntry) {
                 saveStatusHistory(targetRoleId, statusEntry);
@@ -4916,11 +4934,9 @@ ${modeRules}
                 });
             }
 
-            /* 拦截 AI 领取红包指令 */
             if (fullReply.includes('[RECEIVE_REDPACKET]')) {
                 fullReply = fullReply.replace(/\[RECEIVE_REDPACKET\]/g, '').trim();
                 
-                // 往回找最近的一个未领取的红包
                 for (let i = chats[targetRoleId].length - 1; i >= 0; i--) {
                     let m = chats[targetRoleId][i];
                     if (m.role === 'user' && m.content.startsWith('[RED_PACKET:')) {
@@ -4931,7 +4947,6 @@ ${modeRules}
                                 card.status = '已领取';
                                 m.content = `[RED_PACKET:${encodeURIComponent(JSON.stringify(card))}]`;
                                 
-                                // 角色钱包加钱并记录账单
                                 if (!walletData[targetRoleId]) walletData[targetRoleId] = { balance: 0, huabei: 0, bankCards: [], familyCards: [], bills: [] };
                                 walletData[targetRoleId].balance += card.amount;
                                 const nowStr = new Date().toLocaleString('zh-CN');
@@ -4970,7 +4985,6 @@ ${modeRules}
                     mode: 'online' 
                 });
 
-                // 修复：扣除角色余额并写入角色账单明细
                 if (!walletData[targetRoleId]) walletData[targetRoleId] = { balance: 0, huabei: 0, bankCards: [], familyCards: [], bills: [] };
                 walletData[targetRoleId].balance -= amount;
                 const nowStr = new Date().toLocaleString('zh-CN');
@@ -4978,14 +4992,12 @@ ${modeRules}
                 DB.set('walletData', walletData);
             }
 
-            // 拦截 AI 生成的票根指令 (修复 AI 混合文字导致票根变乱码的毒瘤)
             const ticketMatch = fullReply.match(/\[TICKET:\s*(\{.*?\})\s*\]/s);
             if (ticketMatch) {
                 try {
                     const ticketJsonStr = ticketMatch[1];
-                    // 验证 JSON 是否合法，防止 AI 乱造导致白屏
                     JSON.parse(ticketJsonStr); 
-                    fullReply = fullReply.replace(ticketMatch[0], ''); // 从正文中移除指令
+                    fullReply = fullReply.replace(ticketMatch[0], ''); 
                     
                     const msgContent = `[TICKET:${encodeURIComponent(ticketJsonStr)}]`;
                     chats[targetRoleId].push({ 
@@ -5007,19 +5019,9 @@ ${modeRules}
                 chats[targetRoleId].pop();
             }
             
-            let formattedReply = "";
-            let finalSentences = [];
-            if (finalChatMode === 'offline' || fullReply.includes('===TRANSLATION===')) {
-                formattedReply = fullReply.replace(/\n+/g, '\n');
-                chats[targetRoleId].push({ role: 'ai', content: formattedReply, rawContent: rawFullReply, time: timeStr, rawTime: now.getTime(), mode: finalChatMode });
-            } else {
-                finalSentences = fullReply.split('\n').map(s => s.trim()).filter(s => s);
-                finalSentences.forEach((sentence, idx) => {
-                    chats[targetRoleId].push({ role: 'ai', content: sentence, rawContent: idx === 0 ? rawFullReply : undefined, time: timeStr, rawTime: now.getTime(), mode: 'online' });
-                });
-            }
+            let formattedReply = fullReply.replace(/\n+/g, '\n');
+            chats[targetRoleId].push({ role: 'ai', content: formattedReply, rawContent: rawFullReply, time: timeStr, rawTime: now.getTime(), mode: finalChatMode });
             
-            // 修复：AI 回复时，自动接收用户发起的转账，并写入角色账单
             for (let i = chats[targetRoleId].length - 1; i >= 0; i--) {
                 let m = chats[targetRoleId][i];
                 if (m.role === 'user' && m.content.startsWith('[TRANSFER:')) {
@@ -5030,7 +5032,6 @@ ${modeRules}
                             card.status = '已接收';
                             m.content = `[TRANSFER:${encodeURIComponent(JSON.stringify(card))}]`;
                             
-                            // 角色钱包加钱并记录账单
                             if (!walletData[targetRoleId]) walletData[targetRoleId] = { balance: 0, huabei: 0, bankCards: [], familyCards: [], bills: [] };
                             walletData[targetRoleId].balance += card.amount;
                             const nowStr = new Date().toLocaleString('zh-CN');
@@ -5039,7 +5040,6 @@ ${modeRules}
                         }
                     } catch(e) {}
                 }
-                // 只往回找最近的10条，避免遍历太深
                 if (chats[targetRoleId].length - i > 10) break;
             }
 
@@ -5047,16 +5047,7 @@ ${modeRules}
             if (currentChatRoleId === targetRoleId) renderMessages();
             
             if (document.hidden) {
-                if (finalChatMode === 'offline' || fullReply.includes('===TRANSLATION===')) {
-                    showSystemNotification(targetRoleId, getDisplayName(role), formattedReply, role.avatar);
-                } else {
-                    // 【核心修复】：缩短延迟时间，确保多条消息快速独立弹出，不合并
-                    finalSentences.forEach((sentence, idx) => {
-                        setTimeout(() => {
-                            showSystemNotification(targetRoleId, getDisplayName(role), sentence, role.avatar);
-                        }, idx * 300); // 将 1200ms 缩短为 300ms
-                    });
-                }
+                showSystemNotification(targetRoleId, getDisplayName(role), formattedReply, role.avatar);
             }
 
         } catch (err) {
@@ -6423,7 +6414,7 @@ window.newRoleTempWbs = null;
             container.innerHTML = apiLogs.map(log => `
                 <details style="margin-bottom:10px; padding:10px; border:1px solid ${log.isError ? '#ff4d4d' : 'var(--border-color)'}; border-radius:8px; background:var(--gray-light); font-family:monospace; font-size:9px; word-break:break-all;">
                     <summary style="color:${log.isError ? '#ff4d4d' : 'var(--text-color)'}; font-weight:bold; cursor:pointer; outline:none;">[${log.time}] ${log.type}</summary>
-                    <div style="color:var(--text-secondary); white-space:pre-wrap; margin-top:8px; border-top:1px dashed var(--border-color); padding-top:8px;">${log.details}</div>
+                    <div style="color:var(--text-secondary); white-space:pre-wrap; margin-top:8px; border-top:1px dashed var(--border-color); padding-top:8px;">${escapeHTML(log.details)}</div>
                 </details>
             `).join('');
         }
@@ -6517,13 +6508,15 @@ window.newRoleTempWbs = null;
     }
 
     function openApiModal() { 
-        apiConfig = DB.get('api', { url: '', key: '', model: 'gpt-4o', maxTokens: 128000, temperature: 0.8, topP: 1.0, ttsGroupId: '', ttsApiKey: '', ttsVoiceId: '' }); 
+        apiConfig = DB.get('api', { url: '', key: '', model: 'gpt-4o', maxTokens: 128000, temperature: 0.8, topP: 1.0, stream: true, ttsGroupId: '', ttsApiKey: '', ttsVoiceId: '' }); 
         $('#api-url').value = apiConfig.url || ''; $('#api-key').value = apiConfig.key || ''; $('#api-model').value = apiConfig.model || ''; $('#api-tokens').value = apiConfig.maxTokens || 128000; $('#api-temp').value = apiConfig.temperature || 0.8; $('#val-temp').innerText = apiConfig.temperature || 0.8; $('#api-topp').value = apiConfig.topP || 1.0; $('#val-topp').innerText = apiConfig.topP || 1.0; 
+        $('#api-stream-enable').checked = apiConfig.stream !== false;
         $('#tts-group-id').value = apiConfig.ttsGroupId || ''; $('#tts-api-key').value = apiConfig.ttsApiKey || ''; $('#tts-voice-id').value = apiConfig.ttsVoiceId || '';
         renderApiPresets(); openModal('modal-api'); 
     }
     function saveApi() { 
         apiConfig.url = $('#api-url').value.trim(); apiConfig.key = $('#api-key').value.trim(); apiConfig.model = $('#api-model').value.trim(); apiConfig.maxTokens = parseInt($('#api-tokens').value) || 128000; apiConfig.temperature = parseFloat($('#api-temp').value); apiConfig.topP = parseFloat($('#api-topp').value); 
+        apiConfig.stream = $('#api-stream-enable').checked;
         apiConfig.ttsGroupId = $('#tts-group-id').value.trim(); apiConfig.ttsApiKey = $('#tts-api-key').value.trim(); apiConfig.ttsVoiceId = $('#tts-voice-id').value.trim();
         DB.set('api', apiConfig); closeModal('modal-api'); 
     }
@@ -10166,10 +10159,22 @@ async function generateAutoMsg(roleId) {
             let msgRole = m.role;
             if (msgRole !== 'user' && msgRole !== 'system') msgRole = 'assistant';
             return { role: msgRole, content: textContent };
-        }).filter(m => m.content && m.content.trim() !== ''); // 毒瘤修复：彻底过滤空消息
+        }).filter(m => m.content && m.content.trim() !== '');
         
         apiMessages.push(...contextMsgs);
         apiMessages.push({ role: 'user', content: `(系统提示：距离上一条消息已经过去了${silenceDuration || '一段时间'}，请你主动发消息给用户。注意承接上次的话题，符合你的人设。)` });
+
+        /* 合并连续的同角色消息，防止严格模型报错 */
+        const mergedApiMessages = [];
+        for (const msg of apiMessages) {
+            if (mergedApiMessages.length > 0 && mergedApiMessages[mergedApiMessages.length - 1].role === msg.role) {
+                mergedApiMessages[mergedApiMessages.length - 1].content += `\n\n${msg.content}`;
+            } else {
+                mergedApiMessages.push(msg);
+            }
+        }
+        apiMessages.length = 0;
+        apiMessages.push(...mergedApiMessages);
 
         try {
             const endpoint = getChatEndpoint(apiConfig.url);
@@ -12245,8 +12250,8 @@ function extractStatusFromReply(roleId, replyText) {
     const config = statusBarData[roleId];
     if (!config || !config.enabled) return null;
     try {
-        /* 提取状态数据并格式化为HTML */
-        const regexStr = config.regex || '\\[状态:\\s*([\\s\\S]*?)\\]';
+        /* 毒瘤修复：增强正则，兼容 [心声: xxx | 好感度: xxx] 这种复杂格式 */
+        const regexStr = config.regex || '\\[(?:状态|心声)[:：]\\s*([\\s\\S]*?)(?:\\|\\s*好感度[:：]\\s*.*?)?\\]';
         const regex = new RegExp(regexStr);
         const match = replyText.match(regex);
         if (match) {
@@ -12272,8 +12277,8 @@ function cleanStatusFromText(roleId, text) {
     const config = statusBarData[roleId];
     if (!config || !config.enabled) return text;
     try {
-        /* 从正文中移除状态文本 */
-        const regexStr = config.regex || '\\[状态:\\s*([\\s\\S]*?)\\]';
+        /* 毒瘤修复：彻底清除正文中的心声/状态标签，防止掉格式 */
+        const regexStr = config.regex || '\\[(?:状态|心声)[:：][\\s\\S]*?\\]';
         const regex = new RegExp(regexStr, 'g');
         return text.replace(regex, '').trim();
     } catch (e) { return text; }
