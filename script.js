@@ -4697,7 +4697,7 @@ ${modeRules}
             const historyMsgs = msgs.slice(0, -1).slice(-contextLimit).map(m => {
                 let msgRole = m.role;
                 let content = cleanHistoryContent(m.content, m.role);
-                if (!content) return null; // 如果清理后为空，返回 null
+                if (!content || content.trim() === '') return null; // 毒瘤修复：严格校验空字符串
                 
                 /* 修复毒瘤：将 system 消息伪装成 user 发送，并加上前缀，强制大模型读取，防止被忽略报错 */
                 if (msgRole === 'system') {
@@ -4725,6 +4725,8 @@ ${modeRules}
                 model: apiConfig.model,
                 messages: apiMessages,
                 temperature: parseFloat(apiConfig.temperature),
+                top_p: parseFloat(apiConfig.topP) || 1.0,
+                max_tokens: parseInt(apiConfig.maxTokens) || 4096,
                 stream: true
             };
             
@@ -10164,7 +10166,7 @@ async function generateAutoMsg(roleId) {
             let msgRole = m.role;
             if (msgRole !== 'user' && msgRole !== 'system') msgRole = 'assistant';
             return { role: msgRole, content: textContent };
-        });
+        }).filter(m => m.content && m.content.trim() !== ''); // 毒瘤修复：彻底过滤空消息
         
         apiMessages.push(...contextMsgs);
         apiMessages.push({ role: 'user', content: `(系统提示：距离上一条消息已经过去了${silenceDuration || '一段时间'}，请你主动发消息给用户。注意承接上次的话题，符合你的人设。)` });
