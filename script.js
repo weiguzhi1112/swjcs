@@ -2207,12 +2207,14 @@ function updateKeepAliveUI(isOn) {
                     const isOpened = card.status === '已领取';
                     const bgStyle = isOpened ? 'background: #f8d0d0; opacity: 0.8;' : 'background: #ff4d4d;';
                     const iconOpacity = isOpened ? 'opacity: 0.5;' : 'opacity: 1;';
+                    const typeText = card.type === 'lucky' ? '拼手气红包' : '微信红包';
+                    const grabText = isOpened && card.grabAmount ? ` (被抢 ¥${card.grabAmount})` : '';
                     
                     return `<div class="msg-row card-row ${isMe ? 'me' : 'ai'} ${isSelectionMode ? 'selection-mode' : ''}" onclick="handleMsgClick(${realIndex})" ${touchHandlers}>${checkboxHtml}${isMe ? '' : aiAvatarTag}<div class="msg-wrapper"><div class="daifu-card" style="${bgStyle} border: none; padding: 12px 16px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 12px; min-width: 200px;" onclick="if(isSelectionMode) return; openRedPacket(${realIndex})">
                         <div style="width: 36px; height: 36px; background: rgba(255,255,255,0.2); border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 20px; ${iconOpacity}">🧧</div>
                         <div style="flex: 1; overflow: hidden;">
                             <div style="color: #fff; font-size: 13px; font-weight: 600; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${card.greeting || '恭喜发财，大吉大利'}</div>
-                            <div style="color: rgba(255,255,255,0.8); font-size: 9px;">${isOpened ? '红包已领取' : '微信红包'}</div>
+                            <div style="color: rgba(255,255,255,0.8); font-size: 9px;">${isOpened ? '红包已领取' + grabText : typeText}</div>
                         </div>
                     </div><div class="msg-status">${displayTime}</div></div>${isMe ? userAvatarTag : ''}</div>`;
                 } catch(e) {}
@@ -3807,6 +3809,33 @@ function toOpenOrder() {
     document.getElementById('to-order-addr-name').innerText = `${addr.tag||'地址'} · ${addr.addr||'请添加地址'}`;
     document.getElementById('to-order-addr-detail').innerText = `${addr.name||''} ${addr.phone||''}`;
     
+    // 动态生成送达时间
+    const now = new Date();
+    const shopTimeMatch = shop.time.match(/\d+/);
+    const deliveryMins = shopTimeMatch ? parseInt(shopTimeMatch[0]) : 30;
+    
+    const asapTime = new Date(now.getTime() + deliveryMins * 60000);
+    const asapStr = `${String(asapTime.getHours()).padStart(2,'0')}:${String(asapTime.getMinutes()).padStart(2,'0')}`;
+    
+    let timeChipsHtml = `<div class="to-time-chip active" onclick="toSelectTime(this)">尽快送达 (${asapStr})</div>`;
+    
+    let nextTime = new Date(now.getTime());
+    nextTime.setMinutes(Math.ceil(nextTime.getMinutes() / 30) * 30);
+    if (nextTime.getTime() - now.getTime() < deliveryMins * 60000) {
+        nextTime.setMinutes(nextTime.getMinutes() + 30);
+    }
+    
+    for (let i = 0; i < 3; i++) {
+        const tStr = `${String(nextTime.getHours()).padStart(2,'0')}:${String(nextTime.getMinutes()).padStart(2,'0')}`;
+        timeChipsHtml += `<div class="to-time-chip" onclick="toSelectTime(this)">${tStr}</div>`;
+        nextTime.setMinutes(nextTime.getMinutes() + 30);
+    }
+    
+    const timeContainer = document.querySelector('.to-time-chips');
+    if (timeContainer) {
+        timeContainer.innerHTML = timeChipsHtml;
+    }
+
     const recipientHtml = `
         <div class="to-order-section">
             <div class="to-order-section-title">RECIPIENT / 收货人</div>
@@ -4086,10 +4115,21 @@ function toViewOrderDetail(orderId) {
     toNavTo('to-order-detail');
 }
 
+function updateToBottomNavVisibility(pageId) {
+    const nav = document.getElementById('to-bottom-nav');
+    if (!nav) return;
+    const showPages = ['to-home', 'to-discover-page', 'to-cart', 'to-orders-page', 'to-profile-page'];
+    if (showPages.includes(pageId)) {
+        nav.style.display = 'flex';
+    } else {
+        nav.style.display = 'none';
+    }
+}
+
 function toGoHome() {
     document.querySelectorAll('.to-page').forEach(p=>{p.classList.remove('active','base','slide-left');});
     document.getElementById('to-home').classList.add('base');
-    document.getElementById('to-bottom-nav').style.display = 'flex';
+    updateToBottomNavVisibility('to-home');
     toCurrentTab = 'home';
     toPageHistory = ['to-home'];
     document.querySelectorAll('.to-nav-item').forEach(n=>n.classList.remove('active'));
@@ -4099,7 +4139,7 @@ function toGoHome() {
 function toNavTo(toId) {
     document.querySelectorAll('.to-page').forEach(p=>{p.classList.remove('active','base','slide-left');});
     document.getElementById(toId).classList.add('active');
-    document.getElementById('to-bottom-nav').style.display='flex';
+    updateToBottomNavVisibility(toId);
     if(toPageHistory[toPageHistory.length-1] !== toId) toPageHistory.push(toId);
 }
 
@@ -4116,7 +4156,7 @@ function toGoBack(fromId, toId) {
     const to = document.getElementById(toId);
     if(toId==='to-home'){to.classList.add('base');}
     else{to.classList.add('active');}
-    document.getElementById('to-bottom-nav').style.display='flex';
+    updateToBottomNavVisibility(toId);
 }
 
 function toGoBackAuto() {
@@ -4126,7 +4166,7 @@ function toGoBackAuto() {
     const to = document.getElementById(target);
     if(target==='to-home'){to.classList.add('base');}
     else{to.classList.add('active');}
-    document.getElementById('to-bottom-nav').style.display='flex';
+    updateToBottomNavVisibility(target);
 }
 
 function toSwitchTab(el, tab) {
@@ -4138,21 +4178,21 @@ function toSwitchTab(el, tab) {
         toRenderOrders();
         document.querySelectorAll('.to-page').forEach(p=>p.classList.remove('active','base','slide-left'));
         document.getElementById('to-orders-page').classList.add('active');
-        document.getElementById('to-bottom-nav').style.display='flex';
+        updateToBottomNavVisibility('to-orders-page');
         toPageHistory = ['to-home','to-orders-page'];
     }
     else if(tab==='profile'){
         toRenderProfile();
         document.querySelectorAll('.to-page').forEach(p=>p.classList.remove('active','base','slide-left'));
         document.getElementById('to-profile-page').classList.add('active');
-        document.getElementById('to-bottom-nav').style.display='flex';
+        updateToBottomNavVisibility('to-profile-page');
         toPageHistory = ['to-home','to-profile-page'];
     }
         else if(tab==='discover'){
         toRenderSearchResults();
         document.querySelectorAll('.to-page').forEach(p=>p.classList.remove('active','base','slide-left'));
         document.getElementById('to-discover-page').classList.add('active');
-        document.getElementById('to-bottom-nav').style.display='flex';
+        updateToBottomNavVisibility('to-discover-page');
         toPageHistory=['to-home','to-discover-page'];
     }
 }
@@ -4473,6 +4513,13 @@ function toInitApp(){
     toRenderAddresses();
     toRenderFavorites();
     toRenderSearchResults();
+    
+    // 强制初始化选中地址的显示
+    if (toSelectedAddrId) {
+        toSelectAddr(toSelectedAddrId);
+    } else if (toAddresses && toAddresses.length > 0) {
+        toSelectAddr(toAddresses[0].id);
+    }
     
     // 注入 CSS 强制外卖页面切换无动画，更丝滑
     let styleEl = document.getElementById('takeout-no-anim-style');
@@ -4974,15 +5021,32 @@ ${modeRules}
                             let card = JSON.parse(decodeURIComponent(raw));
                             if (card.status === '未领取') {
                                 card.status = '已领取';
+                                
+                                let grabAmount = card.amount;
+                                let refundAmount = 0;
+                                // 拼手气红包逻辑：随机领取 10% ~ 90%
+                                if (card.type === 'lucky') {
+                                    grabAmount = parseFloat((card.amount * (0.1 + Math.random() * 0.8)).toFixed(2));
+                                    refundAmount = parseFloat((card.amount - grabAmount).toFixed(2));
+                                    card.grabAmount = grabAmount;
+                                }
+                                
                                 m.content = `[RED_PACKET:${encodeURIComponent(JSON.stringify(card))}]`;
                                 
                                 if (!walletData[targetRoleId]) walletData[targetRoleId] = { balance: 0, huabei: 0, bankCards: [], familyCards: [], bills: [] };
-                                walletData[targetRoleId].balance += card.amount;
+                                walletData[targetRoleId].balance += grabAmount;
                                 const nowStr = new Date().toLocaleString('zh-CN');
-                                walletData[targetRoleId].bills.unshift({ time: nowStr, location: '线上交易', merchant: `领取 ${settings.userName || 'ME'} 的红包`, amount: card.amount, method: '转入余额' });
+                                walletData[targetRoleId].bills.unshift({ time: nowStr, location: '线上交易', merchant: `领取 ${settings.userName || 'ME'} 的红包`, amount: grabAmount, method: '转入余额' });
+                                
+                                if (refundAmount > 0) {
+                                    walletData['ME'].balance += refundAmount;
+                                    walletData['ME'].bills.unshift({ time: nowStr, location: '线上交易', merchant: `拼手气红包退回`, amount: refundAmount, method: '退回余额' });
+                                }
                                 DB.set('walletData', walletData);
                                 
-                                chats[targetRoleId].push({ role: 'system', content: `${role.realName} 领取了你的红包`, time: timeStr, rawTime: now.getTime() + 1, mode: 'online' });
+                                let sysMsg = `${role.realName} 领取了你的红包`;
+                                if (card.type === 'lucky') sysMsg += `，抢到 ¥${grabAmount}，剩余 ¥${refundAmount} 已退回`;
+                                chats[targetRoleId].push({ role: 'system', content: sysMsg, time: timeStr, rawTime: now.getTime() + 1, mode: 'online' });
                                 break;
                             }
                         } catch(e) {}
@@ -9970,11 +10034,14 @@ async function autoGenerateSummary(roleId, type = 'episodic') {
         } else {
             advancedMemories[roleId].plotSummaries.push({ content: summary, time: now, auto: true });
         }
-        
-        advancedMemories[roleId].lastSummarizedIndex = endIndex;
+               advancedMemories[roleId].lastSummarizedIndex = endIndex;
         DB.set('advancedMemories', advancedMemories);
         
         let currentLegacyMem = memories[roleId] || '';
+        // 修复：如果传统记忆被存成了数组，将其转换为字符串，防止报错
+        if (Array.isArray(currentLegacyMem)) {
+            currentLegacyMem = currentLegacyMem.map(m => m.content).join('\n\n');
+        }
         memories[roleId] = currentLegacyMem + (currentLegacyMem ? '\n\n' : '') + `[${now} 总结 (第${startIndex}-${endIndex}条)]\n${summary}`;
         DB.set('memories', memories);
         
@@ -10007,6 +10074,7 @@ async function manualSummarizeChat() {
     btn.innerText = originalText;
     btn.disabled = false;
     alert("手动总结完成！已保存到记忆中。");
+    renderMemoryView(); // 修复：总结完成后刷新记忆列表
 }
 
 function resetSummaryPointer() {
