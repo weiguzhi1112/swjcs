@@ -1905,6 +1905,9 @@ function updateKeepAliveUI(isOn) {
         const attachmentColor = role.attachmentColor || (settings.theme === 'dark' ? '#ffffff' : '#000000');
         $('#chat-view').style.setProperty('--attachment-color', attachmentColor);
         
+        const sendBtnColor = role.sendBtnColor || (settings.theme === 'dark' ? '#ffffff' : '#000000');
+        $('#chat-view').style.setProperty('--send-btn-color', sendBtnColor);
+        
         const chatInput = $('#chat-input');
         const pText = role.placeholderText && role.placeholderText.trim() !== "" ? role.placeholderText : 'iMessage信息';
         chatInput.placeholder = pText;
@@ -6115,6 +6118,7 @@ function updateRoleWbPreview() {
         $('#role-bubble-style').value = isEditing && role.bubbleStyle ? role.bubbleStyle : 'flat';
         $('#role-accent-color').value = isEditing && role.accentColor ? role.accentColor : (settings.theme === 'dark' ? '#ffffff' : '#000000');
         $('#role-attachment-color').value = isEditing && role.attachmentColor ? role.attachmentColor : (settings.theme === 'dark' ? '#ffffff' : '#000000');
+        $('#role-send-btn-color').value = isEditing && role.sendBtnColor ? role.sendBtnColor : (settings.theme === 'dark' ? '#ffffff' : '#000000');
         $('#role-tts-voice-id').value = isEditing && role.ttsVoiceId ? role.ttsVoiceId : '';
         $('#role-placeholder-text').value = isEditing && role.placeholderText ? role.placeholderText : 'iMessage信息';
         $('#role-placeholder-color').value = isEditing && role.placeholderColor ? role.placeholderColor : '#bbbbbb';
@@ -6247,6 +6251,7 @@ function updateRoleWbPreview() {
             bubbleStyle: $('#role-bubble-style').value,
             accentColor: $('#role-accent-color').value,
             attachmentColor: $('#role-attachment-color').value,
+            sendBtnColor: $('#role-send-btn-color').value,
             ttsVoiceId: $('#role-tts-voice-id').value.trim(),
             placeholderText: $('#role-placeholder-text').value.trim(),
             placeholderColor: $('#role-placeholder-color').value,
@@ -6323,6 +6328,7 @@ window.newRoleTempWbs = null;
             bubbleStyle: $('#role-bubble-style').value,
             accentColor: $('#role-accent-color').value,
             attachmentColor: $('#role-attachment-color').value,
+            sendBtnColor: $('#role-send-btn-color').value,
             ttsVoiceId: $('#role-tts-voice-id').value.trim(),
             placeholderText: $('#role-placeholder-text').value.trim(),
             placeholderColor: $('#role-placeholder-color').value,
@@ -12461,25 +12467,26 @@ function renderMagazineStatus() {
     }
 
     track.innerHTML = config.history.map((entry, i) => {
-        const d = entry.data || {};
-        const displayName = (d.netName && d.netName !== '未知') ? d.netName : getDisplayName(role);
-        
-        return `
-        <div style="min-width:100%; width:100%; height:100%; padding:0 20px; box-sizing:border-box; display:flex; flex-direction:column; justify-content:center;">
-            <div style="background:var(--bg-color); border:1px solid var(--border-color); padding:30px; display:flex; flex-direction:column; max-height:80vh; overflow-y:auto; box-shadow:0 20px 40px rgba(0,0,0,0.15);"
-                 onmousedown="handleMagazineTouchStart(event, ${i})" 
-                 onmouseup="handleMagazineTouchEnd()" 
-                 onmouseleave="handleMagazineTouchEnd()" 
-                 ontouchstart="handleMagazineTouchStart(event, ${i})" 
-                 ontouchend="handleMagazineTouchEnd()" 
-                 ontouchcancel="handleMagazineTouchEnd()">
-                
-                <div style="text-align:center; font-family:var(--font-sans); font-size:9px; letter-spacing:4px; color:var(--text-secondary); text-transform:uppercase; margin-bottom:25px;">Inner Voice</div>
-                
-                <div style="display:flex; gap:20px; margin-bottom:25px;">
-                    <img src="${avatar}" style="width:90px; height:120px; object-fit:cover; filter:grayscale(20%) contrast(110%); border:1px solid var(--border-color);">
-                    <div style="display:flex; flex-direction:column; justify-content:center;">
-                        <div style="font-family:var(--font-serif); font-size:28px; color:var(--text-color); line-height:1.1; margin-bottom:8px;">${displayName}</div>
+    const d = entry.data || {};
+    /* 优先显示角色备注，其次是网名，最后是默认名称 */
+    const displayName = role.remark ? role.remark : ((d.netName && d.netName !== '未知') ? d.netName : getDisplayName(role));
+    
+    return `
+    <div style="min-width:100%; width:100%; height:100%; padding:0 20px; box-sizing:border-box; display:flex; flex-direction:column; justify-content:center;">
+        <div style="background:var(--bg-color); border:1px solid var(--border-color); padding:30px; display:flex; flex-direction:column; max-height:80vh; overflow-y:auto; box-shadow:0 20px 40px rgba(0,0,0,0.15);"
+             onmousedown="handleMagazineTouchStart(event, ${i})" 
+             onmouseup="handleMagazineTouchEnd()" 
+             onmouseleave="handleMagazineTouchEnd()" 
+             ontouchstart="handleMagazineTouchStart(event, ${i})" 
+             ontouchend="handleMagazineTouchEnd()" 
+             ontouchcancel="handleMagazineTouchEnd()">
+            
+            <div style="text-align:center; font-family:var(--font-sans); font-size:9px; letter-spacing:4px; color:var(--text-secondary); text-transform:uppercase; margin-bottom:25px;">Inner Voice</div>
+            
+            <div style="display:flex; gap:20px; margin-bottom:25px;">
+                <img src="${avatar}" style="width:90px; height:120px; object-fit:cover; filter:grayscale(20%) contrast(110%); border:1px solid var(--border-color);">
+                <div style="display:flex; flex-direction:column; justify-content:center;">
+                    <div style="font-family:var(--font-serif); font-size:20px; color:var(--text-color); line-height:1.1; margin-bottom:8px;">${displayName}</div>
                         <div style="font-family:var(--font-sans); font-size:9px; color:var(--text-secondary); letter-spacing:1px;">FAVORABILITY: ${d.favorability || '未知'}</div>
                         <div style="font-family:var(--font-sans); font-size:8px; color:var(--text-secondary); margin-top:4px;">${entry.time}</div>
                     </div>
