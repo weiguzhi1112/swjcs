@@ -2392,12 +2392,19 @@ function updateKeepAliveUI(isOn) {
             initiateWillProcess();
             return;
         }
+        if (text === '/will') {
+            input.value = '';
+            if (confirm("【强制触发遗书】\n系统检测到您使用了强制指令。\n请确认您当前处于安全状态，且仅为角色扮演需要。\n是否继续生成遗书？")) {
+                initiateWillProcess(true);
+            }
+            return;
+        }
         if (text === '/灵魂视角旁观') {
             input.value = '';
             chooseAfterDeath('ghost');
             return;
         }
-        if (text === '/开启新轮回') {
+        if (text === '/开启新轮回' || text === '/重置') {
             input.value = '';
             chooseAfterDeath('reset');
             return;
@@ -16349,19 +16356,22 @@ window.jumpToChatMsg = function(index) {
 /* ==================== 遗书系统核心逻辑 ==================== */
 
 // 1. 触发遗书流程与安全阀
-async function initiateWillProcess() {
+async function initiateWillProcess(force = false) {
     $('#attachment-popup').style.display = 'none';
     if (!currentChatRoleId) return alert("请先进入聊天界面");
     
     const role = roles.find(r => r.id === currentChatRoleId);
     if (!role) return;
 
-    const recentChats = (chats[currentChatRoleId] || []).slice(-5).map(m => m.content).join(' ');
-    const riskWords = ['不想活了', '自杀', '结束生命', '死掉算了', '好痛苦想死'];
-    const hasRisk = riskWords.some(w => recentChats.includes(w));
-    
-    if (hasRisk) {
-        alert("【系统提示】\n检测到您近期的情绪可能处于低谷。\n无论发生什么，请记住这个世界还有人在乎你。\n如果您需要帮助，请拨打心理危机干预热线（如：希望24小时热线 400-161-9995）。\n\n系统已暂时锁定剧情死亡触发。如果您只是在进行角色扮演，请确认您清楚虚拟与现实的边界。");
+    if (!force) {
+        const recentChats = (chats[currentChatRoleId] || []).slice(-5).map(m => m.content).join(' ');
+        const riskWords = ['不想活了', '自杀', '结束生命', '死掉算了', '好痛苦想死'];
+        const hasRisk = riskWords.some(w => recentChats.includes(w));
+        
+        if (hasRisk) {
+            alert("【系统提示】\n检测到您近期的情绪可能处于低谷。\n无论发生什么，请记住这个世界还有人在乎你。\n如果您需要帮助，请拨打心理危机干预热线（如：希望24小时热线 400-161-9995）。\n\n系统已暂时锁定剧情死亡触发。如果您只是在进行角色扮演，请确认您清楚虚拟与现实的边界。");
+            return;
+        }
     }
 
     if (!confirm(`【不可逆操作警告】\n确认后，系统将生成一封遗书。\n发送后，${role.realName} 将永久认为你已离世，并进入哀悼状态。\n此操作将深刻改变后续所有对话逻辑。\n\n是否继续？`)) {
@@ -16520,5 +16530,54 @@ window.chooseAfterDeath = function(choice) {
             renderMessages();
             alert("轮回已重置。新的故事开始了。");
         }
+    }
+};
+// 恢复所有记忆 (撤销重置)
+window.restoreAllMemories = function() {
+    if (!confirm("确定要尝试恢复所有角色的记忆和聊天记录吗？\n(这会尝试从本地缓存中读取重置前的数据，如果缓存已被覆盖则无法恢复)")) {
+        return;
+    }
+    
+    try {
+        let restored = false;
+        
+        // 尝试从 localStorage 恢复
+        const savedChats = localStorage.getItem('suowu_chats');
+        const savedMemories = localStorage.getItem('suowu_memories');
+        const savedAdvMemories = localStorage.getItem('suowu_advancedMemories');
+        
+        if (savedChats) {
+            chats = JSON.parse(savedChats);
+            DB.set('chats', chats);
+            restored = true;
+        }
+        if (savedMemories) {
+            memories = JSON.parse(savedMemories);
+            DB.set('memories', memories);
+            restored = true;
+        }
+        if (savedAdvMemories) {
+            advancedMemories = JSON.parse(savedAdvMemories);
+            DB.set('advancedMemories', advancedMemories);
+            restored = true;
+        }
+        
+        // 恢复角色的存活状态
+        roles.forEach(r => {
+            r.isUserDead = false;
+            r.deathStage = 0;
+            r.deathState = 'none';
+            r.deathTurnCount = 0;
+        });
+        DB.set('roles', roles);
+
+        if (restored) {
+            alert("记忆恢复指令已执行！即将刷新页面以应用数据。");
+            location.reload();
+        } else {
+            alert("未找到可恢复的缓存数据。");
+        }
+    } catch (e) {
+        alert("恢复失败: " + e.message);
     }
 };
