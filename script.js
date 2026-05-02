@@ -4538,8 +4538,10 @@ function toInitApp(){
 
         try {
             const activeMask = masks.find(m => m.id === role.activeMaskId) || masks.find(m => m.id === 'default') || masks[0];
-            const globalWbs = worldbooks.filter(w => w.isGlobal).map(w => w.content).join('\n\n');
-            const localWbs = worldbooks.filter(w => role.localWbs?.includes(w.id)).map(w => w.content).join('\n\n');
+            
+            /* 毒瘤修复：限制世界书长度，防止设定过长导致 Token 爆炸 */
+            const globalWbs = worldbooks.filter(w => w.isGlobal).map(w => w.content).join('\n\n').substring(0, 10000);
+            const localWbs = worldbooks.filter(w => role.localWbs?.includes(w.id)).map(w => w.content).join('\n\n').substring(0, 10000);
             
             const currentAddr = toAddresses.find(a => a.id === toSelectedAddrId) || toAddresses[0];
             const addrStr = currentAddr ? `${currentAddr.tag}(${currentAddr.addr})` : "未设置";
@@ -4630,7 +4632,10 @@ ${modeRules}
                 finalSystemPrompt += `\n\n【强制状态感知】\n你必须在回复的最后，严格按照以下格式输出你当前的状态，不允许遗漏：\n${statusSuffix}`;
             }
             const apiMessages = [{ role: 'system', content: finalSystemPrompt }];
-            const contextLimit = role.contextLimit || 30;
+            
+            /* 毒瘤修复：优先使用角色设置的条数，如果没有则使用全局设置的条数 */
+            const contextLimit = role.contextLimit || apiConfig.maxTokens || 50;
+            
             const cleanHistoryContent = (content, msgRole) => {
                 let text = content;
                 text = text.replace(/<thought>[\s\S]*?<\/thought>\n*/gi, '');
@@ -4684,7 +4689,12 @@ ${modeRules}
                     } catch(e) { return ''; }
                 });
                 text = text.replace(/<div class="virtual-img-box" data-text="(.*?)".*?<\/div>/g, '[图片: $1]');
+                
+                /* 毒瘤修复：彻底清除 HTML 标签，并强制截断超长文本，防止 Base64 图片残留导致 118万 Token 爆炸 */
                 text = text.replace(/<[^>]*>/g, ''); 
+                if (text.length > 2000) {
+                    text = text.substring(0, 2000) + '...[内容过长已截断]';
+                }
                 return text.trim();
             };
 
@@ -4713,17 +4723,17 @@ ${modeRules}
             }).filter(m => m !== null); 
             apiMessages.push(...historyMsgs);
 
-            /* 毒瘤修复 1：合并连续的同角色消息，防止严格模型报错 */
+            /* 合并连续的同角色消息，防止严格模型报错 */
             const mergedApiMessages = [];
             for (const msg of apiMessages) {
                 if (mergedApiMessages.length > 0 && mergedApiMessages[mergedApiMessages.length - 1].role === msg.role) {
                     mergedApiMessages[mergedApiMessages.length - 1].content += `\n\n${msg.content}`;
                 } else {
-                    mergedApiMessages.push({ role: msg.role, content: msg.content }); // 毒瘤修复：深拷贝防止污染
+                    mergedApiMessages.push({ role: msg.role, content: msg.content }); 
                 }
             }
             
-            /* 毒瘤修复 2：强制保证最后一条消息是 user，否则严格模型必报 400 */
+            /* 强制保证最后一条消息是 user，否则严格模型必报 400 */
             if (mergedApiMessages.length > 0 && mergedApiMessages[mergedApiMessages.length - 1].role !== 'user') {
                 mergedApiMessages.push({ role: 'user', content: '请继续。' });
             }
@@ -4731,7 +4741,7 @@ ${modeRules}
             apiMessages.length = 0;
             apiMessages.push(...mergedApiMessages);
 
-            /* 毒瘤修复 3：安全解析 temperature 和 top_p，防止 NaN 变成 null 导致 400 */
+            /* 安全解析 temperature 和 top_p，防止 NaN 变成 null 导致 400 */
             let tempVal = parseFloat(apiConfig.temperature);
             if (isNaN(tempVal)) tempVal = 0.8;
             let topPVal = parseFloat(apiConfig.topP);
@@ -4744,7 +4754,6 @@ ${modeRules}
                 messages: apiMessages,
                 temperature: tempVal,
                 top_p: topPVal,
-                max_tokens: 4096, // 毒瘤修复 4：强制限制输出长度，防止传入 128000 导致 400
                 stream: isStreamEnabled
             };
             
@@ -4806,7 +4815,7 @@ ${modeRules}
                         if (jsonStr === '' || jsonStr === '[DONE]') continue;
                         
                         try {
-                            /* 毒瘤修复 5：拦截流内部的隐式报错，防止静默空回 */
+                            /* 拦截流内部的隐式报错，防止静默空回 */
                             if (jsonStr.includes('"error"')) {
                                 const errObj = JSON.parse(jsonStr);
                                 if (errObj.error) throw new Error(errObj.error.message || "API 流内部返回错误");
@@ -5031,7 +5040,6 @@ ${modeRules}
             }
             
             let formattedReply = fullReply.replace(/\n+/g, '\n');
-            /* 毒瘤修复 6：取消强制气泡分割，保留完整的回复作为一个气泡 */
             chats[targetRoleId].push({ role: 'ai', content: formattedReply, rawContent: rawFullReply, time: timeStr, rawTime: now.getTime(), mode: finalChatMode });
             
             for (let i = chats[targetRoleId].length - 1; i >= 0; i--) {
@@ -5096,7 +5104,7 @@ ${modeRules}
                 try { hideGlobalTyping(); } catch(e) {}
             }
         }
-    }   
+    }
     function renderWeather() { 
         const form = $('#weather-form'); 
         form.innerHTML = Object.entries({ 
@@ -6519,14 +6527,14 @@ window.newRoleTempWbs = null;
     }
 
     function openApiModal() { 
-        apiConfig = DB.get('api', { url: '', key: '', model: 'gpt-4o', maxTokens: 128000, temperature: 0.8, topP: 1.0, stream: true, ttsGroupId: '', ttsApiKey: '', ttsVoiceId: '' }); 
-        $('#api-url').value = apiConfig.url || ''; $('#api-key').value = apiConfig.key || ''; $('#api-model').value = apiConfig.model || ''; $('#api-tokens').value = apiConfig.maxTokens || 128000; $('#api-temp').value = apiConfig.temperature || 0.8; $('#val-temp').innerText = apiConfig.temperature || 0.8; $('#api-topp').value = apiConfig.topP || 1.0; $('#val-topp').innerText = apiConfig.topP || 1.0; 
+        apiConfig = DB.get('api', { url: '', key: '', model: 'gpt-4o', maxTokens: 50, temperature: 0.8, topP: 1.0, stream: true, ttsGroupId: '', ttsApiKey: '', ttsVoiceId: '' }); 
+        $('#api-url').value = apiConfig.url || ''; $('#api-key').value = apiConfig.key || ''; $('#api-model').value = apiConfig.model || ''; $('#api-tokens').value = apiConfig.maxTokens || 50; $('#api-temp').value = apiConfig.temperature || 0.8; $('#val-temp').innerText = apiConfig.temperature || 0.8; $('#api-topp').value = apiConfig.topP || 1.0; $('#val-topp').innerText = apiConfig.topP || 1.0; 
         $('#api-stream-enable').checked = apiConfig.stream !== false;
         $('#tts-group-id').value = apiConfig.ttsGroupId || ''; $('#tts-api-key').value = apiConfig.ttsApiKey || ''; $('#tts-voice-id').value = apiConfig.ttsVoiceId || '';
         renderApiPresets(); openModal('modal-api'); 
     }
     function saveApi() { 
-        apiConfig.url = $('#api-url').value.trim(); apiConfig.key = $('#api-key').value.trim(); apiConfig.model = $('#api-model').value.trim(); apiConfig.maxTokens = parseInt($('#api-tokens').value) || 128000; apiConfig.temperature = parseFloat($('#api-temp').value); apiConfig.topP = parseFloat($('#api-topp').value); 
+        apiConfig.url = $('#api-url').value.trim(); apiConfig.key = $('#api-key').value.trim(); apiConfig.model = $('#api-model').value.trim(); apiConfig.maxTokens = parseInt($('#api-tokens').value) || 50; apiConfig.temperature = parseFloat($('#api-temp').value); apiConfig.topP = parseFloat($('#api-topp').value); 
         apiConfig.stream = $('#api-stream-enable').checked;
         apiConfig.ttsGroupId = $('#tts-group-id').value.trim(); apiConfig.ttsApiKey = $('#tts-api-key').value.trim(); apiConfig.ttsVoiceId = $('#tts-voice-id').value.trim();
         DB.set('api', apiConfig); closeModal('modal-api'); 
