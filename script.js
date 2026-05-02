@@ -861,7 +861,6 @@ async function checkDiscordCallback() {
     updateCoTDisplayUI();
     setupKeyboardShortcuts(); 
     setupAudioPlayer();
-
     hideBootStatus();
 
     const chatViewObserver = new MutationObserver(mutations => {
@@ -7082,6 +7081,58 @@ window.newRoleTempWbs = null;
             if (status) status.innerText = '已关闭：默认格式处理'; 
         } 
     }
+
+    /* 控制时间戳显示的逻辑 */
+    function toggleSingleTimestamp() { 
+        settings.singleTimestamp = settings.singleTimestamp === false ? true : false; 
+        DB.set('settings', settings); 
+        updateSingleTimestampUI(); 
+        applySettings(); 
+    } 
+    function updateSingleTimestampUI() { 
+        const isOn = settings.singleTimestamp !== false; 
+        const track = document.getElementById('single-timestamp-track'); 
+        const thumb = document.getElementById('single-timestamp-thumb'); 
+        const status = document.getElementById('single-timestamp-status'); 
+        if (!track || !thumb) return; 
+        if (isOn) { 
+            track.style.background = 'var(--text-color)'; 
+            thumb.style.left = '20px'; 
+            thumb.style.background = 'var(--bg-color)'; 
+            if (status) status.innerText = '已开启：仅在最后一条消息显示'; 
+        } else { 
+            track.style.background = 'var(--gray-light)'; 
+            thumb.style.left = '2px'; 
+            thumb.style.background = 'var(--text-color)'; 
+            if (status) status.innerText = '已关闭：每条消息都显示时间'; 
+        } 
+    }
+
+    /* 控制思维链显示的逻辑 */
+    function toggleCoTDisplay() { 
+        settings.showCoT = !settings.showCoT; 
+        DB.set('settings', settings); 
+        updateCoTDisplayUI(); 
+    } 
+    function updateCoTDisplayUI() { 
+        const isOn = settings.showCoT || false; 
+        const track = document.getElementById('cot-display-track'); 
+        const thumb = document.getElementById('cot-display-thumb'); 
+        const status = document.getElementById('cot-display-status'); 
+        if (!track || !thumb) return; 
+        if (isOn) { 
+            track.style.background = 'var(--text-color)'; 
+            thumb.style.left = '20px'; 
+            thumb.style.background = 'var(--bg-color)'; 
+            if (status) status.innerText = '已开启：显示AI的思考过程'; 
+        } else { 
+            track.style.background = 'var(--gray-light)'; 
+            thumb.style.left = '2px'; 
+            thumb.style.background = 'var(--text-color)'; 
+            if (status) status.innerText = '已关闭：隐藏AI的思考过程'; 
+        } 
+    }
+
     function toggleNotifyInChat() { settings.notifyInChat = !settings.notifyInChat; DB.set('settings', settings); updateNotifyInChatUI(); } function updateNotifyInChatUI() { const isOn = settings.notifyInChat || false; const track = document.getElementById('notify-chat-track'); const thumb = document.getElementById('notify-chat-thumb'); const status = document.getElementById('notify-in-chat-status'); if (!track || !thumb) return; if (isOn) { track.style.background = 'var(--text-color)'; thumb.style.left = '20px'; thumb.style.background = 'var(--bg-color)'; if (status) status.innerText = '已开启：聊天时也会弹出通知'; } else { track.style.background = 'var(--gray-light)'; thumb.style.left = '2px'; thumb.style.background = 'var(--text-color)'; if (status) status.innerText = '已关闭：聊天时不弹出通知'; } } 
     function toggleTimeAwareness() { settings.timeAware = !settings.timeAware; DB.set('settings', settings); renderTimeAwarenessStatus(); }
     function renderTimeAwarenessStatus() {
