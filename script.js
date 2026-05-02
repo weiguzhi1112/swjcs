@@ -12354,35 +12354,26 @@ function importStatusPresets(event) {
     reader.readAsText(file);
     event.target.value = '';
 }
-
 function getStatusPromptSuffix(roleId) {
     const config = statusBarData[roleId];
     if (!config || !config.enabled) return '';
-    
-    let basePrompt = '\n\n【最高机密：状态强制输出指令】\n你必须在回复的最末尾，使用 XML 标签严格包裹你的状态信息！大模型对 XML 标签最敏感，绝对不允许遗漏标签或将其混入正文！\n\n必须严格复制以下格式（不要修改标签名）：\n<status>\n网名: 你的网名\n标签: 2个字的性格标签\n穿着: 当前穿着细节\n动作: 当前具体动作\n好感度: 数字/100\n心声: 你的真实想法(30-80字，展现表面与内心的反差)\n</status>';
-    
-    if (settings.forceFormat) {
-        basePrompt += '\n\n【强制格式优化警告】\n如果你不使用 <status> 标签包裹，系统将直接崩溃！\n正确示例：\n"你今天看起来很累啊。"\n<status>\n网名: 孤狼\n标签: 傲娇\n穿着: 略微凌乱的白衬衫\n动作: 烦躁地揉了揉眉心\n好感度: 85/100\n心声: 其实我只是昨晚想你想得睡不着，但这种话我怎么可能说得出口...\n</status>';
-    }
-    
-    return basePrompt;
+    /* 深度丰富心声提示词 */
+    return '\n\n【心声生成指令】\n请在回复的最末尾，换行并严格使用 [心声: 你的内心想法 | 好感度: 当前好感度/100] 的格式。心声内容必须极度丰富、私密且露骨（至少30-80字），包含以下元素：\n1. 你当前的具体动作或穿着细节（如：正扯着领带、手指无意识地敲击桌面、睡衣半褪）。\n2. 你对用户未说出口的真实情绪、坏心思、占有欲或性幻想。\n3. 表面回复与内心真实想法的反差,不强制性每次都要输出性幻想。\n例如：[心声: 表面上装作若无其事地喝水，其实睡衣下的身体已经因为她刚才那句话紧绷了。真想现在就把她按在沙发上狠狠欺负一顿，看她哭着求饶的样子... | 好感度: 95/100]。必须严格遵守此格式！绝对不允许照搬示例！';
 }
 
 function extractStatusFromReply(roleId, replyText) {
     const config = statusBarData[roleId];
     if (!config || !config.enabled) return null;
     try {
-        // 优先匹配 XML 标签，如果 AI 还是犯蠢用了中括号，也兼容提取
-        const regex = /<status>([\s\S]*?)<\/status>|\[?【?(?:状态感知|状态|心声).*?(?:网名|标签|穿着|动作|好感度|心声).*?\]?】?/g;
+        // 强力正则：兼容各种可能的括号、冒号和缺失字段
+        const regex = /\[?【?(?:状态感知|状态|心声).*?(?:网名|标签|穿着|动作|好感度|心声).*?\]?】?/g;
         const matches = [...replyText.matchAll(regex)];
         if (matches.length > 0) {
             const rawMatch = matches[matches.length - 1][0]; 
-            const innerText = matches[matches.length - 1][1] || rawMatch; // 获取标签内部文本
             
             const parseField = (field) => {
-                // 兼容换行符和竖线分隔
-                const reg = new RegExp(`${field}[:：]\\s*([^|\\n\\]】<]+)`);
-                const m = innerText.match(reg);
+                const reg = new RegExp(`${field}[:：]\\s*([^|\\]】]+)`);
+                const m = rawMatch.match(reg);
                 return m ? m[1].trim() : '未知';
             };
             
@@ -12395,14 +12386,37 @@ function extractStatusFromReply(roleId, replyText) {
                 thought: parseField('心声')
             };
             
+            // 如果连心声都没提取到，说明格式彻底烂了，直接把整个匹配块当心声
             if (data.thought === '未知') {
-                data.thought = innerText.replace(/(?:网名|标签|穿着|动作|好感度)[:：].*?(?:\n|\|)/g, '').trim();
+                data.thought = rawMatch.replace(/\[?【?(?:状态感知|状态|心声)[:：]?/g, '').replace(/\]?】?$/g, '').trim();
             }
 
             return { data: data, rawMatch: rawMatch, time: new Date().toLocaleString('zh-CN') };
         }
     } catch (e) { console.error('Status extract error:', e); }
     return null;
+}
+
+function saveStatusHistory(roleId, statusEntry) {
+    const config = initStatusBarData(roleId);
+    config.history.unshift(statusEntry);
+    if (config.history.length > 20) config.history = config.history.slice(0, 20);
+    statusBarData[roleId] = config;
+    DB.set('statusBarData', statusBarData);
+}
+
+function cleanStatusFromText(roleId, text) {
+    const config = statusBarData[roleId];
+    if (!config || !config.enabled) return text;
+    try {
+        // 毒瘤修复：极其宽泛的正则，只要出现 [心声: 或 [状态: 就一直删到结尾，绝对不让它掉落在正文里
+        let cleaned = text.replace(/\[?【?(?:状态感知|状态|心声)[:：][\s\S]*?(?:\]|】|$)/g, '').trim();
+        if (settings.forceFormat) {
+            // 如果开启了强制格式优化，再扫一遍可能漏网的 | 好感度: xxx ]
+            cleaned = cleaned.replace(/\|?\s*好感度[:：][\s\S]*?(?:\]|】|$)/g, '').trim();
+        }
+        return cleaned;
+    } catch (e) { return text; }
 }
 
 function saveStatusHistory(roleId, statusEntry) {
@@ -12457,37 +12471,47 @@ function renderMagazineStatus() {
 
     track.innerHTML = config.history.map((entry, i) => {
         const d = entry.data || {};
+        const displayName = (d.netName && d.netName !== '未知') ? d.netName : getDisplayName(role);
+        
         return `
         <div style="min-width:100%; width:100%; height:100%; padding:0 20px; box-sizing:border-box; display:flex; flex-direction:column; justify-content:center;">
-            <div style="background:#fff; border-radius:20px; overflow:hidden; box-shadow:0 20px 40px rgba(0,0,0,0.3); display:flex; flex-direction:column; max-height:80vh;"
+            <div style="background:var(--bg-color); border:1px solid var(--border-color); padding:30px; display:flex; flex-direction:column; max-height:80vh; overflow-y:auto; box-shadow:0 20px 40px rgba(0,0,0,0.15);"
                  onmousedown="handleMagazineTouchStart(event, ${i})" 
                  onmouseup="handleMagazineTouchEnd()" 
                  onmouseleave="handleMagazineTouchEnd()" 
                  ontouchstart="handleMagazineTouchStart(event, ${i})" 
                  ontouchend="handleMagazineTouchEnd()" 
                  ontouchcancel="handleMagazineTouchEnd()">
-                <div style="position:relative; height:200px; background-image:url('${avatar}'); background-size:cover; background-position:center;">
-                    <div style="position:absolute; bottom:0; left:0; right:0; background:linear-gradient(to top, rgba(0,0,0,0.8), transparent); padding:20px;">
-                        <div style="color:#fff; font-size:22px; font-weight:bold; font-family:var(--font-serif);">${d.netName !== '未知' ? d.netName : getDisplayName(role)}</div>
-                        <div style="color:rgba(255,255,255,0.8); font-size:12px; margin-top:4px;">${entry.time} ${i === 0 ? '(LATEST)' : ''}</div>
-                    </div>
-                    <div style="position:absolute; top:15px; right:15px; background:rgba(0,0,0,0.5); backdrop-filter:blur(5px); color:#fff; padding:4px 10px; border-radius:12px; font-size:10px; font-weight:bold; border:1px solid rgba(255,255,255,0.2);">
-                        好感度: ${d.favorability}
+                
+                <div style="text-align:center; font-family:var(--font-sans); font-size:9px; letter-spacing:4px; color:var(--text-secondary); text-transform:uppercase; margin-bottom:25px;">Inner Voice</div>
+                
+                <div style="display:flex; gap:20px; margin-bottom:25px;">
+                    <img src="${avatar}" style="width:90px; height:120px; object-fit:cover; filter:grayscale(20%) contrast(110%); border:1px solid var(--border-color);">
+                    <div style="display:flex; flex-direction:column; justify-content:center;">
+                        <div style="font-family:var(--font-serif); font-size:28px; color:var(--text-color); line-height:1.1; margin-bottom:8px;">${displayName}</div>
+                        <div style="font-family:var(--font-sans); font-size:9px; color:var(--text-secondary); letter-spacing:1px;">FAVORABILITY: ${d.favorability || '未知'}</div>
+                        <div style="font-family:var(--font-sans); font-size:8px; color:var(--text-secondary); margin-top:4px;">${entry.time}</div>
                     </div>
                 </div>
-                <div style="padding:20px; flex:1; overflow-y:auto; background:#f8f9fa;">
-                    <div style="display:flex; gap:8px; margin-bottom:15px; flex-wrap:wrap;">
-                        <span style="background:#e2e8f0; color:#334155; padding:4px 10px; border-radius:8px; font-size:10px; font-weight:bold;">🏷️ ${d.tag}</span>
-                        <span style="background:#e2e8f0; color:#334155; padding:4px 10px; border-radius:8px; font-size:10px; font-weight:bold;">👕 ${d.clothing}</span>
-                    </div>
-                    <div style="margin-bottom:15px;">
-                        <div style="font-size:10px; color:#64748b; font-weight:bold; margin-bottom:4px; text-transform:uppercase;">Current Action</div>
-                        <div style="font-size:13px; color:#0f172a; line-height:1.5;">${d.action}</div>
+                
+                <div style="border-top:1px solid var(--text-color); padding-top:15px; margin-bottom:20px; display:grid; grid-template-columns:1fr 1fr; gap:15px;">
+                    <div>
+                        <div style="font-size:8px; color:var(--text-secondary); letter-spacing:1px; text-transform:uppercase; margin-bottom:4px;">Tag</div>
+                        <div style="font-size:12px; color:var(--text-color);">${d.tag || '未知'}</div>
                     </div>
                     <div>
-                        <div style="font-size:10px; color:#64748b; font-weight:bold; margin-bottom:4px; text-transform:uppercase;">Inner Voice</div>
-                        <div style="font-size:14px; color:#0f172a; line-height:1.6; font-family:var(--font-serif); font-style:italic; border-left:3px solid #cbd5e1; padding-left:10px;">"${d.thought}"</div>
+                        <div style="font-size:8px; color:var(--text-secondary); letter-spacing:1px; text-transform:uppercase; margin-bottom:4px;">Clothing</div>
+                        <div style="font-size:12px; color:var(--text-color);">${d.clothing || '未知'}</div>
                     </div>
+                    <div style="grid-column:span 2;">
+                        <div style="font-size:8px; color:var(--text-secondary); letter-spacing:1px; text-transform:uppercase; margin-bottom:4px;">Action</div>
+                        <div style="font-size:12px; color:var(--text-color);">${d.action || '未知'}</div>
+                    </div>
+                </div>
+                
+                <div style="flex:1;">
+                    <div style="font-size:8px; color:var(--text-secondary); letter-spacing:1px; text-transform:uppercase; margin-bottom:10px;">Monologue</div>
+                    <div style="font-family:var(--font-serif); font-size:16px; line-height:1.6; color:var(--text-color); font-style:italic;">"${d.thought || '...'}"</div>
                 </div>
             </div>
         </div>
