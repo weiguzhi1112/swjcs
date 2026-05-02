@@ -856,6 +856,7 @@ async function checkDiscordCallback() {
     applySettings(); 
     renderAll(); 
     updateNotifyInChatUI();
+    updateForceFormatUI();
     updateSingleTimestampUI();
     updateCoTDisplayUI();
     setupKeyboardShortcuts(); 
@@ -4626,8 +4627,14 @@ ${modeRules}
             let finalSystemPrompt = systemPrompt;
             const statusSuffix = getStatusPromptSuffix(targetRoleId);
             if (statusSuffix) {
-                finalSystemPrompt += `\n\n【强制状态感知】\n你必须在回复的最后，严格按照以下格式输出你当前的状态，不允许遗漏：\n${statusSuffix}`;
+                finalSystemPrompt += statusSuffix;
             }
+            
+            // 毒瘤修复：如果开启了强制格式优化，追加极其严厉的警告
+            if (settings.forceFormat) {
+                finalSystemPrompt += `\n\n【最高格式警告！！！】\n你必须严格遵守上述所有格式要求！特别是 [心声] 或 [状态感知] 标签，必须放在回复的最后一行，并且必须用 [] 括号完整包裹！绝对不允许把格式标签混入正文对话中！如果你破坏了格式，系统将直接崩溃！`;
+            }
+            
             const apiMessages = [{ role: 'system', content: finalSystemPrompt }];
             
             const contextLimit = role.contextLimit || apiConfig.maxTokens || 50;
@@ -7052,10 +7059,30 @@ window.newRoleTempWbs = null;
     }
 }
     function openMemorySettingsModal() { $('#memory-auto-enable').checked = memorySettings.autoSummarizeEnabled; const count = memorySettings.autoSummarizeCount || 150; $('#memory-auto-count').value = count; $('#val-auto-count').innerText = count; openModal('modal-memory-settings'); } function saveMemorySettings() { memorySettings.autoSummarizeEnabled = $('#memory-auto-enable').checked; memorySettings.autoSummarizeCount = parseInt($('#memory-auto-count').value) || 150; DB.set('memorySettings', memorySettings); closeModal('modal-memory-settings'); alert('记忆设置已保存！'); }
+    function toggleForceFormat() { 
+        settings.forceFormat = !settings.forceFormat; 
+        DB.set('settings', settings); 
+        updateForceFormatUI(); 
+    } 
+    function updateForceFormatUI() { 
+        const isOn = settings.forceFormat || false; 
+        const track = document.getElementById('force-format-track'); 
+        const thumb = document.getElementById('force-format-thumb'); 
+        const status = document.getElementById('force-format-status'); 
+        if (!track || !thumb) return; 
+        if (isOn) { 
+            track.style.background = 'var(--text-color)'; 
+            thumb.style.left = '20px'; 
+            thumb.style.background = 'var(--bg-color)'; 
+            if (status) status.innerText = '已开启：强力拦截掉格式与乱码'; 
+        } else { 
+            track.style.background = 'var(--gray-light)'; 
+            thumb.style.left = '2px'; 
+            thumb.style.background = 'var(--text-color)'; 
+            if (status) status.innerText = '已关闭：默认格式处理'; 
+        } 
+    }
     function toggleNotifyInChat() { settings.notifyInChat = !settings.notifyInChat; DB.set('settings', settings); updateNotifyInChatUI(); } function updateNotifyInChatUI() { const isOn = settings.notifyInChat || false; const track = document.getElementById('notify-chat-track'); const thumb = document.getElementById('notify-chat-thumb'); const status = document.getElementById('notify-in-chat-status'); if (!track || !thumb) return; if (isOn) { track.style.background = 'var(--text-color)'; thumb.style.left = '20px'; thumb.style.background = 'var(--bg-color)'; if (status) status.innerText = '已开启：聊天时也会弹出通知'; } else { track.style.background = 'var(--gray-light)'; thumb.style.left = '2px'; thumb.style.background = 'var(--text-color)'; if (status) status.innerText = '已关闭：聊天时不弹出通知'; } } 
-    function toggleCoTDisplay() { settings.showCoT = !settings.showCoT; DB.set('settings', settings); updateCoTDisplayUI(); } function updateCoTDisplayUI() { const isOn = settings.showCoT || false; const track = document.getElementById('cot-display-track'); const thumb = document.getElementById('cot-display-thumb'); const status = document.getElementById('cot-display-status'); if (!track || !thumb) return; if (isOn) { track.style.background = 'var(--text-color)'; thumb.style.left = '20px'; thumb.style.background = 'var(--bg-color)'; if (status) status.innerText = '已开启：显示AI的思考过程'; } else { track.style.background = 'var(--gray-light)'; thumb.style.left = '2px'; thumb.style.background = 'var(--text-color)'; if (status) status.innerText = '已关闭：隐藏AI的思考过程'; } }
-    function toggleSingleTimestamp() { settings.singleTimestamp = settings.singleTimestamp === false ? true : false; DB.set('settings', settings); updateSingleTimestampUI(); applySettings(); }
-    function updateSingleTimestampUI() { const isOn = settings.singleTimestamp !== false; const track = document.getElementById('single-timestamp-track'); const thumb = document.getElementById('single-timestamp-thumb'); const status = document.getElementById('single-timestamp-status'); if (!track || !thumb) return; if (isOn) { track.style.background = 'var(--text-color)'; thumb.style.left = '20px'; thumb.style.background = 'var(--bg-color)'; if (status) status.innerText = '已开启：仅显示最后一条时间戳'; } else { track.style.background = 'var(--gray-light)'; thumb.style.left = '2px'; thumb.style.background = 'var(--text-color)'; if (status) status.innerText = '已关闭：每条消息显示时间戳'; } }
     function toggleTimeAwareness() { settings.timeAware = !settings.timeAware; DB.set('settings', settings); renderTimeAwarenessStatus(); }
     function renderTimeAwarenessStatus() {
     const statusEl = $('#time-awareness-status');
@@ -12272,20 +12299,43 @@ function importStatusPresets(event) {
     event.target.value = '';
 }
 
+function getStatusPromptSuffix(roleId) {
+    const config = statusBarData[roleId];
+    if (!config || !config.enabled) return '';
+    return `\n\n【强制状态感知】\n你必须在回复的最末尾，换行并严格按照以下格式输出你当前的状态（必须包含所有字段，用 | 分隔）：\n[状态感知 | 网名: 你的网名 | 标签: 2个字的性格标签 | 穿着: 当前穿着 | 动作: 当前动作 | 好感度: 数字/100 | 心声: 你的真实想法]`;
+}
+
 function extractStatusFromReply(roleId, replyText) {
     const config = statusBarData[roleId];
     if (!config || !config.enabled) return null;
     try {
-        /* 毒瘤修复：增强正则，兼容 [心声: xxx | 好感度: xxx] 这种复杂格式 */
-        const regexStr = config.regex || '\\[(?:状态|心声)[:：]\\s*([\\s\\S]*?)(?:\\|\\s*好感度[:：]\\s*.*?)?\\]';
-        const regex = new RegExp(regexStr);
-        const match = replyText.match(regex);
-        if (match) {
-            let html = config.htmlTemplate || `<div class='my-status'>$1</div>`;
-            for (let i = 1; i < match.length; i++) {
-                html = html.replace(new RegExp('\\$' + i, 'g'), match[i] || '');
+        // 强力正则：兼容各种可能的括号、冒号和缺失字段
+        const regex = /\[?【?(?:状态感知|状态|心声).*?(?:网名|标签|穿着|动作|好感度|心声).*?\]?】?/g;
+        const matches = [...replyText.matchAll(regex)];
+        if (matches.length > 0) {
+            const rawMatch = matches[matches.length - 1][0]; 
+            
+            const parseField = (field) => {
+                const reg = new RegExp(`${field}[:：]\\s*([^|\\]】]+)`);
+                const m = rawMatch.match(reg);
+                return m ? m[1].trim() : '未知';
+            };
+            
+            const data = {
+                netName: parseField('网名'),
+                tag: parseField('标签'),
+                clothing: parseField('穿着'),
+                action: parseField('动作'),
+                favorability: parseField('好感度'),
+                thought: parseField('心声')
+            };
+            
+            // 如果连心声都没提取到，说明格式彻底烂了，直接把整个匹配块当心声
+            if (data.thought === '未知') {
+                data.thought = rawMatch.replace(/\[?【?(?:状态感知|状态|心声)[:：]?/g, '').replace(/\]?】?$/g, '').trim();
             }
-            return { html: html, rawMatch: match[0], time: new Date().toLocaleString('zh-CN') };
+
+            return { data: data, rawMatch: rawMatch, time: new Date().toLocaleString('zh-CN') };
         }
     } catch (e) { console.error('Status extract error:', e); }
     return null;
@@ -12303,10 +12353,13 @@ function cleanStatusFromText(roleId, text) {
     const config = statusBarData[roleId];
     if (!config || !config.enabled) return text;
     try {
-        /* 毒瘤修复：彻底清除正文中的心声/状态标签，防止掉格式 */
-        const regexStr = config.regex || '\\[(?:状态|心声)[:：][\\s\\S]*?\\]';
-        const regex = new RegExp(regexStr, 'g');
-        return text.replace(regex, '').trim();
+        // 毒瘤修复：极其宽泛的正则，只要出现 [心声: 或 [状态: 就一直删到结尾，绝对不让它掉落在正文里
+        let cleaned = text.replace(/\[?【?(?:状态感知|状态|心声)[:：][\s\S]*?(?:\]|】|$)/g, '').trim();
+        if (settings.forceFormat) {
+            // 如果开启了强制格式优化，再扫一遍可能漏网的 | 好感度: xxx ]
+            cleaned = cleaned.replace(/\|?\s*好感度[:：][\s\S]*?(?:\]|】|$)/g, '').trim();
+        }
+        return cleaned;
     } catch (e) { return text; }
 }
 
@@ -12321,64 +12374,110 @@ function updateStatusBarButton() {
     }
 }
 
-let isStatusManageMode = false;
-let selectedStatusIndices = new Set();
+let magazineCurrentIndex = 0;
+let magazineStartX = 0;
+let magazineCurrentTranslate = 0;
 
-function renderStatusPanelList() {
+function renderMagazineStatus() {
     const config = statusBarData[currentChatRoleId];
-    const body = $('#char-status-body');
+    const track = $('#magazine-status-track');
+    const dots = $('#magazine-status-dots');
+    const role = roles.find(r => r.id === currentChatRoleId);
+    const avatar = role ? (role.avatar || DEFAULT_AVATAR) : DEFAULT_AVATAR;
+
     if (!config || config.history.length === 0) {
-        body.innerHTML = '<div style="text-align:center; color:var(--text-secondary); font-size:10px; padding:20px;">暂无状态数据</div>';
-        $('#btn-manage-status').style.display = 'none';
+        track.innerHTML = '<div style="width:100%; display:flex; align-items:center; justify-content:center; color:rgba(255,255,255,0.5);">暂无心声数据</div>';
+        dots.innerHTML = '';
         return;
     }
-    $('#btn-manage-status').style.display = 'block';
-    body.innerHTML = config.history.map((entry, i) => `
-        <div class="status-history-item" onclick="toggleStatusSelect(${i})">
-            <div class="status-checkbox ${selectedStatusIndices.has(i) ? 'checked' : ''}"></div>
-            <div style="font-size:9px; color:var(--text-secondary); margin-bottom:8px; text-align:center;">${i === 0 ? 'CURRENT' : 'HISTORY #' + i} | ${entry.time}</div>
-            <div>${entry.html}</div>
+
+    track.innerHTML = config.history.map((entry, i) => {
+        const d = entry.data || {};
+        return `
+        <div style="min-width:100%; width:100%; height:100%; padding:0 20px; box-sizing:border-box; display:flex; flex-direction:column; justify-content:center;">
+            <div style="background:#fff; border-radius:20px; overflow:hidden; box-shadow:0 20px 40px rgba(0,0,0,0.3); display:flex; flex-direction:column; max-height:80vh;">
+                <div style="position:relative; height:200px; background-image:url('${avatar}'); background-size:cover; background-position:center;">
+                    <div style="position:absolute; bottom:0; left:0; right:0; background:linear-gradient(to top, rgba(0,0,0,0.8), transparent); padding:20px;">
+                        <div style="color:#fff; font-size:22px; font-weight:bold; font-family:var(--font-serif);">${d.netName !== '未知' ? d.netName : getDisplayName(role)}</div>
+                        <div style="color:rgba(255,255,255,0.8); font-size:12px; margin-top:4px;">${entry.time} ${i === 0 ? '(LATEST)' : ''}</div>
+                    </div>
+                    <div style="position:absolute; top:15px; right:15px; background:rgba(0,0,0,0.5); backdrop-filter:blur(5px); color:#fff; padding:4px 10px; border-radius:12px; font-size:10px; font-weight:bold; border:1px solid rgba(255,255,255,0.2);">
+                        好感度: ${d.favorability}
+                    </div>
+                </div>
+                <div style="padding:20px; flex:1; overflow-y:auto; background:#f8f9fa;">
+                    <div style="display:flex; gap:8px; margin-bottom:15px; flex-wrap:wrap;">
+                        <span style="background:#e2e8f0; color:#334155; padding:4px 10px; border-radius:8px; font-size:10px; font-weight:bold;">🏷️ ${d.tag}</span>
+                        <span style="background:#e2e8f0; color:#334155; padding:4px 10px; border-radius:8px; font-size:10px; font-weight:bold;">👕 ${d.clothing}</span>
+                    </div>
+                    <div style="margin-bottom:15px;">
+                        <div style="font-size:10px; color:#64748b; font-weight:bold; margin-bottom:4px; text-transform:uppercase;">Current Action</div>
+                        <div style="font-size:13px; color:#0f172a; line-height:1.5;">${d.action}</div>
+                    </div>
+                    <div>
+                        <div style="font-size:10px; color:#64748b; font-weight:bold; margin-bottom:4px; text-transform:uppercase;">Inner Voice</div>
+                        <div style="font-size:14px; color:#0f172a; line-height:1.6; font-family:var(--font-serif); font-style:italic; border-left:3px solid #cbd5e1; padding-left:10px;">"${d.thought}"</div>
+                    </div>
+                </div>
+            </div>
         </div>
+        `;
+    }).join('');
+
+    dots.innerHTML = config.history.map((_, i) => `
+        <div style="width:6px; height:6px; border-radius:50%; background:${i === magazineCurrentIndex ? '#fff' : 'rgba(255,255,255,0.3)'}; transition:background 0.3s;"></div>
     `).join('');
+
+    updateMagazineTransform();
+}
+
+function updateMagazineTransform() {
+    const track = $('#magazine-status-track');
+    if (track) {
+        track.style.transform = `translateX(-${magazineCurrentIndex * 100}%)`;
+    }
+    const dots = document.querySelectorAll('#magazine-status-dots div');
+    dots.forEach((dot, i) => {
+        dot.style.background = i === magazineCurrentIndex ? '#fff' : 'rgba(255,255,255,0.3)';
+    });
 }
 
 function openStatusPanel() {
     if (!currentChatRoleId) return;
     const config = statusBarData[currentChatRoleId];
     if (!config || !config.enabled || config.history.length === 0) return;
-    isStatusManageMode = false;
-    selectedStatusIndices.clear();
-    $('#char-status-body').classList.remove('status-manage-mode');
-    $('#status-selection-bar').style.display = 'none';
-    renderStatusPanelList();
-    $('#char-status-overlay').classList.add('visible');
+    
+    magazineCurrentIndex = 0;
+    renderMagazineStatus();
+    
+    const overlay = $('#char-status-overlay');
+    overlay.style.display = 'flex';
+    
+    // 绑定滑动事件
+    const container = $('#magazine-status-container');
+    container.ontouchstart = (e) => {
+        magazineStartX = e.touches[0].clientX;
+        $('#magazine-status-track').style.transition = 'none';
+    };
+    container.ontouchmove = (e) => {
+        const dx = e.touches[0].clientX - magazineStartX;
+        const percent = (dx / window.innerWidth) * 100;
+        $('#magazine-status-track').style.transform = `translateX(calc(-${magazineCurrentIndex * 100}% + ${percent}%))`;
+    };
+    container.ontouchend = (e) => {
+        const dx = e.changedTouches[0].clientX - magazineStartX;
+        $('#magazine-status-track').style.transition = 'transform 0.3s ease-out';
+        if (dx < -50 && magazineCurrentIndex < config.history.length - 1) {
+            magazineCurrentIndex++;
+        } else if (dx > 50 && magazineCurrentIndex > 0) {
+            magazineCurrentIndex--;
+        }
+        updateMagazineTransform();
+    };
 }
 
 function closeStatusPanel() {
-    $('#char-status-overlay').classList.remove('visible');
-    isStatusManageMode = false;
-    selectedStatusIndices.clear();
-}
-
-function toggleStatusManageMode() {
-    isStatusManageMode = !isStatusManageMode;
-    selectedStatusIndices.clear();
-    const body = $('#char-status-body');
-    if (isStatusManageMode) {
-        body.classList.add('status-manage-mode');
-        $('#status-selection-bar').style.display = 'flex';
-    } else {
-        body.classList.remove('status-manage-mode');
-        $('#status-selection-bar').style.display = 'none';
-    }
-    renderStatusPanelList();
-}
-
-function toggleStatusSelect(index) {
-    if (!isStatusManageMode) return;
-    if (selectedStatusIndices.has(index)) selectedStatusIndices.delete(index);
-    else selectedStatusIndices.add(index);
-    renderStatusPanelList();
+    $('#char-status-overlay').style.display = 'none';
 }
 
 function selectAllStatus() {
