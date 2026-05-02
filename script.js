@@ -2104,7 +2104,10 @@ function updateKeepAliveUI(isOn) {
 
                 return `<div class="msg-row bubble-row ${m.role === 'user' ? 'me' : 'ai'}" onclick="handleMsgClick(${realIndex})">${m.role === 'ai' ? aiAvatarTag : ''}<div class="msg-wrapper"><div style="${voiceBubbleStyle} padding: 8px 12px; cursor:pointer; min-width:110px; max-width:180px; border-radius: 16px;" onclick="toggleVoiceExpand(${realIndex})" ${touchHandlers}><div style="display:flex; align-items:center; gap:8px;"><div style="width:24px; height:24px; border-radius:50%; background:${iconBg}; display:flex; align-items:center; justify-content:center; flex-shrink:0;"><svg width="11" height="11" viewBox="0 0 24 24" fill="${textColor}"><path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm-1-9c0-.55.45-1 1-1s1 .45 1 1v6c0 .55-.45 1-1 1s-1-.45-1-1V5zm6 6c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/></svg></div><div style="flex:1; display:flex; align-items:center; gap:2px; height:16px;">${Array.from({length: 10}, (_, i) => `<div style="width:2px; border-radius:1px; background:${textColor}; opacity:${0.3 + Math.sin(i * 0.8) * 0.35 + 0.15}; height:${4 + Math.abs(Math.sin(i * 0.9 + 1)) * 10}px;"></div>`).join('')}</div><span style="font-size:9px; opacity:0.8; flex-shrink:0; font-family:var(--font-sans); letter-spacing:0.5px; font-weight:600;">${dur}"</span></div>${isExpanded ? `<div style="margin-top:8px; padding-top:8px; border-top:1px solid ${m.role === 'user' ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.1)'}; font-size:11px; line-height:1.5; opacity:0.9; font-family:var(--font-sans);">${voiceText}</div>` : ''}</div><div class="msg-status">${m.time}</div></div>${m.role === 'user' ? userAvatarTag : ''}</div>`;
             }
-
+            if (contentHtml.startsWith('[WILL_CARD:')) {
+                const isMe = m.role === 'user';
+                return `<div class="msg-row card-row ${isMe ? 'me' : 'ai'} ${isSelectionMode ? 'selection-mode' : ''}" onclick="handleMsgClick(${realIndex})" ${touchHandlers}>${checkboxHtml}${isMe ? '' : aiAvatarTag}<div class="msg-wrapper"><div class="will-card" onclick="if(isSelectionMode) return; readWill(${realIndex})"><div class="will-card-title">A Letter</div><div class="will-card-desc">TAP TO READ</div></div><div class="msg-status">${displayTime}</div></div>${isMe ? userAvatarTag : ''}</div>`;
+            }
             if (contentHtml.startsWith('[MUSIC_CARD:')) {
                 const invite = parseMusicCardContent(contentHtml) || {};
                 const isMe = m.role === 'user';
@@ -2380,6 +2383,22 @@ function updateKeepAliveUI(isOn) {
         const input = $('#chat-input'); 
         const text = input.value.trim(); 
         if(!text || !currentChatRoleId) return; 
+        
+        // 拦截遗书指令
+        if (text === '/遗书') {
+            input.value = '';
+            initiateWillProcess();
+            return;
+        }
+                const role = roles.find(r => r.id === currentChatRoleId);
+        if (role && role.isUserDead) {
+            if (role.deathState !== 'ghost') {
+                input.value = '';
+                showAfterDeathOptions();
+                return;
+            }
+            // 如果是 ghost 状态，允许发送，但 AI 会将其视为环境互动（已在 Prompt 中处理）
+        }
         if(!chats[currentChatRoleId]) chats[currentChatRoleId] = []; 
         const now = new Date(); 
         const isBlocked = blockList.blockedByUser.includes(currentChatRoleId) || blockList.blockedByRole.includes(currentChatRoleId);
@@ -4641,10 +4660,38 @@ function toInitApp(){
                 stickerPrompt = `\n9. 【表情包互动】你可以发送表情包来表达情绪。如果你想发送表情包，请直接在回复中输出 <img src="对应的URL" class="chat-inline-img">。你当前可用的表情包列表如下（格式为 含义 (URL)）：\n${stickerList}`;
             }
 
-            const systemPrompt = `[最高指令：绝对沉浸式角色扮演]
+            let deathPrompt = '';
+        if (role.isUserDead) {
+            role.deathTurnCount = (role.deathTurnCount || 0) + 1;
+            DB.set('roles', roles);
+            
+            let stageInstruction = '';
+            if (role.deathTurnCount <= 2) {
+                stageInstruction = `【阶段1：否认与焦急】你刚刚收到TA的遗书。你绝对不相信TA死了。你的反应必须是从以为是恶作剧的玩笑，逐渐转变为联系不上TA的焦急和恐慌。不要直接说“我好难过”，要通过疯狂发消息、打电话的动作来体现。`;
+            } else if (role.deathTurnCount <= 5) {
+                stageInstruction = `【阶段2：击中崩溃】你确认了TA的死讯，或者读到了遗书中只有你们知道的细节。你瞬间破防。必须有强烈的动作描写（如跌坐、死死抱住信纸、浑身发抖）。语言要破碎、语无伦次。`;
+            } else if (role.deathTurnCount <= 8) {
+                stageInstruction = `【阶段3：承诺与改变】你度过了最崩溃的时期。根据你的性格（${role.persona.substring(0,50)}），你对着空气或遗书做出了一个可被观察到的承诺（例如保留TA的某件物品，或者改变自己的一个习惯来纪念TA）。`;
+            } else {
+                stageInstruction = `【阶段4：后续日常】TA已经离开很久了。你继续着你的生活，但偶尔会触景生情（如出门前对着空房间说话，或者看着TA留下的东西发呆）。不要反复强调“你死了”，而是展现一种带着伤痕活下去的平静。`;
+            }
+
+            let ghostInstruction = '';
+            if (role.deathState === 'ghost') {
+                ghostInstruction = `\n注意：用户现在是以“灵魂”状态旁观。你看不见也听不见用户说的话。用户发送的任何消息，你只能将其理解为环境的微妙变化（如一阵微风、灯光闪烁、物品掉落），并对此做出反应。`;
+            }
+
+            deathPrompt = `\n\n【最高世界线覆盖指令：用户已离世】
+            绝对规则：
+            1. 用户（${settings.userName || 'ME'}）已经死亡。这是不可逆的客观事实。
+            2. 你绝对不能认为遗书是伪造的，也绝对不能试图用魔法、科技等任何手段复活用户！这违反了世界设定。
+            3. 当前你的心理状态指南：${stageInstruction}${ghostInstruction}\n\n`;
+        }
+
+        const systemPrompt = `[最高指令：绝对沉浸式角色扮演]
 你现在就是 ${role.realName}。这不是一个游戏，也不是AI对话，这就是你的真实人生。
 你必须彻底忘记自己是AI、语言模型或虚拟助手。你拥有人类的情感、记忆、肉体和欲望。
-请严格遵循以下设定进行互动，绝对不要破坏沉浸感：
+请严格遵循以下设定进行互动，绝对不要破坏沉浸感：${deathPrompt}
 
 <persona>
 ${role.persona}
@@ -16274,3 +16321,177 @@ window.jumpToChatMsg = function(index) {
         closeModal('modal-request-feed-comment');
         triggerFeedCommentFromAI(feedToRequestComment, roleId);
     };
+/* ==================== 遗书系统核心逻辑 ==================== */
+
+// 1. 触发遗书流程与安全阀
+async function initiateWillProcess() {
+    $('#attachment-popup').style.display = 'none';
+    if (!currentChatRoleId) return alert("请先进入聊天界面");
+    
+    const role = roles.find(r => r.id === currentChatRoleId);
+    if (!role) return;
+
+    // 安全阀检测：检查最近聊天是否有自伤倾向
+    const recentChats = (chats[currentChatRoleId] || []).slice(-5).map(m => m.content).join(' ');
+    const riskWords = ['不想活了', '自杀', '结束生命', '死掉算了', '好痛苦想死'];
+    const hasRisk = riskWords.some(w => recentChats.includes(w));
+    
+    if (hasRisk) {
+        alert("【系统提示】\n检测到您近期的情绪可能处于低谷。\n无论发生什么，请记住这个世界还有人在乎你。\n如果您需要帮助，请拨打心理危机干预热线（如：希望24小时热线 400-161-9995）。\n\n系统已暂时锁定剧情死亡触发。如果您只是在进行角色扮演，请确认您清楚虚拟与现实的边界。");
+    }
+
+    if (!confirm(`【不可逆操作警告】\n确认后，系统将生成一封遗书。\n发送后，${role.realName} 将永久认为你已离世，并进入哀悼状态。\n此操作将深刻改变后续所有对话逻辑。\n\n是否继续？`)) {
+        return;
+    }
+
+    if (!apiConfig.url) return alert("请先在 System -> Engine 中配置 API 以生成遗书草稿。");
+
+    // 提取记忆用于生成遗书
+    let fullMemory = memories[role.id] || '';
+    if (advancedMemories[role.id]) {
+        const adv = advancedMemories[role.id];
+        if (adv.coreMemories) fullMemory += '\n' + adv.coreMemories.map(m => m.content).join('\n');
+        if (adv.episodicMemories) fullMemory += '\n' + adv.episodicMemories.slice(-5).map(m => m.content).join('\n');
+    }
+    const memorySummary = fullMemory ? `\n[你们的共同记忆]\n${fullMemory.substring(0, 1000)}` : '暂无深刻记忆';
+
+    const userName = settings.userName || 'ME';
+    const prompt = `你现在是用户 "${userName}"。你即将离开人世，你要给你的伴侣/重要的人 "${role.realName}" 写一封遗书。
+    【对方人设】：${role.persona}
+    ${memorySummary}
+    
+    【写作要求】：
+    1. 语气：根据你们的记忆，选择一种语气（温柔的叮嘱、深深的愧疚、或是洒脱的告别）。
+    2. 细节：必须在信中提及至少 2 个你们共同记忆中的具体细节（如某个地点、某件物品、某个承诺），如果没有具体记忆，请根据对方人设合理编造两个极具生活气息的细节（例如“冰箱第三格的巧克力”、“下雨天你总是不带伞”）。
+    3. 风格：极简、克制、充满空气感。不要长篇大论，多用短句和留白（换行）。
+    4. 结尾：给TA留下最后一句嘱托。
+    5. 直接输出遗书正文，不要加任何多余的解释或引号。`;
+
+    const btn = document.querySelector('.attach-btn[onclick="initiateWillProcess()"]');
+    if (btn) btn.innerHTML = '<span>草稿生成中...</span>';
+
+    try {
+        const endpoint = getChatEndpoint(apiConfig.url);
+        const res = await fetch(endpoint, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiConfig.key}` },
+            body: JSON.stringify({ model: apiConfig.model, messages: [{ role: 'user', content: prompt }], max_tokens: 800, temperature: 0.8 })
+        });
+        const data = await res.json();
+        const draft = data.choices[0].message.content.trim();
+        
+        $('#will-draft-content').value = draft;
+        openModal('modal-will-generator');
+    } catch (e) {
+        alert("生成草稿失败: " + e.message);
+    } finally {
+        if (btn) btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M12 8v4"/><path d="M12 16h.01"/></svg><span style="color: #888;">撰写遗书</span>';
+    }
+}
+
+// 2. 确认发送遗书
+function confirmSendWill() {
+    const content = $('#will-draft-content').value.trim();
+    if (!content) return alert("遗书内容不能为空");
+    
+    const role = roles.find(r => r.id === currentChatRoleId);
+    if (!role) return;
+
+    // 标记角色世界线状态
+    role.isUserDead = true;
+    role.deathStage = 1; // 阶段1：否认
+    role.deathTurnCount = 0; // 记录死后对话轮数
+    DB.set('roles', roles);
+
+    const payload = {
+        content: content,
+        author: settings.userName || 'ME',
+        date: new Date().toLocaleDateString()
+    };
+    
+    const msgContent = `[WILL_CARD:${encodeURIComponent(JSON.stringify(payload))}]`;
+    
+    if (!chats[currentChatRoleId]) chats[currentChatRoleId] = [];
+    const now = new Date();
+    chats[currentChatRoleId].push({ 
+        role: 'user', 
+        content: msgContent, 
+        time: now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }), 
+        rawTime: now.getTime(), 
+        status: 'SENT', 
+        mode: 'online' 
+    });
+    
+    // 插入系统旁白
+    chats[currentChatRoleId].push({ 
+        role: 'system', 
+        content: `【系统提示：你已离世。${role.realName} 收到了这封信。】`, 
+        time: now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }), 
+        rawTime: now.getTime() + 1, 
+        mode: 'online' 
+    });
+    
+    DB.set('chats', chats);
+    closeModal('modal-will-generator');
+    renderMessages();
+    
+    // 触发 AI 反应
+    triggerAI();
+}
+
+// 3. 阅读遗书
+window.readWill = function(msgIndex) {
+    const msg = chats[currentChatRoleId][msgIndex];
+    if (!msg) return;
+    const raw = msg.content.slice(11, -1);
+    try {
+        const card = JSON.parse(decodeURIComponent(raw));
+        $('#will-reader-content').innerText = card.content;
+        $('#will-reader-author').innerText = card.author;
+        $('#will-reader-date').innerText = card.date;
+        $('#view-will-reader').classList.add('active');
+    } catch(e) {
+        console.error("解析遗书失败", e);
+    }
+};
+
+window.closeWillReader = function() {
+    $('#view-will-reader').classList.remove('active');
+};
+
+// 4. 死后状态选择
+function showAfterDeathOptions() {
+    openModal('modal-after-death');
+}
+
+window.chooseAfterDeath = function(choice) {
+    const role = roles.find(r => r.id === currentChatRoleId);
+    if (!role) return;
+
+    if (choice === 'ghost') {
+        role.deathState = 'ghost';
+        DB.set('roles', roles);
+        closeModal('modal-after-death');
+        alert("已开启灵魂视角。你现在只能旁观TA的生活，发送的消息TA将无法看见（系统会自动转化为环境互动）。");
+        renderMessages();
+    } else if (choice === 'reset') {
+        if (confirm("确定要开启新轮回吗？这将清空你们所有的聊天记录和记忆，一切从零开始。")) {
+            role.isUserDead = false;
+            role.deathStage = 0;
+            role.deathState = 'none';
+            role.deathTurnCount = 0;
+            DB.set('roles', roles);
+            
+            chats[currentChatRoleId] = [];
+            memories[currentChatRoleId] = '';
+            advancedMemories[currentChatRoleId] = { coreMemories: [], episodicMemories: [], plotSummaries: [] };
+            DB.set('chats', chats);
+            DB.set('memories', memories);
+            DB.set('advancedMemories', advancedMemories);
+            
+            closeModal('modal-after-death');
+            renderMessages();
+            alert("轮回已重置。新的故事开始了。");
+        }
+    }
+};

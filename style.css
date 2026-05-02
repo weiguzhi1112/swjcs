@@ -2128,3 +2128,42 @@ body.is-app .to-page { padding-bottom: calc(70px + env(safe-area-inset-bottom)) 
     filter: blur(0);
     transition: filter 0.3s ease;
 }
+/* ==================== 遗书卡片 (极简杂志风) ==================== */
+.will-card {
+    border: 1px solid rgba(0,0,0,0.1);
+    padding: 25px 20px;
+    background: #fcfcfc;
+    border-radius: 2px;
+    cursor: pointer;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.03);
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+}
+[data-theme="dark"] .will-card {
+    background: #111;
+    border-color: rgba(255,255,255,0.1);
+}
+.will-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 50%; transform: translateX(-50%);
+    width: 40px; height: 1px;
+    background: #111;
+}
+[data-theme="dark"] .will-card::before { background: #fff; }
+.will-card-title {
+    font-family: var(--font-serif);
+    font-size: 20px;
+    font-weight: 400;
+    color: var(--text-color);
+    letter-spacing: 2px;
+    margin-bottom: 10px;
+}
+.will-card-desc {
+    font-family: var(--font-sans);
+    font-size: 9px;
+    color: var(--text-secondary);
+    letter-spacing: 1px;
+    text-transform: uppercase;
+}

@@ -1367,6 +1367,11 @@
                         <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5v14l7-7-7-7zm9 0v14l7-7-7-7z"></path></svg>
                         <span>记录剧情</span>
                     </button>
+                    <!-- 新增：撰写遗书按钮 -->
+                    <button class="attach-btn" style="color: #888;" onclick="initiateWillProcess()">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M12 8v4"/><path d="M12 16h.01"/></svg>
+                        <span style="color: #888;">撰写遗书</span>
+                    </button>
                     <button class="attach-btn" style="color: #ff4d4d;" onclick="clearCurrentChatFromMenu()">
                         <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 4H15.5L14.5 3H9.5L8.5 4H5V6H19M6 19A2 2 0 0 0 8 21H16A2 2 0 0 0 18 19V7H6V19Z"></path></svg>
                         <span style="color: #ff4d4d;">清空</span>
@@ -2654,6 +2659,50 @@
         <div class="modal-btns">
             <button class="btn-cancel" onclick="closeModal('modal-request-feed-comment')">CANCEL<span>取消</span></button>
             <button class="btn-confirm" onclick="confirmRequestFeedComment()">REQUEST<span>立即评论</span></button>
+        </div>
+    </div>
+</div>
+<!-- 遗书生成与编辑弹窗 -->
+<div class="modal-overlay" id="modal-will-generator">
+    <div class="modal" style="max-width: 400px; border-radius: 0; background: var(--bg-color);">
+        <h3 style="font-family: var(--font-serif); font-weight: 300; letter-spacing: 2px;">Final Words <span>遗书草稿</span></h3>
+        <div style="font-size: 10px; color: var(--text-secondary); margin-bottom: 15px; text-align: center; letter-spacing: 1px;">基于你们的共同记忆生成，可自由修改</div>
+        <textarea id="will-draft-content" style="height: 250px; font-family: var(--font-serif); font-size: 14px; line-height: 1.8; padding: 15px; border: 1px solid var(--border-color); background: var(--gray-light); color: var(--text-color); resize: none; outline: none;"></textarea>
+        <div class="modal-btns" style="margin-top: 20px;">
+            <button class="btn-cancel" onclick="closeModal('modal-will-generator')">CANCEL<span>取消</span></button>
+            <button class="btn-confirm" style="background: #111; color: #fff;" onclick="confirmSendWill()">SEAL & SEND<span>封缄并发送</span></button>
+        </div>
+    </div>
+</div>
+
+<!-- 极简杂志风：遗书阅读界面 -->
+<div id="view-will-reader" class="view-container" style="z-index: 10000; background: #fcfcfc; color: #111;">
+    <div class="view-header" style="background: transparent; border: none; padding-top: calc(20px + env(safe-area-inset-top)) !important;">
+        <button class="text-btn" style="color: #111;" onclick="closeWillReader()">CLOSE<span>合上信纸</span></button>
+        <div style="width: 60px;"></div>
+    </div>
+    <div class="view-content" style="display: flex; flex-direction: column; align-items: center; padding: 40px 30px;">
+        <div style="width: 100%; max-width: 400px; position: relative;">
+            <div style="font-family: var(--font-sans); font-size: 9px; letter-spacing: 4px; color: #888; text-transform: uppercase; margin-bottom: 40px; text-align: center; border-bottom: 1px solid #eee; padding-bottom: 20px;">The Last Letter</div>
+            <div id="will-reader-content" style="font-family: var(--font-serif); font-size: 16px; line-height: 2.2; color: #222; text-align: justify; white-space: pre-wrap; letter-spacing: 0.5px;">
+                <!-- 遗书正文 -->
+            </div>
+            <div style="margin-top: 60px; border-top: 1px solid #eee; padding-top: 20px; text-align: right;">
+                <div id="will-reader-author" style="font-family: var(--font-serif); font-size: 18px; font-style: italic; color: #111;"></div>
+                <div id="will-reader-date" style="font-family: var(--font-sans); font-size: 9px; color: #888; letter-spacing: 1px; margin-top: 5px;"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 死亡后状态选择弹窗 -->
+<div class="modal-overlay" id="modal-after-death">
+    <div class="modal" style="border-radius: 0; text-align: center; padding: 40px 20px;">
+        <div style="font-family: var(--font-serif); font-size: 24px; margin-bottom: 10px;">The End.</div>
+        <div style="font-size: 11px; color: var(--text-secondary); margin-bottom: 30px; line-height: 1.6;">你已离开这个世界。<br>TA 将独自面对没有你的明天。</div>
+        <div style="display: flex; flex-direction: column; gap: 15px;">
+            <button class="action-btn" style="padding: 12px; border: 1px solid var(--border-color); background: transparent;" onclick="chooseAfterDeath('ghost')">以灵魂视角旁观 (只读模式)</button>
+            <button class="action-btn" style="padding: 12px; border: 1px solid #ff4d4d; color: #ff4d4d; background: transparent;" onclick="chooseAfterDeath('reset')">开启新轮回 (重置记忆)</button>
         </div>
     </div>
 </div>
