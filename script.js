@@ -173,7 +173,8 @@ document.addEventListener('touchmove', function(e) {
             if (window.idbStore) {
                 window.idbStore.put(val, key).catch(e => console.warn('IDB Save Error', e));
             }
-            const smallKeys = ['settings', 'api', 'activated', 'activated_device', 'discord_user', 'appOrder', 'appCustomizations'];
+            /* 修复 LocalStorage 爆满问题：将 settings 移出小缓存名单，完全依赖 IndexedDB */
+            const smallKeys = ['api', 'activated', 'activated_device', 'discord_user', 'appOrder', 'appCustomizations'];
             if (smallKeys.includes(key)) {
                 try { 
                     const dataStr = JSON.stringify(val);
@@ -2007,9 +2008,10 @@ function updateKeepAliveUI(isOn) {
                 const isDarkTheme = document.documentElement.getAttribute('data-theme') === 'dark';
                 const bgColor = isDarkTheme ? `rgba(50, 50, 50, 0.2)` : `rgba(255, 255, 255, 0.02)`;
                 const borderColor = isDarkTheme ? `rgba(255, 255, 255, 0.15)` : `rgba(255, 255, 255, 0.25)`;
+                /* 修复：大幅减小外部阴影的扩散范围和透明度，使其更清透 */
                 const shadow = isDarkTheme 
-                    ? `inset 0 1px 0 0 rgba(255, 255, 255, 0.1), inset 0 -2px 6px 0 rgba(255, 255, 255, 0.05), 0 5px 15px -3px rgba(0, 0, 0, 0.3)`
-                    : `inset 0 1px 0 0 rgba(255, 255, 255, 0.5), inset 0 -2px 6px 0 rgba(255, 255, 255, 0.45), 0 5px 15px -3px rgba(0, 0, 0, 0.15)`;
+                    ? `inset 0 1px 0 0 rgba(255, 255, 255, 0.1), inset 0 -2px 6px 0 rgba(255, 255, 255, 0.05), 0 2px 6px -1px rgba(0, 0, 0, 0.15)`
+                    : `inset 0 1px 0 0 rgba(255, 255, 255, 0.5), inset 0 -2px 6px 0 rgba(255, 255, 255, 0.45), 0 2px 6px -1px rgba(0, 0, 0, 0.08)`;
 
                 return `background-color: ${bgColor} !important; ` +
                        `backdrop-filter: blur(5px) saturate(180%) !important; ` +
@@ -12446,7 +12448,13 @@ function renderMagazineStatus() {
         const d = entry.data || {};
         return `
         <div style="min-width:100%; width:100%; height:100%; padding:0 20px; box-sizing:border-box; display:flex; flex-direction:column; justify-content:center;">
-            <div style="background:#fff; border-radius:20px; overflow:hidden; box-shadow:0 20px 40px rgba(0,0,0,0.3); display:flex; flex-direction:column; max-height:80vh;">
+            <div style="background:#fff; border-radius:20px; overflow:hidden; box-shadow:0 20px 40px rgba(0,0,0,0.3); display:flex; flex-direction:column; max-height:80vh;"
+                 onmousedown="handleMagazineTouchStart(event, ${i})" 
+                 onmouseup="handleMagazineTouchEnd()" 
+                 onmouseleave="handleMagazineTouchEnd()" 
+                 ontouchstart="handleMagazineTouchStart(event, ${i})" 
+                 ontouchend="handleMagazineTouchEnd()" 
+                 ontouchcancel="handleMagazineTouchEnd()">
                 <div style="position:relative; height:200px; background-image:url('${avatar}'); background-size:cover; background-position:center;">
                     <div style="position:absolute; bottom:0; left:0; right:0; background:linear-gradient(to top, rgba(0,0,0,0.8), transparent); padding:20px;">
                         <div style="color:#fff; font-size:22px; font-weight:bold; font-family:var(--font-serif);">${d.netName !== '未知' ? d.netName : getDisplayName(role)}</div>
@@ -12530,7 +12538,33 @@ function openStatusPanel() {
 function closeStatusPanel() {
     $('#char-status-overlay').style.display = 'none';
 }
+function closeStatusPanel() {
+    $('#char-status-overlay').style.display = 'none';
+}
 
+/* 新增：心声卡片长按删除逻辑 */
+let magazinePressTimer = null;
+window.handleMagazineTouchStart = function(e, index) {
+    magazinePressTimer = setTimeout(() => {
+        if (navigator.vibrate) navigator.vibrate(50);
+        if (confirm("确定要删除这条心声记录吗？")) {
+            const config = statusBarData[currentChatRoleId];
+            if (config && config.history) {
+                config.history.splice(index, 1);
+                DB.set('statusBarData', statusBarData);
+                if (config.history.length === 0) {
+                    closeStatusPanel();
+                } else {
+                    magazineCurrentIndex = Math.max(0, magazineCurrentIndex - 1);
+                    renderMagazineStatus();
+                }
+            }
+        }
+    }, 600);
+};
+window.handleMagazineTouchEnd = function() {
+    clearTimeout(magazinePressTimer);
+};
 function selectAllStatus() {
     if (!currentChatRoleId) return;
     const config = statusBarData[currentChatRoleId];
@@ -12558,8 +12592,14 @@ function deleteSelectedStatus() {
 function getStatusPromptSuffix(roleId) {
     const config = statusBarData[roleId];
     if (!config || !config.enabled) return '';
-    /* 深度丰富心声提示词 */
-    return '\n\n【心声生成指令】\n请在回复的最末尾，换行并严格使用 [心声: 你的内心想法 | 好感度: 当前好感度/100] 的格式。心声内容必须极度丰富、私密且露骨（至少30-80字），包含以下元素：\n1. 你当前的具体动作或穿着细节（如：正扯着领带、手指无意识地敲击桌面、睡衣半褪）。\n2. 你对用户未说出口的真实情绪、坏心思、占有欲或性幻想。\n3. 表面回复与内心真实想法的反差,不强制性每次都要输出性幻想。\n例如：[心声: 表面上装作若无其事地喝水，其实睡衣下的身体已经因为她刚才那句话紧绷了。真想现在就把她按在沙发上狠狠欺负一顿，看她哭着求饶的样子... | 好感度: 95/100]。必须严格遵守此格式！绝对不允许照搬示例！';
+    
+    let basePrompt = '\n\n【心声与状态强制生成指令】\n请在回复的最末尾，换行并严格使用以下完整格式输出你的状态（必须包含所有字段，绝对不能遗漏“穿着”和“动作”）：\n[状态感知 | 网名: 你的网名 | 标签: 2个字的性格标签 | 穿着: 当前穿着细节 | 动作: 当前具体动作 | 好感度: 数字/100 | 心声: 你的真实想法]\n\n要求：\n1. “穿着”和“动作”必须具体且符合当前情境（例如 穿着: 宽松的黑色睡衣 | 动作: 正单手解开领带）。\n2. “心声”必须极度丰富、私密（至少30-80字），展现表面回复与内心真实想法的反差。';
+    
+    if (settings.forceFormat) {
+        basePrompt += '\n\n【强制格式优化已开启：绝对服从示例】\n你必须严格模仿以下输出结构，绝对不允许把格式标签混入正文对话中，也绝对不允许遗漏时间戳或状态括号！\n\n正确输出示例：\n"你今天看起来很累啊。"\n[状态感知 | 网名: 孤狼 | 标签: 傲娇 | 穿着: 略微凌乱的白衬衫 | 动作: 烦躁地揉了揉眉心 | 好感度: 85/100 | 心声: 其实我只是昨晚想你想得睡不着，但这种话我怎么可能说得出口...]';
+    }
+    
+    return basePrompt;
 }
 
 function onAiAvatarDblClick() {
