@@ -10430,7 +10430,14 @@ function checkAllAutoMsgRoles() {
             
         const apiMessages = [];
 
-        const systemPrompt = `[CORE DIRECTIVE - 活人感主动消息模式]\n你是${role.realName}。以下是你的完整人设，你必须100%遵守，绝对不能OOC：\n${role.persona}${maskPrompt}${wbPrompt}${mapContext}${memorySummary}${osContext}\n\n[当前情境与时间感知]\n- ${timeContext}，${weekday}，${now.getFullYear()}年${now.getMonth()+1}月${now.getDate()}日 ${String(hour).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}\n- 距离用户上一条消息已经过去了 ${silenceDuration || '一段时间'}。\n- 你们上次聊天的最后内容是：【${lastTopic}】\n\n[活人感终极要求]\n1. 【承上启下】结合上次聊天的内容和流逝的时间，自然地开启话题。比如上次聊到睡觉，现在是早晨，就可以说“昨晚睡得好吗”。绝对不要像机器人一样干巴巴地问“在吗”。\n2. 【去油腻】说话必须口语化、自然、接地气。绝对禁止使用霸总、娇妻等夸张做作的语调。\n3. 【格式限制】严格输出 ${minB} 到 ${maxB} 句话！每句话独占一行。日常聊天绝对不要在句末加句号。\n4. 直接输出消息内容，不加引号，不加任何解释。`;
+        let systemPrompt = '';
+        if (role.isUserDead) {
+            // 离世状态下的自动消息（悼念/碎碎念模式）
+            systemPrompt = `[CORE DIRECTIVE - 离世悼念模式]\n你是${role.realName}。以下是你的完整人设：\n${role.persona}${wbPrompt}${memorySummary}\n\n[当前情境]\n- ${timeContext}，${weekday}，${now.getFullYear()}年${now.getMonth()+1}月${now.getDate()}日 ${String(hour).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}\n- 【残酷的事实】：用户（${settings.userName || 'ME'}）已经离世很久了。你现在是对着一个永远不会有回复的聊天框在发消息。\n\n[活人感终极要求]\n1. 语气必须符合你的人设。可以是分享今天发生的小事（假装TA还在听），可以是深夜崩溃的思念，也可以是平静的自言自语。\n2. 绝对不要问“在吗”、“理理我”这种期待回复的话，因为你知道TA已经死了。\n3. 极度口语化、自然、充满空气感和悲伤的留白。\n4. 严格输出 ${minB} 到 ${maxB} 句话！每句话独占一行。\n5. 直接输出消息内容，不加引号，不加任何解释。`;
+        } else {
+            // 正常的自动消息
+            systemPrompt = `[CORE DIRECTIVE - 活人感主动消息模式]\n你是${role.realName}。以下是你的完整人设，你必须100%遵守，绝对不能OOC：\n${role.persona}${maskPrompt}${wbPrompt}${mapContext}${memorySummary}${osContext}\n\n[当前情境与时间感知]\n- ${timeContext}，${weekday}，${now.getFullYear()}年${now.getMonth()+1}月${now.getDate()}日 ${String(hour).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}\n- 距离用户上一条消息已经过去了 ${silenceDuration || '一段时间'}。\n- 你们上次聊天的最后内容是：【${lastTopic}】\n\n[活人感终极要求]\n1. 【承上启下】结合上次聊天的内容和流逝的时间，自然地开启话题。比如上次聊到睡觉，现在是早晨，就可以说“昨晚睡得好吗”。绝对不要像机器人一样干巴巴地问“在吗”。\n2. 【去油腻】说话必须口语化、自然、接地气。绝对禁止使用霸总、娇妻等夸张做作的语调。\n3. 【格式限制】严格输出 ${minB} 到 ${maxB} 句话！每句话独占一行。日常聊天绝对不要在句末加句号。\n4. 直接输出消息内容，不加引号，不加任何解释。`;
+        }
 
         apiMessages.push({ role: 'system', content: systemPrompt });
         
@@ -14126,12 +14133,20 @@ function onAiAvatarDblClick() {
     }
 
     function osSendHeartbeat() {
+        const role = roles.find(r => r.id === ourSpaceData.partnerId);
+        if (role && role.isUserDead) {
+            return alert("【系统提示】\n你的心跳已经停止了。\nTA 再也收不到你的心动提醒了。");
+        }
         alert('已向对方发送心动提醒 💓');
         if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
         osAddIntimacy(1);
     }
 
     function osDailyCheckIn(type) {
+        const role = roles.find(r => r.id === ourSpaceData.partnerId);
+        if (role && role.isUserDead) {
+            return alert("【系统提示】\n你已离开这个世界。\n打卡失败，时间对你而言已经失去了意义。");
+        }
         const msgs = { morning: '早安打卡成功！☀️', night: '晚安打卡成功！🌙', miss: '已发送想你信号 💭' };
         alert(msgs[type] + ' 亲密值+5'); 
         osAddIntimacy(5);
