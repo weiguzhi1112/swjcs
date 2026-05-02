@@ -2384,20 +2384,85 @@ function updateKeepAliveUI(isOn) {
         const text = input.value.trim(); 
         if(!text || !currentChatRoleId) return; 
         
-        // 拦截遗书指令
+        const role = roles.find(r => r.id === currentChatRoleId);
+
+        // 拦截快捷指令
         if (text === '/遗书') {
             input.value = '';
             initiateWillProcess();
             return;
         }
-                const role = roles.find(r => r.id === currentChatRoleId);
+        if (text === '/继续') {
+            input.value = '';
+            if (!chats[currentChatRoleId]) chats[currentChatRoleId] = [];
+            const now = new Date();
+            chats[currentChatRoleId].push({ 
+                role: 'system', 
+                content: '【系统提示：用户没有回复。请你继续刚才的话题，或者开始自言自语、碎碎念。你可以把这个聊天框当成你的私人备忘录或树洞。】', 
+                time: now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }), 
+                rawTime: now.getTime(), 
+                mode: 'online' 
+            });
+            DB.set('chats', chats);
+            renderMessages();
+            triggerAI();
+            return;
+        }
+        if (text === '/灵魂视角旁观') {
+            input.value = '';
+            if (role && role.isUserDead) chooseAfterDeath('ghost');
+            else alert("该指令仅在离世状态下可用。");
+            return;
+        }
+        if (text === '/开启新轮回') {
+            input.value = '';
+            if (role && role.isUserDead) chooseAfterDeath('reset');
+            else alert("该指令仅在离世状态下可用。");
+            return;
+        }
+        if (text.startsWith('/动作 ')) {
+            const actionText = text.substring(4).trim();
+            input.value = '';
+            if (!chats[currentChatRoleId]) chats[currentChatRoleId] = [];
+            const now = new Date();
+            chats[currentChatRoleId].push({ 
+                role: 'user', 
+                content: `*${actionText}*`, 
+                time: now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }), 
+                rawTime: now.getTime(), 
+                status: 'SENT',
+                mode: 'online' 
+            });
+            DB.set('chats', chats);
+            renderMessages();
+            triggerAI();
+            return;
+        }
+        if (text.startsWith('/旁白 ')) {
+            const sysText = text.substring(4).trim();
+            input.value = '';
+            if (!chats[currentChatRoleId]) chats[currentChatRoleId] = [];
+            const now = new Date();
+            chats[currentChatRoleId].push({ 
+                role: 'system', 
+                content: sysText, 
+                time: now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }), 
+                rawTime: now.getTime(), 
+                mode: 'online' 
+            });
+            DB.set('chats', chats);
+            renderMessages();
+            triggerAI();
+            return;
+        }
+
         if (role && role.isUserDead) {
             if (role.deathState !== 'ghost') {
                 input.value = '';
                 showAfterDeathOptions();
                 return;
             }
-            // 如果是 ghost 状态，允许发送，但 AI 会将其视为环境互动（已在 Prompt 中处理）
+            // 如果是 ghost 状态，允许发送，但 AI 会将其视为环境互动
         }
         if(!chats[currentChatRoleId]) chats[currentChatRoleId] = []; 
         const now = new Date(); 
@@ -3064,6 +3129,12 @@ ${promptText}
     }
     async function openRealCallScreen(initiator = 'user') {
         if (!currentChatRoleId) return;
+        
+        const role = roles.find(r => r.id === currentChatRoleId);
+        if (role && role.isUserDead) {
+            alert("【系统提示】\n你已离开这个世界，无法拨打电话。\nTA 的手机里，你的号码已经变成了空号。");
+            return;
+        }
         
         currentCallText = "";
         currentCallAudioId = null;
@@ -6296,6 +6367,13 @@ function updateRoleWbPreview() {
         $('#btn-del-role').style.display = isEditing ? 'block' : 'none'; 
         const chatActions = $('#role-chat-actions');
         if (chatActions) chatActions.style.display = isEditing ? 'flex' : 'none';
+        
+        // 控制前世记忆按钮显示
+        const pastLifeActions = $('#role-pastlife-actions');
+        if (pastLifeActions) {
+            pastLifeActions.style.display = (isEditing && role.pastLifeBackup) ? 'flex' : 'none';
+        }
+
         $('#role-mask-select').innerHTML = masks.map(m => `<option value="${m.id}" ${isEditing && role.activeMaskId === m.id ? 'selected' : ''}>${m.name}</option>`).join(''); 
         $('#role-map-preset-select').innerHTML = '<option value="">-- 全局默认地图 --</option>' + vmapPresets.map(p => `<option value="${p.id}" ${isEditing && role.boundMapId === p.id ? 'selected' : ''}>${p.name}</option>`).join('');
         const localWbIds = isEditing ? (role.localWbs || []) : []; 
@@ -9883,6 +9961,11 @@ ${knowUser ? `注意：你清楚地知道回复你的人就是 ${userName}，请
     }
     
     function inviteSpecificAiToListen(roleId) { 
+        const role = roles.find(r => r.id === roleId);
+        if (role && role.isUserDead) {
+            return alert("【系统提示】\n你已离开这个世界，无法邀请 TA 一起听歌。\n耳机里只剩下你一个人的寂静。");
+        }
+
         if (listenTogetherSession.isActive) {
             const currentRole = roles.find(r => r.id === listenTogetherSession.roleId);
             alert(`当前正在和 ${currentRole ? getDisplayName(currentRole) : 'TA'} 一起听歌，请先退出上次一起听！`);
@@ -13536,6 +13619,12 @@ function onAiAvatarDblClick() {
     }
 
     function confirmTransferSend() {
+        const role = roles.find(r => r.id === currentChatRoleId);
+        if (role && role.isUserDead) {
+            closeModal('modal-transfer-input');
+            return alert("【系统提示】\n你已离开这个世界，无法进行转账。\n你的账户已被冻结。");
+        }
+
         const amount = Number($('#transfer-amount-input').value);
         if (!amount || amount <= 0) return alert("请输入有效金额");
         
@@ -16475,7 +16564,15 @@ window.chooseAfterDeath = function(choice) {
         alert("已开启灵魂视角。你现在只能旁观TA的生活，发送的消息TA将无法看见（系统会自动转化为环境互动）。");
         renderMessages();
     } else if (choice === 'reset') {
-        if (confirm("确定要开启新轮回吗？这将清空你们所有的聊天记录和记忆，一切从零开始。")) {
+        if (confirm("确定要开启新轮回吗？这将清空你们当前的聊天记录和记忆，一切从零开始。\n（不用担心，前世的记忆会被封存，你可以在角色设置中随时恢复）")) {
+            
+            // 备份前世记忆
+            role.pastLifeBackup = {
+                chats: chats[currentChatRoleId] ? JSON.parse(JSON.stringify(chats[currentChatRoleId])) : [],
+                memories: memories[currentChatRoleId] || '',
+                advancedMemories: advancedMemories[currentChatRoleId] ? JSON.parse(JSON.stringify(advancedMemories[currentChatRoleId])) : { coreMemories: [], episodicMemories: [], plotSummaries: [] }
+            };
+
             role.isUserDead = false;
             role.deathStage = 0;
             role.deathState = 'none';
@@ -16493,5 +16590,47 @@ window.chooseAfterDeath = function(choice) {
             renderMessages();
             alert("轮回已重置。新的故事开始了。");
         }
+    }
+};
+
+// 新增：恢复前世记忆函数
+window.restorePastLifeMemory = function() {
+    const roleId = $('#role-realname').dataset.id;
+    if (!roleId) return;
+    const role = roles.find(r => r.id === roleId);
+    if (!role || !role.pastLifeBackup) return alert("没有找到前世记忆备份。");
+
+    if (confirm("确定要唤醒前世记忆吗？\n这将会把前世的聊天记录和记忆与当前的数据合并！")) {
+        // 合并聊天记录
+        if (!chats[roleId]) chats[roleId] = [];
+        chats[roleId] = role.pastLifeBackup.chats.concat(chats[roleId]);
+        chats[roleId].sort((a, b) => a.rawTime - b.rawTime);
+
+        // 合并传统记忆
+        let currentMem = memories[roleId] || '';
+        let pastMem = role.pastLifeBackup.memories || '';
+        memories[roleId] = pastMem + (pastMem && currentMem ? '\n\n--- 前世记忆觉醒 ---\n\n' : '') + currentMem;
+
+        // 合并高级记忆
+        if (!advancedMemories[roleId]) advancedMemories[roleId] = { coreMemories: [], episodicMemories: [], plotSummaries: [] };
+        const adv = advancedMemories[roleId];
+        const pastAdv = role.pastLifeBackup.advancedMemories;
+        if (pastAdv) {
+            adv.coreMemories = (pastAdv.coreMemories || []).concat(adv.coreMemories || []);
+            adv.episodicMemories = (pastAdv.episodicMemories || []).concat(adv.episodicMemories || []);
+            adv.plotSummaries = (pastAdv.plotSummaries || []).concat(adv.plotSummaries || []);
+        }
+
+        // 清除备份
+        delete role.pastLifeBackup;
+
+        DB.set('roles', roles);
+        DB.set('chats', chats);
+        DB.set('memories', memories);
+        DB.set('advancedMemories', advancedMemories);
+
+        alert("前世记忆已全部唤醒！");
+        closeRoleView();
+        if (currentChatRoleId === roleId) renderMessages();
     }
 };

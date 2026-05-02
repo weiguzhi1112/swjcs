@@ -1686,6 +1686,9 @@
             <input type="file" id="import-chat-file" accept=".json" style="display:none" onchange="importCurrentChat(event)">
             <button class="action-btn" style="flex: 1; margin: 0; border-color: #ff4d4d; color: #ff4d4d;" onclick="clearCurrentChat()">CLEAR<span>清空记录</span></button>
         </div>
+        <div style="display: flex; gap: 10px; margin-top: 10px;" id="role-pastlife-actions" style="display: none;">
+            <button class="action-btn primary" style="width: 100%; background: #9b59b6; border-color: #9b59b6;" onclick="restorePastLifeMemory()">AWAKEN PAST LIFE<span>唤醒前世记忆</span></button>
+        </div>
         <div style="display: flex; gap: 10px; margin-top: 10px; margin-bottom: 40px;">
             <button id="btn-block-role" class="action-btn" style="flex: 1;" onclick="toggleBlockRole()">BLOCK<span>拉黑</span></button>
             <button id="btn-del-role" class="action-btn" style="display:none; flex: 1; border-color: #ff4d4d; color: #ff4d4d;" onclick="deleteRole()">PURGE<span>删除角色</span></button>
