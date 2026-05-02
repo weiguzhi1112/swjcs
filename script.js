@@ -3115,13 +3115,16 @@ ${promptText}
                 const chatData = await chatRes.json();
                 let aiReply = chatData.choices[0].message.content.trim();
 
-                if (aiReply.includes('[ACCEPT_CALL]')) {
+                /* 修复：使用更宽泛的匹配，防止 AI 漏打括号导致残留 */
+                if (aiReply.includes('ACCEPT_CALL')) {
                     startCallTimer();
                 } else {
-                    aiReply = aiReply.replace(/\[?REJECT_CALL\]?[:：\s]*/gi, '').trim();
+                    /* 修复：同时清理可能残留的 ACCEPT_CALL 和 REJECT_CALL 标签 */
+                    aiReply = aiReply.replace(/\[?REJECT_CALL\]?[:：\s]*/gi, '').replace(/\[?ACCEPT_CALL\]?[:：\s]*/gi, '').trim();
                     $('#view-real-call').classList.remove('active');
                     const now = new Date();
-                    chats[currentChatRoleId].push({ role: 'system', content: '对方拒绝了通话', time: now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }), rawTime: now.getTime(), mode: 'online' });
+                    /* 修复：明确指出是角色拒绝了通话，防止 AI 记忆混乱盖在用户头上 */
+                    chats[currentChatRoleId].push({ role: 'system', content: `${role.realName} 拒绝了通话`, time: now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }), rawTime: now.getTime(), mode: 'online' });
                     if (aiReply) {
                         chats[currentChatRoleId].push({ role: 'ai', content: aiReply, time: now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }), rawTime: now.getTime() + 1, mode: 'online' });
                     }
@@ -9943,8 +9946,16 @@ async function autoGenerateSummary(roleId, type = 'episodic') {
         try {
             parsedResult = JSON.parse(extractJSON(resultStr));
         } catch (e) {
-            // 如果解析失败，默认存入剧情总结
-            parsedResult = { type: 'plot', content: resultStr.replace(/<[^>]*>/g, '') };
+            // 如果解析失败，尝试用正则提取 content 字段，防止把 JSON 括号也存进去
+            let fallbackContent = resultStr;
+            const contentMatch = resultStr.match(/"content"\s*:\s*"([^"]+)"/);
+            if (contentMatch) {
+                fallbackContent = contentMatch[1];
+            } else {
+                // 暴力清理 JSON 符号
+                fallbackContent = resultStr.replace(/[{}"\\]/g, '').replace(/type\s*:\s*\w+,?/g, '').replace(/content\s*:/g, '').trim();
+            }
+            parsedResult = { type: 'plot', content: fallbackContent.replace(/<[^>]*>/g, '') };
         }
 
         const summary = parsedResult.content;
@@ -10077,7 +10088,15 @@ function startAllAutoMsgTimers() {
                 return `${m.role === 'user' ? '用户' : role.realName}: ${text}`;
             }).join('\n');
             
-            let memorySnippet = (memories[role.id] || '').substring(0, 300);
+            /* 修复记忆数组导致的 substring 报错 */
+            let rawMem = memories[role.id];
+            let memStr = '';
+            if (typeof rawMem === 'string') {
+                memStr = rawMem;
+            } else if (Array.isArray(rawMem)) {
+                memStr = rawMem.map(m => m.content).join('\n');
+            }
+            let memorySnippet = memStr.substring(0, 300);
             
             try {
                 navigator.serviceWorker.controller.postMessage({
