@@ -1559,19 +1559,7 @@ document.addEventListener('DOMContentLoaded', () => {
         
         if (typeof applyChatButtons === 'function') applyChatButtons();
         
-        const chatHeader = document.getElementById('chat-header');
-        const chatMessages = document.getElementById('chat-messages');
-        if (chatHeader && chatMessages) {
-            chatHeader.style.position = 'absolute';
-            chatHeader.style.top = '0';
-            chatHeader.style.left = '0';
-            chatHeader.style.right = '0';
-            chatHeader.style.background = 'transparent';
-            chatHeader.style.backdropFilter = 'none';
-            chatHeader.style.webkitBackdropFilter = 'none';
-            chatHeader.style.borderBottom = 'none';
-            chatMessages.style.paddingTop = 'calc(70px + env(safe-area-inset-top))';
-        }
+        /* 移除了对 chat-header 和 chat-messages 的内联样式硬编码，允许通过美容院的全局 CSS 自由美化 */
     }
 
     let sysBatteryLevel = '未知';
@@ -6444,7 +6432,6 @@ function updateRoleWbPreview() {
         if ($('#role-call-blur')) $('#role-call-blur').value = callBlur;
         if ($('#val-call-blur')) $('#val-call-blur').innerText = callBlur;
         
-        $('#role-chat-css').value = isEditing ? (role.chatCss || '') : ''; 
         $('#role-bubble-css').value = isEditing ? (role.bubbleCss || '') : ''; 
         $('#role-ai-bubble-color').value = isEditing && role.aiBubbleColor ? role.aiBubbleColor : '#333333';
         $('#role-user-bubble-color').value = isEditing && role.userBubbleColor ? role.userBubbleColor : '#000000';
@@ -6580,7 +6567,6 @@ function updateRoleWbPreview() {
             chatBg: chatBgVal, 
             callBg: callBgVal, 
             callBlur: parseInt($('#role-call-blur').value) || 0,
-            chatCss: $('#role-chat-css').value.trim(), 
             bubbleCss: $('#role-bubble-css').value.trim(), 
             aiBubbleColor: $('#role-ai-bubble-color').value, 
             userBubbleColor: $('#role-user-bubble-color').value, 
@@ -6660,7 +6646,6 @@ window.newRoleTempWbs = null;
             chatBg: chatBgVal, 
             callBg: callBgVal, 
             callBlur: parseInt($('#role-call-blur').value) || 0, /* 保存模糊度 */
-            chatCss: $('#role-chat-css').value.trim(), 
             bubbleCss: $('#role-bubble-css').value.trim(), 
             aiBubbleColor: $('#role-ai-bubble-color').value, 
             userBubbleColor: $('#role-user-bubble-color').value, 
@@ -12560,7 +12545,7 @@ function applyRoleSpecificCss(roleId) {
     }
     const role = roles.find(r => r.id === roleId);
     if (role) {
-        styleEl.innerHTML = (role.chatCss || '') + '\n' + (role.bubbleCss || '');
+        styleEl.innerHTML = (role.bubbleCss || '');
     } else {
         styleEl.innerHTML = '';
     }
