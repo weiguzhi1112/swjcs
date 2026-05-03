@@ -2295,6 +2295,14 @@ function updateKeepAliveUI(isOn) {
             
             contentHtml = contentHtml.replace(/\[VIRTUAL_IMG:(.*?)\]/g, `<div class="virtual-img-box" data-text="$1" onclick="revealVirtualText(this)">【图片被小猫吃掉啦】</div>`);
 
+            /* 动作描写自动转为系统提示颜色 */
+            contentHtml = contentHtml.replace(/(\*.*?\*|\(.*?\)|（.*?）|\[.*?\]|【.*?】)/g, function(match) {
+                if (match.startsWith('[VIRTUAL_IMG:') || match.startsWith('[VOICE:') || match.startsWith('[REAL_CALL:') || match.startsWith('[MUSIC_CARD:') || match.startsWith('[THEATER_CARD:') || match.startsWith('[FORUM_CARD:') || match.startsWith('[FEED_CARD:') || match.startsWith('[PAY_REQUEST:') || match.startsWith('[TRANSFER:') || match.startsWith('[FAMILY_CARD:') || match.startsWith('[OURSPACE_INVITE:') || match.startsWith('[GIFT_TO_AI:') || match.startsWith('[INCOMING_CALL:') || match.startsWith('[RED_PACKET:') || match.startsWith('[TICKET:') || match.startsWith('[WILL_CARD:')) {
+                    return match;
+                }
+                return `<span style="color: var(--system-text-color, #888888); font-style: italic;">${match}</span>`;
+            });
+
                     if (m.role === 'ai') {
                 const aiBubbleC = role.aiBubbleColor || '#333333';
                 const aiTextC = role.aiTextColor || '#ffffff';
@@ -2329,8 +2337,8 @@ function updateKeepAliveUI(isOn) {
         const fragment = document.createDocumentFragment();
         if (allMsgs.length > chatDisplayLimit) {
             const loadMoreBtn = document.createElement('div');
-            /* 按钮颜色跟随聊天界面的发送按钮颜色或强调色 */
-            loadMoreBtn.style.cssText = 'text-align:center; padding:10px; color:var(--send-btn-color, var(--text-secondary)); font-size:10px; cursor:pointer; text-decoration:underline; font-weight:bold;';
+            /* 按钮颜色跟随系统提示文字颜色 */
+            loadMoreBtn.style.cssText = 'text-align:center; padding:10px; color:var(--system-text-color, #888888); font-size:10px; cursor:pointer; text-decoration:underline; font-weight:bold;';
             loadMoreBtn.innerText = '加载更多历史记录...';
             fragment.appendChild(loadMoreBtn);
         }
@@ -2456,7 +2464,7 @@ function updateKeepAliveUI(isOn) {
         DB.set('chats', chats); resetUserActivity(); input.value = ''; input.style.height = '38px'; 
         $('#attachment-popup').style.display = 'none'; renderMessages();
     }
-    function toggleAttachmentPopup(e) { e.stopPropagation(); const menu = $('#attachment-popup'); menu.style.display = menu.style.display === 'none' || menu.style.display === '' ? 'flex' : 'none'; }
+    window.toggleAttachmentPopup = function(e) { e.stopPropagation(); const menu = $('#attachment-popup'); menu.style.display = menu.style.display === 'none' || menu.style.display === '' ? 'flex' : 'none'; };
     
     window.openRedPacketModal = function() {
         if (!currentChatRoleId) return alert("请先进入聊天界面");
@@ -2510,15 +2518,53 @@ function updateKeepAliveUI(isOn) {
         const raw = msg.content.slice(12, -1);
         try {
             const card = JSON.parse(decodeURIComponent(raw));
+            const role = roles.find(r => r.id === currentChatRoleId);
+            const isMe = msg.role === 'user';
+            
+            const senderName = isMe ? (settings.userName || 'ME') : getDisplayName(role);
+            const senderAvatar = isMe ? (settings.userAvatar || DEFAULT_AVATAR) : (role.avatar || DEFAULT_AVATAR);
+            
+            let detailHtml = `
+                <div style="background: #ff4d4d; padding: 30px 20px 40px; text-align: center; color: #fff; position: relative; border-radius: 12px 12px 0 0;">
+                    <button style="position: absolute; top: 10px; left: 10px; background: transparent; border: none; color: #fff; font-size: 24px; cursor: pointer; line-height: 1;" onclick="closeModal('modal-red-packet-detail')">×</button>
+                    <img src="${senderAvatar}" style="width: 50px; height: 50px; border-radius: 5px; border: 2px solid #fff; margin-bottom: 10px; object-fit: cover;">
+                    <div style="font-size: 16px; font-weight: bold; margin-bottom: 5px;">${senderName} 的红包</div>
+                    <div style="font-size: 14px; opacity: 0.9;">${card.greeting || '恭喜发财，大吉大利'}</div>
+                </div>
+                <div style="background: #fff; padding: 30px 20px; text-align: center; border-radius: 0 0 12px 12px; min-height: 150px;">
+            `;
+            
             if (card.status === '已领取') {
-                alert('红包已被领取！');
+                const grabAmount = card.grabAmount || card.amount;
+                detailHtml += `
+                    <div style="font-size: 36px; font-weight: bold; color: #d9363e; font-family: var(--font-serif); margin-bottom: 10px;">${grabAmount.toFixed(2)} <span style="font-size: 14px;">元</span></div>
+                    <div style="font-size: 12px; color: #888;">已存入钱包余额</div>
+                `;
             } else {
-                alert('这是你发出的红包，等待对方领取。');
+                detailHtml += `
+                    <div style="font-size: 16px; color: #333; margin-bottom: 20px;">红包尚未被领取</div>
+                `;
             }
-        } catch(e) {}
+            
+            detailHtml += `</div>`;
+            
+            let modal = document.getElementById('modal-red-packet-detail');
+            if (!modal) {
+                modal = document.createElement('div');
+                modal.className = 'modal-overlay';
+                modal.id = 'modal-red-packet-detail';
+                document.body.appendChild(modal);
+            }
+            
+            modal.innerHTML = `<div class="modal" style="padding: 0; background: transparent; box-shadow: 0 10px 30px rgba(0,0,0,0.3); max-width: 320px; overflow: hidden;">${detailHtml}</div>`;
+            openModal('modal-red-packet-detail');
+            
+        } catch(e) {
+            console.error(e);
+        }
     };
 
-    function triggerChatImageUpload() { const input = document.createElement('input'); input.type = 'file'; input.accept = 'image/*'; input.onchange = (e) => handleChatImageUpload(e.target); input.click(); $('#attachment-popup').style.display = 'none'; }
+    window.triggerChatImageUpload = function() { const input = document.createElement('input'); input.type = 'file'; input.accept = 'image/*'; input.onchange = (e) => handleChatImageUpload(e.target); input.click(); $('#attachment-popup').style.display = 'none'; };
     function handleChatImageUpload(inputEl) {
         const file = inputEl.files[0];
         if (!file) return;
@@ -4904,6 +4950,16 @@ ${modeRules}
                         const data = JSON.parse(decodeURIComponent(p1)); 
                         return `[系统提示：用户向你发送了专属情侣空间(OurSpace)的绑定邀请，用户的配对码为：${data.code}。如果你同意绑定，请务必在回复中包含隐藏指令 [ACCEPT_OURSPACE:${data.code}]，并且你需要自己编造一个全新的 6 位数字配对码发给用户，让用户去输入。]`; 
                     } catch(e) { return '[收到情侣空间绑定邀请]'; }
+                });
+                text = text.replace(/\[RED_PACKET:(.*?)\]/g, (match, p1) => {
+                    try { 
+                        const data = JSON.parse(decodeURIComponent(p1)); 
+                        if (data.status === '未领取') {
+                            return `[系统提示：用户向你发送了一个红包，金额：¥${data.amount}，留言：${data.greeting}。如果你想领取，请在回复中包含隐藏指令 [RECEIVE_REDPACKET]]`; 
+                        } else {
+                            return `[系统提示：用户向你发送了一个红包，你已领取]`;
+                        }
+                    } catch(e) { return '[收到一个红包]'; }
                 });
                 text = text.replace(/\[MUSIC_CARD:(.*?)\]/g, (match, p1) => {
                     try { const data = JSON.parse(decodeURIComponent(p1)); return `[系统提示：用户邀请你一起听歌：《${data.name}》- ${data.artist}]`; } catch(e) { return '[收到一起听歌邀请]'; }
@@ -12846,6 +12902,107 @@ function updateMagazineTransform() {
     });
 }
 
+let selectedStatusIndices = new Set();
+let isStatusManageMode = false;
+
+window.openStatusManageModal = function() {
+    selectedStatusIndices.clear();
+    isStatusManageMode = false;
+    renderStatusManageList();
+    openModal('modal-status-manage');
+};
+
+window.renderStatusManageList = function() {
+    const config = statusBarData[currentChatRoleId];
+    let container = document.getElementById('status-manage-list');
+    
+    if (!container) {
+        const modalHtml = `
+        <div class="modal-overlay" id="modal-status-manage">
+            <div class="modal" style="max-height: 80vh; display: flex; flex-direction: column;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                    <h3 style="margin:0;">Manage <span>心声管理</span></h3>
+                    <button class="text-btn" id="btn-status-manage-toggle" style="padding:0;" onclick="toggleStatusManageMode()">管理</button>
+                </div>
+                <div id="status-manage-list" style="flex: 1; overflow-y: auto; margin-bottom: 15px; border: 1px solid var(--border-color); border-radius: 8px; background: var(--gray-light);"></div>
+                <div style="display: flex; gap: 10px;">
+                    <button class="action-btn" id="btn-status-manage-all" style="flex: 1; margin: 0; display: none;" onclick="selectAllStatus()">全选</button>
+                    <button class="action-btn primary" id="btn-status-manage-del" style="flex: 1; margin: 0; display: none; background: #ff4d4d; border-color: #ff4d4d;" onclick="deleteSelectedStatus()">删除选中</button>
+                    <button class="action-btn" style="flex: 1; margin: 0;" onclick="closeModal('modal-status-manage')">关闭</button>
+                </div>
+            </div>
+        </div>`;
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+        container = document.getElementById('status-manage-list');
+    }
+    
+    if (!config || config.history.length === 0) {
+        container.innerHTML = '<div style="text-align:center; color:var(--text-secondary); padding:20px; font-size:10px;">暂无心声数据</div>';
+        return;
+    }
+    
+    container.innerHTML = config.history.map((entry, i) => {
+        const d = entry.data || {};
+        return `
+        <div style="display: flex; align-items: center; gap: 10px; padding: 12px; border-bottom: 1px solid var(--border-color); cursor: pointer;" onclick="toggleStatusSelect(${i})">
+            <div class="msg-checkbox ${selectedStatusIndices.has(i) ? 'checked' : ''}" style="display: ${isStatusManageMode ? 'block' : 'none'}; margin: 0;"></div>
+            <div style="flex: 1; overflow: hidden;">
+                <div style="font-size: 12px; font-weight: bold; color: var(--text-color); margin-bottom: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${d.thought || '...'}</div>
+                <div style="font-size: 9px; color: var(--text-secondary);">${entry.time} | 好感度: ${d.favorability || '未知'}</div>
+            </div>
+        </div>
+        `;
+    }).join('');
+};
+
+window.toggleStatusManageMode = function() {
+    isStatusManageMode = !isStatusManageMode;
+    selectedStatusIndices.clear();
+    document.getElementById('btn-status-manage-del').style.display = isStatusManageMode ? 'block' : 'none';
+    document.getElementById('btn-status-manage-all').style.display = isStatusManageMode ? 'block' : 'none';
+    document.getElementById('btn-status-manage-toggle').innerText = isStatusManageMode ? '取消' : '管理';
+    renderStatusManageList();
+};
+
+window.toggleStatusSelect = function(index) {
+    if (!isStatusManageMode) return;
+    if (selectedStatusIndices.has(index)) selectedStatusIndices.delete(index);
+    else selectedStatusIndices.add(index);
+    renderStatusManageList();
+};
+
+window.selectAllStatus = function() {
+    const config = statusBarData[currentChatRoleId];
+    if (!config || config.history.length === 0) return;
+    if (selectedStatusIndices.size === config.history.length) {
+        selectedStatusIndices.clear();
+    } else {
+        config.history.forEach((_, i) => selectedStatusIndices.add(i));
+    }
+    renderStatusManageList();
+};
+
+window.deleteSelectedStatus = function() {
+    if (selectedStatusIndices.size === 0) return;
+    if (confirm(`确定删除选中的 ${selectedStatusIndices.size} 条心声吗？`)) {
+        const config = statusBarData[currentChatRoleId];
+        const sortedIndices = Array.from(selectedStatusIndices).sort((a, b) => b - a);
+        sortedIndices.forEach(idx => config.history.splice(idx, 1));
+        DB.set('statusBarData', statusBarData);
+        
+        selectedStatusIndices.clear();
+        renderStatusManageList();
+        
+        if (config.history.length === 0) {
+            closeStatusPanel();
+            closeModal('modal-status-manage');
+        } else {
+            magazineCurrentIndex = Math.max(0, Math.min(magazineCurrentIndex, config.history.length - 1));
+            renderMagazineStatus();
+        }
+    }
+};
+
 function openStatusPanel() {
     if (!currentChatRoleId) return;
     const config = statusBarData[currentChatRoleId];
@@ -17367,7 +17524,7 @@ function renderEiWall() {
         const touchHandlers = `onmousedown="eiTouchStart(event, ${i}, this, 'wall')" onmouseup="eiTouchEnd()" onmouseleave="eiTouchEnd()" ontouchstart="eiTouchStart(event, ${i}, this, 'wall')" ontouchend="eiTouchEnd()" ontouchcancel="eiTouchEnd()"`;
         const authorHtml = item.authorName ? `<div style="text-align:right; font-size:8px; color:var(--text-secondary); margin-top:8px; opacity:0.6;">- ${item.authorName}</div>` : '';
         return `
-        <div class="ei-card" style="transform: rotate(${item.rot}deg); opacity: ${1 - i*0.05 > 0.5 ? 1 - i*0.05 : 0.5}; cursor: pointer;" ${touchHandlers}>
+        <div class="ei-card" style="transform: rotate(${item.rot}deg); opacity: ${1 - i*0.05 > 0.5 ? 1 - i*0.05 : 0.5}; cursor: pointer; height: auto; min-height: 100px; max-height: none;" ${touchHandlers}>
             ${item.text}
             ${authorHtml}
         </div>
