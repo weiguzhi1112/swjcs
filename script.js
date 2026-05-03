@@ -1512,7 +1512,7 @@ document.addEventListener('DOMContentLoaded', () => {
             appTextStyle.id = 'app-text-style';
             document.head.appendChild(appTextStyle);
         }
-        appTextStyle.innerHTML = `.app-icon span { color: ${appTextColor} !important; } #desktop-dock .app-icon span { color: ${dockTextColor} !important; }`;
+        appTextStyle.innerHTML = `.desktop-app-grid .app-icon span { color: ${appTextColor} !important; } #desktop-dock .app-icon span { color: ${dockTextColor} !important; }`;
 
         document.documentElement.style.setProperty('--status-bar-height', settings.showStatusBar ? '44px' : '0px'); 
         $('#status-bar').style.display = settings.showStatusBar ? 'flex' : 'none'; 
@@ -4672,7 +4672,26 @@ function toInitApp(){
             const weatherAddr = (weatherData.realCity || '') + ' ' + (weatherData.address || '');
             
             const exactNow = new Date();
-            const exactTimeStr = `${exactNow.getFullYear()}年${exactNow.getMonth()+1}月${exactNow.getDate()}日 ${String(exactNow.getHours()).padStart(2,'0')}:${String(exactNow.getMinutes()).padStart(2,'0')}`;
+            const exactTimeStr = `${exactNow.getFullYear()}年${exactNow.getMonth()+1}月${exactNow.getDate()}日 ${String(exactNow.getHours()).padStart(2,'0')}:${String(exactNow.getMinutes()).padStart(2,'0')}:${String(exactNow.getSeconds()).padStart(2,'0')}`;
+
+            let silenceDuration = '';
+            let lastUserMsgTime = null;
+            if (msgs.length > 0) {
+                for (let i = msgs.length - 1; i >= 0; i--) {
+                    if (msgs[i].role === 'user') { lastUserMsgTime = msgs[i].rawTime; break; }
+                }
+            }
+            if (lastUserMsgTime) {
+                const gapMs = Date.now() - lastUserMsgTime;
+                const gapMins = Math.floor(gapMs / 60000);
+                if (gapMins < 60) silenceDuration = `${gapMins}分钟`;
+                else if (gapMins < 1440) silenceDuration = `${Math.floor(gapMins/60)}小时`;
+                else silenceDuration = `${Math.floor(gapMins/1440)}天`;
+            }
+
+            const relationshipContext = role.relationshipDate ? `\n- 你们的定情时间是：${role.relationshipDate}。你们已经在一起了。` : '\n- 你们目前还没有在一起（未确定恋爱关系）。';
+            const tzContext = role.timezone ? `\n- 你的所在时区/国家：${role.timezone}。` : '';
+            const currencyContext = role.currency ? `\n- 你的常用货币：${role.currency}。` : '';
 
             const wallContext = (typeof eiWallData !== 'undefined' && eiWallData.length > 0) ? `\n[情绪岛漂流墙最新留言]\n${eiWallData.slice(0, 5).map(w => `${w.authorName}: ${w.text}`).join('\n')}\n(你可以根据这些留言质问用户，或者对其他人的留言发表看法)` : '';
 
@@ -4761,8 +4780,9 @@ ${memories[role.id] ? `<shared_memory>\n${memories[role.id]}\n</shared_memory>` 
 ${wallContext}
 
 <context>
-- 当前设备真实时间: ${exactTimeStr} (请严格感知当前时间，体现活人感)
-- 用户当前位置: ${userIPLocation} / ${weatherAddr} / ${addrStr}
+- 当前设备真实时间: ${exactTimeStr} (请严格感知当前时间，精确到秒，体现活人感)
+- 距离用户上一条消息已经过去了 ${silenceDuration || '一段时间'}。
+- 用户当前位置: ${userIPLocation} / ${weatherAddr} / ${addrStr}${relationshipContext}${tzContext}${currencyContext}
 </context>
 
 <rules>
@@ -4772,7 +4792,7 @@ ${wallContext}
 4. 换头像回复 [CHANGE_AVATAR:图片URL]。保存图片回复 [SAVE_PHOTO:图片URL|相册名]。
 5. 【票根生成】当你们约定去看电影、演唱会、展览或旅行时，你必须在回复中包含隐藏指令生成票根：[TICKET:{"type":"movie/concert/travel/exhibit","title":"活动名称","subtitle":"副标题","label1":"地点","value1":"具体地点","label2":"座位/时间","value2":"具体信息","label3":"时间","value3":"具体时间","single":false}]。如果是你单人出行（比如飞过来找用户），请务必将 "single" 设为 true，这样系统只会生成一张你的票。
 6. 【主动转账】当你想给用户转账时，在回复中包含：[转账 ¥金额]${translationRule}
-7. 【记忆提取】如果用户在聊天中提到了喜欢的歌曲、食物等，请自然地记住并在后续对话中提及。
+7. 【记忆提取】如果用户在聊天中提到了喜欢的歌曲、食物等，请自然地记住并在后续对话中提及。如果你们在对话中刚刚确认了恋爱关系（在一起了），请在回复中包含隐藏指令 [RELATIONSHIP_DATE:${exactTimeStr}] 来记录定情时间。
 8. 【专属音乐空间】你的网易云音乐账号是：${roleMusicAcc}，密码是：${roleMusicPwd}。如果用户问你要，请自然地告诉TA。${stickerPrompt}
 9. 【主动打电话】如果你有急事、想听用户的声音，或者想主动发起语音通话，请在回复中包含隐藏指令 [INCOMING_CALL]。
 10. 【角色思考】如果你输出 <thought> 标签，里面的内容必须是你（${role.realName}）的第一人称内心独白和真实想法，绝对不能以AI助手的身份进行分析！
@@ -5047,6 +5067,13 @@ ${modeRules}
                 updateStatusBarButton();
             }
             
+            const relationMatch = fullReply.match(/\[RELATIONSHIP_DATE:(.*?)\]/);
+            if (relationMatch) {
+                role.relationshipDate = relationMatch[1].trim();
+                DB.set('roles', roles);
+                fullReply = fullReply.replace(relationMatch[0], '');
+            }
+
             const avatarMatch = fullReply.match(/\[CHANGE_AVATAR:(.*?)\]/);
             if (avatarMatch) {
                 role.avatar = avatarMatch[1].trim();
@@ -5266,9 +5293,7 @@ ${modeRules}
             DB.set('chats', chats);
             if (currentChatRoleId === targetRoleId) renderMessages();
             
-            if (document.hidden) {
-                showSystemNotification(targetRoleId, getDisplayName(role), finalLines.join(' '), role.avatar);
-            }
+ showSystemNotification(targetRoleId, getDisplayName(role), finalLines.join(' '), role.avatar);
 
             const emotionWords = ['难过', '伤心', '累', '烦', '痛', '哭', '开心', '想你', '孤独', '寂寞'];
             if (emotionWords.some(w => fullReply.includes(w))) {
@@ -6263,6 +6288,9 @@ function updateRoleWbPreview() {
         $('#role-realname').dataset.id = isEditing ? id : ''; 
         $('#role-realname').value = isEditing ? role.realName : ''; 
         $('#role-remark').value = isEditing ? role.remark : ''; 
+        $('#role-relationship-date').value = isEditing && role.relationshipDate ? role.relationshipDate : '';
+        if ($('#role-timezone')) $('#role-timezone').value = isEditing && role.timezone ? role.timezone : '';
+        if ($('#role-currency')) $('#role-currency').value = isEditing && role.currency ? role.currency : '';
         const titleColorEl = $('#role-title-color');
         if (titleColorEl) {
             titleColorEl.value = isEditing && role.titleColor ? role.titleColor : (settings.theme === 'dark' ? '#ffffff' : '#000000');
@@ -6420,6 +6448,9 @@ function updateRoleWbPreview() {
             id, 
             realName, 
             remark: $('#role-remark').value.trim(), 
+            relationshipDate: $('#role-relationship-date') ? $('#role-relationship-date').value.trim() : '',
+            timezone: $('#role-timezone') ? $('#role-timezone').value.trim() : '',
+            currency: $('#role-currency') ? $('#role-currency').value.trim() : '',
             titleColor: $('#role-title-color') ? $('#role-title-color').value : (settings.theme === 'dark' ? '#ffffff' : '#000000'),
             avatar: $('#role-avatar').value.trim(), 
             userBubble: userBubble,
@@ -6497,6 +6528,9 @@ window.newRoleTempWbs = null;
             id, 
             realName, 
             remark: $('#role-remark').value.trim(), 
+            relationshipDate: $('#role-relationship-date') ? $('#role-relationship-date').value.trim() : '',
+            timezone: $('#role-timezone') ? $('#role-timezone').value.trim() : '',
+            currency: $('#role-currency') ? $('#role-currency').value.trim() : '',
             titleColor: $('#role-title-color') ? $('#role-title-color').value : (settings.theme === 'dark' ? '#ffffff' : '#000000'),
             avatar: $('#role-avatar').value.trim(), 
             userBubble: userBubble,
@@ -10420,9 +10454,13 @@ function checkAllAutoMsgRoles() {
         else if (hour >= 18 && hour < 21) timeContext = '现在是傍晚';
         else timeContext = '现在是晚上';
             
+        const relationshipContext = role.relationshipDate ? `\n- 你们的定情时间是：${role.relationshipDate}。你们已经在一起了。` : '\n- 你们目前还没有在一起（未确定恋爱关系）。';
+        const tzContext = role.timezone ? `\n- 你的所在时区/国家：${role.timezone}。` : '';
+        const currencyContext = role.currency ? `\n- 你的常用货币：${role.currency}。` : '';
+
         const apiMessages = [];
 
-        const systemPrompt = `[CORE DIRECTIVE - 活人感主动消息模式]\n你是${role.realName}。以下是你的完整人设，你必须100%遵守，绝对不能OOC：\n${role.persona}${maskPrompt}${wbPrompt}${mapContext}${wallContext}${memorySummary}${osContext}\n\n[当前情境与时间感知]\n- ${timeContext}，${weekday}，${now.getFullYear()}年${now.getMonth()+1}月${now.getDate()}日 ${String(hour).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}\n- 距离用户上一条消息已经过去了 ${silenceDuration || '一段时间'}。\n- 你们上次聊天的最后内容是：【${lastTopic}】\n\n[活人感终极要求]\n1. 【承上启下】结合上次聊天的内容和流逝的时间，自然地开启话题。比如上次聊到睡觉，现在是早晨，就可以说“昨晚睡得好吗”。绝对不要像机器人一样干巴巴地问“在吗”。\n2. 【去油腻】说话必须口语化、自然、接地气。绝对禁止使用霸总、娇妻等夸张做作的语调。\n3. 【格式限制】严格输出 ${minB} 到 ${maxB} 句话！每句话独占一行。日常聊天绝对不要在句末加句号。\n4. 直接输出消息内容，不加引号，不加任何解释。`;
+        const systemPrompt = `[CORE DIRECTIVE - 活人感主动消息模式]\n你是${role.realName}。以下是你的完整人设，你必须100%遵守，绝对不能OOC：\n${role.persona}${maskPrompt}${wbPrompt}${mapContext}${wallContext}${memorySummary}${osContext}\n\n[当前情境与时间感知]\n- ${timeContext}，${weekday}，${now.getFullYear()}年${now.getMonth()+1}月${now.getDate()}日 ${String(hour).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')}\n- 距离用户上一条消息已经过去了 ${silenceDuration || '一段时间'}。${relationshipContext}${tzContext}${currencyContext}\n- 你们上次聊天的最后内容是：【${lastTopic}】\n\n[活人感终极要求]\n1. 【承上启下】结合上次聊天的内容和流逝的时间，自然地开启话题。比如上次聊到睡觉，现在是早晨，就可以说“昨晚睡得好吗”。绝对不要像机器人一样干巴巴地问“在吗”。\n2. 【去油腻】说话必须口语化、自然、接地气。绝对禁止使用霸总、娇妻等夸张做作的语调。\n3. 【格式限制】严格输出 ${minB} 到 ${maxB} 句话！每句话独占一行。日常聊天绝对不要在句末加句号。\n4. 直接输出消息内容，不加引号，不加任何解释。`;
 
         apiMessages.push({ role: 'system', content: systemPrompt });
         
