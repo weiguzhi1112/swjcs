@@ -1385,6 +1385,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     renderOsPairingView();
                 }
             }
+            if (appId === 'emotionisland') {
+                eiNavTo('roles');
+            }
         }, 400);
 
         const desktop = $('#view-desktop');
@@ -1498,13 +1501,14 @@ document.addEventListener('DOMContentLoaded', () => {
         document.documentElement.style.setProperty('--avatar-radius', `${settings.avatarRadius || 0}px`); 
         
         const appTextColor = settings.appTextColor || 'var(--text-color)';
+        const dockTextColor = settings.dockTextColor || appTextColor;
         let appTextStyle = document.getElementById('app-text-style');
         if (!appTextStyle) {
             appTextStyle = document.createElement('style');
             appTextStyle.id = 'app-text-style';
             document.head.appendChild(appTextStyle);
         }
-        appTextStyle.innerHTML = `.app-icon span { color: ${appTextColor} !important; }`;
+        appTextStyle.innerHTML = `.app-icon span { color: ${appTextColor} !important; } #desktop-dock .app-icon span { color: ${dockTextColor} !important; }`;
 
         document.documentElement.style.setProperty('--status-bar-height', settings.showStatusBar ? '44px' : '0px'); 
         $('#status-bar').style.display = settings.showStatusBar ? 'flex' : 'none'; 
@@ -6817,6 +6821,8 @@ window.newRoleTempWbs = null;
         $('#beauty-bg').dataset.realValue = bgVal;
         $('#beauty-bg').value = bgVal.length > 200 ? '已上传本地图片 (重新上传覆盖)' : bgVal;
         
+        $('#beauty-app-text-color').value = settings.appTextColor || '#000000';
+        $('#beauty-dock-text-color').value = settings.dockTextColor || '#000000';
         $('#beauty-font').value = settings.fontSize; 
         $('#val-font').innerText = settings.fontSize; 
         $('#beauty-pad').value = parseInt(settings.bubblePadding); 
@@ -6844,7 +6850,8 @@ window.newRoleTempWbs = null;
         }
         settings.bgImage = bgVal; 
         
-        settings.appTextColor = $('#beauty-app-text-color').value; // 修复：保存桌面图标文字颜色
+        settings.appTextColor = $('#beauty-app-text-color').value; 
+        settings.dockTextColor = $('#beauty-dock-text-color').value;
         settings.fontSize = $('#beauty-font').value; 
         settings.bubblePadding = $('#beauty-pad').value; 
         settings.avatarSize = $('#beauty-avatar').value; 
@@ -16756,11 +16763,26 @@ async function openEiChat(mode) {
         const container = document.getElementById('ei-chat-messages');
         container.innerHTML = `<div class="ei-msg char">...</div>`;
         
-        let prompt = `你是${role.realName}。${role.persona}\n用户进入了你的“情绪岛”空间。\n`;
+        const globalWbs = worldbooks.filter(w => w.isGlobal).map(w => w.content).join('\n');
+        const localWbs = worldbooks.filter(w => role.localWbs?.includes(w.id)).map(w => w.content).join('\n');
+        const memorySummary = memories[role.id] ? `\n[SHARED MEMORY]\n${memories[role.id]}` : '';
+        const recentChats = (chats[role.id] || []).slice(-10).map(m => `${m.role === 'user' ? 'ME' : role.realName}: ${m.content.replace(/<[^>]*>/g, '')}`).join('\n');
+        const chatContext = recentChats ? `\n[RECENT CHAT HISTORY]\n${recentChats}` : '';
+        
+        let interruptPrompt = '';
+        const roleChats = chats[role.id] || [];
+        if (roleChats.length > 0) {
+            const lastMsg = roleChats[roleChats.length - 1];
+            if (lastMsg.role === 'ai') {
+                interruptPrompt = `\n【特别注意】：用户刚刚在聊天界面没有回复你的最后一条消息（"${lastMsg.content.substring(0, 30)}..."），而是突然来到了情绪岛空间。请在开场白中自然地带出一句询问，比如问TA怎么突然不说话来这里了，或者是不是心情不好。`;
+            }
+        }
+
+        let prompt = `你是${role.realName}。${role.persona}\n${globalWbs}\n${localWbs}${memorySummary}${chatContext}\n用户进入了你的“情绪岛”空间。\n`;
         if (mode === 'confide') {
-            prompt += `用户想向你倾诉。请用符合你人设的语气，说一句温柔、包容的开场白，引导用户说出心事。不要超过20字。`;
+            prompt += `用户想向你倾诉。请用符合你人设的语气，说一句开场白引导用户说出心事。不要OOC，不要油腻，不要贬低用户，保持你原本的性格。不要超过30字。${interruptPrompt}`;
         } else {
-            prompt += `你今天心情很低落，用户来安慰你。请用符合你人设的语气，说一句低落、或者嘴硬掩饰脆弱的开场白。不要超过20字。`;
+            prompt += `你今天心情很低落，用户来安慰你。请用符合你人设的语气，说一句低落、或者嘴硬掩饰脆弱的开场白。不要OOC，不要油腻，不要贬低用户。不要超过30字。${interruptPrompt}`;
         }
 
         try {
@@ -16816,10 +16838,12 @@ function eiCollectGift(giftText) {
 }
 
 // 贴合气泡的长按菜单
-function eiTouchStart(e, index, el) {
+let eiTargetType = 'chat';
+function eiTouchStart(e, index, el, type = 'chat') {
     eiPressTimer = setTimeout(() => {
         if (navigator.vibrate) navigator.vibrate(50);
         eiTargetMsgIndex = index;
+        eiTargetType = type;
         
         const rect = el.getBoundingClientRect();
         const menu = document.getElementById('ei-context-menu');
@@ -16858,12 +16882,17 @@ function closeEiContextMenu() {
 
 function eiActionFav() {
     if (eiTargetMsgIndex > -1) {
-        const msg = eiChatHistory[eiTargetMsgIndex];
         const role = roles.find(r => r.id === eiCurrentRoleId);
+        let content = '';
+        if (eiTargetType === 'chat') {
+            content = eiChatHistory[eiTargetMsgIndex].content;
+        } else if (eiTargetType === 'wall') {
+            content = eiWallData[eiTargetMsgIndex].text;
+        }
         eiDrawerData.unshift({
-            type: 'chat',
-            roleName: getDisplayName(role),
-            content: msg.content,
+            type: eiTargetType === 'chat' ? 'chat' : 'wall',
+            roleName: role ? getDisplayName(role) : 'ME',
+            content: content,
             time: new Date().toLocaleDateString()
         });
         DB.set('eiDrawerData', eiDrawerData);
@@ -16874,15 +16903,29 @@ function eiActionFav() {
 
 function eiActionEdit() {
     if (eiTargetMsgIndex > -1) {
-        const msg = eiChatHistory[eiTargetMsgIndex];
-        const newText = prompt("编辑内容：", msg.content);
-        if (newText !== null) {
-            if (newText.trim() === '') {
-                eiChatHistory.splice(eiTargetMsgIndex, 1);
-            } else {
-                eiChatHistory[eiTargetMsgIndex].content = newText;
+        if (eiTargetType === 'chat') {
+            const msg = eiChatHistory[eiTargetMsgIndex];
+            const newText = prompt("编辑内容：", msg.content);
+            if (newText !== null) {
+                if (newText.trim() === '') {
+                    eiChatHistory.splice(eiTargetMsgIndex, 1);
+                } else {
+                    eiChatHistory[eiTargetMsgIndex].content = newText;
+                }
+                renderEiChat();
             }
-            renderEiChat();
+        } else if (eiTargetType === 'wall') {
+            const item = eiWallData[eiTargetMsgIndex];
+            const newText = prompt("编辑内容：", item.text);
+            if (newText !== null) {
+                if (newText.trim() === '') {
+                    eiWallData.splice(eiTargetMsgIndex, 1);
+                } else {
+                    eiWallData[eiTargetMsgIndex].text = newText;
+                }
+                DB.set('eiWallData', eiWallData);
+                renderEiWall();
+            }
         }
     }
     closeEiContextMenu();
@@ -16890,8 +16933,14 @@ function eiActionEdit() {
 
 function eiActionDel() {
     if (eiTargetMsgIndex > -1 && confirm("确定删除此条记录？")) {
-        eiChatHistory.splice(eiTargetMsgIndex, 1);
-        renderEiChat();
+        if (eiTargetType === 'chat') {
+            eiChatHistory.splice(eiTargetMsgIndex, 1);
+            renderEiChat();
+        } else if (eiTargetType === 'wall') {
+            eiWallData.splice(eiTargetMsgIndex, 1);
+            DB.set('eiWallData', eiWallData);
+            renderEiWall();
+        }
     }
     closeEiContextMenu();
 }
@@ -16920,11 +16969,17 @@ async function sendEiMessage() {
     eiChatHistory.push({ id: msgId, role: 'ai', content: '...', time: new Date().toLocaleTimeString(), isTemp: true });
     renderEiChat();
 
-    let prompt = `你是${role.realName}。${role.persona}\n用户在“情绪岛”空间对你说：“${text}”。\n`;
+    const globalWbs = worldbooks.filter(w => w.isGlobal).map(w => w.content).join('\n');
+    const localWbs = worldbooks.filter(w => role.localWbs?.includes(w.id)).map(w => w.content).join('\n');
+    const memorySummary = memories[role.id] ? `\n[SHARED MEMORY]\n${memories[role.id]}` : '';
+    const recentChats = (chats[role.id] || []).slice(-10).map(m => `${m.role === 'user' ? 'ME' : role.realName}: ${m.content.replace(/<[^>]*>/g, '')}`).join('\n');
+    const chatContext = recentChats ? `\n[RECENT CHAT HISTORY]\n${recentChats}` : '';
+
+    let prompt = `你是${role.realName}。${role.persona}\n${globalWbs}\n${localWbs}${memorySummary}${chatContext}\n用户在“情绪岛”空间对你说：“${text}”。\n`;
     if (eiChatMode === 'confide') {
-        prompt += `【倾诉模式】：用户正在向你倾诉。请给予温柔的倾听或回应。不要说教，不要比惨，保持极简和克制。`;
+        prompt += `【倾诉模式】：用户正在向你倾诉。请给予符合你人设的倾听或回应。不要OOC，不要油腻，不要贬低用户，保持极简和克制。`;
     } else {
-        prompt += `【安慰模式】：用户正在安慰你。请根据你的人设，表现出被安慰后的反应（可能嘴硬，可能感动）。`;
+        prompt += `【安慰模式】：用户正在安慰你。请根据你的人设，表现出被安慰后的反应（可能嘴硬，可能感动）。不要OOC，不要油腻，不要贬低用户。`;
     }
     
     prompt += `\n【强制输出要求】：
@@ -17066,11 +17121,13 @@ function renderEiWall() {
         grid.innerHTML = `<div class="ei-empty-state">墙上空空如也。</div>`;
         return;
     }
-    grid.innerHTML = eiWallData.map((item, i) => `
-        <div class="ei-card" style="transform: rotate(${item.rot}deg); opacity: ${1 - i*0.05 > 0.5 ? 1 - i*0.05 : 0.5};">
+    grid.innerHTML = eiWallData.map((item, i) => {
+        const touchHandlers = `onmousedown="eiTouchStart(event, ${i}, this, 'wall')" onmouseup="eiTouchEnd()" onmouseleave="eiTouchEnd()" ontouchstart="eiTouchStart(event, ${i}, this, 'wall')" ontouchend="eiTouchEnd()" ontouchcancel="eiTouchEnd()"`;
+        return `
+        <div class="ei-card" style="transform: rotate(${item.rot}deg); opacity: ${1 - i*0.05 > 0.5 ? 1 - i*0.05 : 0.5}; cursor: pointer;" ${touchHandlers}>
             ${item.text}
         </div>
-    `).join('');
+    `}).join('');
 }
 
 function renderEiDrawer() {
@@ -17212,16 +17269,4 @@ function exitEmotionIsland() {
         saveEiMemory();
     }
     closeApp('emotionisland');
-}
-
-// 拦截 openApp 逻辑，确保打开情绪岛时渲染列表，并防止无限递归
-if (!window._eiOpenAppWrapped) {
-    const originalOpenAppForEi = window.openApp;
-    window.openApp = function(appId) {
-        originalOpenAppForEi(appId);
-        if (appId === 'emotionisland') {
-            eiNavTo('roles');
-        }
-    };
-    window._eiOpenAppWrapped = true;
 }
