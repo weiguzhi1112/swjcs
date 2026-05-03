@@ -1424,14 +1424,8 @@
             <div id="chat-messages"></div>
 
             <!-- 杂志风心声覆盖层 -->
-            <div id="char-status-overlay" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.4); z-index:100000; backdrop-filter:blur(25px); -webkit-backdrop-filter:blur(25px); flex-direction:column; opacity:0; transition: opacity 0.4s ease;">
-                <div style="display:flex; justify-content:space-between; padding:calc(env(safe-area-inset-top) + 20px) 20px 10px 20px; align-items:center; z-index:100001;">
-                    <div id="magazine-selection-bar" style="display:none; gap:10px;">
-                        <button onclick="selectAllMagazineStatus()" style="background:rgba(255,255,255,0.2); border:none; color:#fff; padding:6px 12px; border-radius:16px; font-size:10px; font-weight:bold; cursor:pointer;">全选</button>
-                        <button onclick="deleteSelectedMagazineStatus()" style="background:#ff4d4d; border:none; color:#fff; padding:6px 12px; border-radius:16px; font-size:10px; font-weight:bold; cursor:pointer;">删除</button>
-                        <button onclick="cancelMagazineSelection()" style="background:rgba(255,255,255,0.2); border:none; color:#fff; padding:6px 12px; border-radius:16px; font-size:10px; font-weight:bold; cursor:pointer;">取消</button>
-                    </div>
-                    <div style="flex:1;"></div>
+            <div id="char-status-overlay" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.4); z-index:100000; backdrop-filter:blur(25px); -webkit-backdrop-filter:blur(25px); flex-direction:column;">
+                <div style="display:flex; justify-content:flex-end; padding:calc(env(safe-area-inset-top) + 20px) 20px 10px 20px; align-items:center; z-index:100001;">
                     <button onclick="closeStatusPanel()" style="background:rgba(255,255,255,0.2); border:none; color:#fff; width:32px; height:32px; border-radius:50%; display:flex; align-items:center; justify-content:center; cursor:pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.2);">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
                     </button>
@@ -1687,26 +1681,49 @@
                 <label>TIMEZONE / 国家时差</label>
                 <select id="role-timezone" style="width: 100%; padding: 10px 12px; border: 1px solid var(--border-color); background: transparent; color: var(--text-color); font-family: var(--font-sans); font-size: 11px; outline: none; box-sizing: border-box;">
                     <option value="">-- 默认 (跟随系统) --</option>
-                    <option value="UTC+8 - 北京/新加坡">UTC+8 - 北京/新加坡</option>
-                    <option value="UTC+9 - 东京/首尔">UTC+9 - 东京/首尔</option>
-                    <option value="UTC+0 - 伦敦(格林威治)">UTC+0 - 伦敦(格林威治)</option>
-                    <option value="UTC-5 - 纽约/华盛顿">UTC-5 - 纽约/华盛顿</option>
-                    <option value="UTC-8 - 洛杉矶/旧金山">UTC-8 - 洛杉矶/旧金山</option>
-                    <option value="UTC+1 - 巴黎/柏林">UTC+1 - 巴黎/柏林</option>
-                    <option value="UTC+10 - 悉尼/墨尔本">UTC+10 - 悉尼/墨尔本</option>
+                    <option value="UTC-11 (帕果帕果)">UTC-11 (帕果帕果)</option>
+                    <option value="UTC-10 (檀香山)">UTC-10 (檀香山)</option>
+                    <option value="UTC-9 (安克雷奇)">UTC-9 (安克雷奇)</option>
+                    <option value="UTC-8 (洛杉矶/旧金山)">UTC-8 (洛杉矶/旧金山)</option>
+                    <option value="UTC-7 (丹佛/盐湖城)">UTC-7 (丹佛/盐湖城)</option>
+                    <option value="UTC-6 (芝加哥/墨西哥城)">UTC-6 (芝加哥/墨西哥城)</option>
+                    <option value="UTC-5 (纽约/华盛顿)">UTC-5 (纽约/华盛顿)</option>
+                    <option value="UTC-4 (圣地亚哥)">UTC-4 (圣地亚哥)</option>
+                    <option value="UTC-3 (布宜诺斯艾利斯)">UTC-3 (布宜诺斯艾利斯)</option>
+                    <option value="UTC-2 (费尔南多·迪诺罗尼亚)">UTC-2 (费尔南多·迪诺罗尼亚)</option>
+                    <option value="UTC-1 (亚速尔群岛)">UTC-1 (亚速尔群岛)</option>
+                    <option value="UTC+0 (伦敦/里斯本)">UTC+0 (伦敦/里斯本)</option>
+                    <option value="UTC+1 (巴黎/柏林/罗马)">UTC+1 (巴黎/柏林/罗马)</option>
+                    <option value="UTC+2 (雅典/开罗)">UTC+2 (雅典/开罗)</option>
+                    <option value="UTC+3 (莫斯科/伊斯坦布尔)">UTC+3 (莫斯科/伊斯坦布尔)</option>
+                    <option value="UTC+4 (迪拜/阿布扎比)">UTC+4 (迪拜/阿布扎比)</option>
+                    <option value="UTC+5 (卡拉奇/塔什干)">UTC+5 (卡拉奇/塔什干)</option>
+                    <option value="UTC+6 (达卡/阿拉木图)">UTC+6 (达卡/阿拉木图)</option>
+                    <option value="UTC+7 (曼谷/雅加达)">UTC+7 (曼谷/雅加达)</option>
+                    <option value="UTC+8 (北京/上海/香港)">UTC+8 (北京/上海/香港)</option>
+                    <option value="UTC+9 (东京/首尔)">UTC+9 (东京/首尔)</option>
+                    <option value="UTC+10 (悉尼/关岛)">UTC+10 (悉尼/关岛)</option>
+                    <option value="UTC+11 (所罗门群岛)">UTC+11 (所罗门群岛)</option>
+                    <option value="UTC+12 (奥克兰/惠灵顿)">UTC+12 (奥克兰/惠灵顿)</option>
                 </select>
             </div>
             <div style="flex: 1; min-width: 0;">
                 <label>CURRENCY / 常用货币</label>
                 <select id="role-currency" style="width: 100%; padding: 10px 12px; border: 1px solid var(--border-color); background: transparent; color: var(--text-color); font-family: var(--font-sans); font-size: 11px; outline: none; box-sizing: border-box;">
-                    <option value="">-- 默认 (无) --</option>
-                    <option value="CNY - 人民币">CNY - 人民币</option>
-                    <option value="USD - 美元">USD - 美元</option>
-                    <option value="JPY - 日元">JPY - 日元</option>
-                    <option value="EUR - 欧元">EUR - 欧元</option>
-                    <option value="GBP - 英镑">GBP - 英镑</option>
-                    <option value="KRW - 韩元">KRW - 韩元</option>
-                    <option value="HKD - 韩元">HKD - 港币</option>
+                    <option value="">-- 默认 (跟随系统) --</option>
+                    <option value="CNY-人民币">CNY-人民币</option>
+                    <option value="USD-美元">USD-美元</option>
+                    <option value="EUR-欧元">EUR-欧元</option>
+                    <option value="JPY-日元">JPY-日元</option>
+                    <option value="GBP-英镑">GBP-英镑</option>
+                    <option value="KRW-韩元">KRW-韩元</option>
+                    <option value="AUD-澳元">AUD-澳元</option>
+                    <option value="CAD-加元">CAD-加元</option>
+                    <option value="CHF-瑞郎">CHF-瑞郎</option>
+                    <option value="HKD-港币">HKD-港币</option>
+                    <option value="SGD-新加坡元">SGD-新加坡元</option>
+                    <option value="RUB-卢布">RUB-卢布</option>
+                    <option value="THB-泰铢">THB-泰铢</option>
                 </select>
             </div>
         </div>

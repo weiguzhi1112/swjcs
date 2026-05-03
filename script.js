@@ -2329,12 +2329,9 @@ function updateKeepAliveUI(isOn) {
         const fragment = document.createDocumentFragment();
         if (allMsgs.length > chatDisplayLimit) {
             const loadMoreBtn = document.createElement('div');
-            loadMoreBtn.style.cssText = 'text-align:center; padding:10px; color:var(--role-accent-color, var(--text-secondary)); font-size:10px; cursor:pointer; text-decoration:underline; font-weight:bold;';
+            /* 按钮颜色跟随聊天界面的发送按钮颜色或强调色 */
+            loadMoreBtn.style.cssText = 'text-align:center; padding:10px; color:var(--send-btn-color, var(--text-secondary)); font-size:10px; cursor:pointer; text-decoration:underline; font-weight:bold;';
             loadMoreBtn.innerText = '加载更多历史记录...';
-            loadMoreBtn.onclick = () => {
-                chatDisplayLimit += 50;
-                renderMessages();
-            };
             fragment.appendChild(loadMoreBtn);
         }
         rows.forEach((row, i) => {
@@ -4786,7 +4783,7 @@ ${wallContext}
 </context>
 
 <rules>
-1. 【去油腻与绝对禁词】绝对禁止使用：轻笑、挑眉、眼眸深邃、喉结滚动、丫头、女人、呵、嘴角勾起一抹邪魅的弧度。绝对禁止输出“揉”这个字，以及“骨血”、“揉进身体”、“命给”等类似夸张做作的词汇！说话必须口语化、自然。
+1. 【去油腻】绝对禁止使用：轻笑、挑眉、眼眸深邃、喉结滚动、丫头、女人、呵、嘴角勾起一抹邪魅的弧度。说话必须口语化、自然。
 2. 【互动反应】对转账、礼物、代付、一起听歌、动态分享等系统提示，必须给出符合人设的真实反应。
 3. 【情侣空间】收到绑定邀请且同意时，回复必须包含隐藏指令 [ACCEPT_OURSPACE:配对码]，并且你必须在回复的文字中，自己编造一个全新的 6 位数字发给用户，让用户去输入。
 4. 换头像回复 [CHANGE_AVATAR:图片URL]。保存图片回复 [SAVE_PHOTO:图片URL|相册名]。
@@ -5267,11 +5264,6 @@ ${modeRules}
                     rawTime: now.getTime() + idx,
                     mode: finalChatMode
                 });
-                
-                // 一句话弹一次通知，设置延迟错开
-                setTimeout(() => {
-                    showSystemNotification(targetRoleId, getDisplayName(role), line, role.avatar);
-                }, idx * 1200);
             });
             
             for (let i = chats[targetRoleId].length - 1; i >= 0; i--) {
@@ -5298,7 +5290,12 @@ ${modeRules}
             DB.set('chats', chats);
             if (currentChatRoleId === targetRoleId) renderMessages();
             
- showSystemNotification(targetRoleId, getDisplayName(role), finalLines.join(' '), role.avatar);
+            /* 一句话弹一次通知，设置延迟避免被节流拦截 */
+            finalLines.forEach((line, idx) => {
+                setTimeout(() => {
+                    showSystemNotification(targetRoleId, getDisplayName(role), line, role.avatar);
+                }, idx * 1200);
+            });
 
             const emotionWords = ['难过', '伤心', '累', '烦', '痛', '哭', '开心', '想你', '孤独', '寂寞'];
             if (emotionWords.some(w => fullReply.includes(w))) {
@@ -10465,7 +10462,7 @@ function checkAllAutoMsgRoles() {
 
         const apiMessages = [];
 
-        const systemPrompt = `[CORE DIRECTIVE - 活人感主动消息模式]\n你是${role.realName}。以下是你的完整人设，你必须100%遵守，绝对不能OOC：\n${role.persona}${maskPrompt}${wbPrompt}${mapContext}${wallContext}${memorySummary}${osContext}\n\n[当前情境与时间感知]\n- ${timeContext}，${weekday}，${now.getFullYear()}年${now.getMonth()+1}月${now.getDate()}日 ${String(hour).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')}\n- 距离用户上一条消息已经过去了 ${silenceDuration || '一段时间'}。${relationshipContext}${tzContext}${currencyContext}\n- 你们上次聊天的最后内容是：【${lastTopic}】\n\n[活人感终极要求]\n1. 【承上启下】结合上次聊天的内容和流逝的时间，自然地开启话题。比如上次聊到睡觉，现在是早晨，就可以说“昨晚睡得好吗”。绝对不要像机器人一样干巴巴地问“在吗”。\n2.【去油腻与绝对禁词】说话必须口语化、自然、接地气。绝对禁止使用霸总、娇妻等夸张做作的语调。绝对禁止输出“揉”这个字，以及“骨血”、“揉进身体”、“命给”等类似词汇！\n3. 【格式限制】严格输出 ${minB} 到 ${maxB} 句话！每句话独占一行。日常聊天绝对不要在句末加句号。\n4. 直接输出消息内容，不加引号，不加任何解释。`;
+        const systemPrompt = `[CORE DIRECTIVE - 活人感主动消息模式]\n你是${role.realName}。以下是你的完整人设，你必须100%遵守，绝对不能OOC：\n${role.persona}${maskPrompt}${wbPrompt}${mapContext}${wallContext}${memorySummary}${osContext}\n\n[当前情境与时间感知]\n- ${timeContext}，${weekday}，${now.getFullYear()}年${now.getMonth()+1}月${now.getDate()}日 ${String(hour).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')}\n- 距离用户上一条消息已经过去了 ${silenceDuration || '一段时间'}。${relationshipContext}${tzContext}${currencyContext}\n- 你们上次聊天的最后内容是：【${lastTopic}】\n\n[活人感终极要求]\n1. 【承上启下】结合上次聊天的内容和流逝的时间，自然地开启话题。比如上次聊到睡觉，现在是早晨，就可以说“昨晚睡得好吗”。绝对不要像机器人一样干巴巴地问“在吗”。\n2. 【去油腻】说话必须口语化、自然、接地气。绝对禁止使用霸总、娇妻等夸张做作的语调。\n3. 【格式限制】严格输出 ${minB} 到 ${maxB} 句话！每句话独占一行。日常聊天绝对不要在句末加句号。\n4. 直接输出消息内容，不加引号，不加任何解释。`;
 
         apiMessages.push({ role: 'system', content: systemPrompt });
         
@@ -10591,14 +10588,7 @@ function checkAllAutoMsgRoles() {
             
             DB.set('chats', chats);
             
-            // 自动发消息也一句话弹一次通知
-            const autoSentences = msgContent.split('\n').map(s => s.trim()).filter(s => s);
-            autoSentences.forEach((line, idx) => {
-                setTimeout(() => {
-                    showSystemNotification(roleId, getDisplayName(role), line, role.avatar);
-                }, idx * 1200);
-            });
-            
+            showSystemNotification(roleId, getDisplayName(role), msgContent, role.avatar);
             if (settings.notificationSound) { try { new Audio(settings.notificationSound).play(); } catch(e) {} }
             if (currentChatRoleId === roleId) renderMessages();
             renderRecent();
@@ -12709,8 +12699,6 @@ function updateStatusBarButton() {
 let magazineCurrentIndex = 0;
 let magazineStartX = 0;
 let magazineCurrentTranslate = 0;
-let isMagazineSelectionMode = false;
-let selectedMagazineIndices = new Set();
 
 function renderMagazineStatus() {
     const config = statusBarData[currentChatRoleId];
@@ -12730,20 +12718,16 @@ function renderMagazineStatus() {
     /* 优先显示角色备注，其次是网名，最后是默认名称 */
     const displayName = role.remark ? role.remark : ((d.netName && d.netName !== '未知') ? d.netName : getDisplayName(role));
     
-    const isSelected = selectedMagazineIndices.has(i);
-    const checkboxHtml = isMagazineSelectionMode ? `<div class="msg-checkbox ${isSelected ? 'checked' : ''}" style="display:block; position:absolute; top:15px; right:15px; z-index:10;"></div>` : '';
-
     return `
     <div style="min-width:100%; width:100%; height:100%; padding:0 20px; box-sizing:border-box; display:flex; flex-direction:column; justify-content:center;">
-        <div style="background:var(--bg-color); border:1px solid ${isSelected ? 'var(--text-color)' : 'var(--border-color)'}; padding:30px; display:flex; flex-direction:column; max-height:80vh; overflow-y:auto; box-shadow:0 20px 40px rgba(0,0,0,0.15); position:relative; transition: border 0.3s;"
-             onclick="handleMagazineClick(event, ${i})"
+        <div style="background:var(--bg-color); border:1px solid var(--border-color); padding:30px; display:flex; flex-direction:column; max-height:80vh; overflow-y:auto; box-shadow:0 20px 40px rgba(0,0,0,0.15);"
              onmousedown="handleMagazineTouchStart(event, ${i})" 
              onmouseup="handleMagazineTouchEnd()" 
              onmouseleave="handleMagazineTouchEnd()" 
              ontouchstart="handleMagazineTouchStart(event, ${i})" 
              ontouchend="handleMagazineTouchEnd()" 
              ontouchcancel="handleMagazineTouchEnd()">
-            ${checkboxHtml}
+            
             <div style="text-align:center; font-family:var(--font-sans); font-size:9px; letter-spacing:4px; color:var(--text-secondary); text-transform:uppercase; margin-bottom:25px;">Inner Voice</div>
             
             <div style="display:flex; gap:20px; margin-bottom:25px;">
@@ -12803,23 +12787,10 @@ function openStatusPanel() {
     if (!config || !config.enabled || config.history.length === 0) return;
     
     magazineCurrentIndex = 0;
-    isMagazineSelectionMode = false;
-    selectedMagazineIndices.clear();
-    $('#magazine-selection-bar').style.display = 'none';
     renderMagazineStatus();
     
     const overlay = $('#char-status-overlay');
     overlay.style.display = 'flex';
-    
-    // 优化动画：先设为透明和缩小，然后下一帧放大并显示
-    const container = $('#magazine-status-container');
-    container.style.transform = 'scale(0.95)';
-    container.style.transition = 'transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)';
-    
-    requestAnimationFrame(() => {
-        overlay.style.opacity = '1';
-        container.style.transform = 'scale(1)';
-    });
     
     // 绑定滑动事件
     const container = $('#magazine-status-container');
@@ -12845,82 +12816,35 @@ function openStatusPanel() {
 }
 
 function closeStatusPanel() {
-    const overlay = $('#char-status-overlay');
-    overlay.style.opacity = '0';
-    const container = $('#magazine-status-container');
-    container.style.transform = 'scale(0.95)';
-    setTimeout(() => {
-        overlay.style.display = 'none';
-    }, 400);
+    $('#char-status-overlay').style.display = 'none';
+}
+function closeStatusPanel() {
+    $('#char-status-overlay').style.display = 'none';
 }
 
-/* 心声卡片长按多选删除逻辑 */
+/* 新增：心声卡片长按删除逻辑 */
 let magazinePressTimer = null;
 window.handleMagazineTouchStart = function(e, index) {
-    if (isMagazineSelectionMode) return;
     magazinePressTimer = setTimeout(() => {
         if (navigator.vibrate) navigator.vibrate(50);
-        isMagazineSelectionMode = true;
-        selectedMagazineIndices.add(index);
-        $('#magazine-selection-bar').style.display = 'flex';
-        renderMagazineStatus();
+        if (confirm("确定要删除这条心声记录吗？")) {
+            const config = statusBarData[currentChatRoleId];
+            if (config && config.history) {
+                config.history.splice(index, 1);
+                DB.set('statusBarData', statusBarData);
+                if (config.history.length === 0) {
+                    closeStatusPanel();
+                } else {
+                    magazineCurrentIndex = Math.max(0, magazineCurrentIndex - 1);
+                    renderMagazineStatus();
+                }
+            }
+        }
     }, 600);
 };
 window.handleMagazineTouchEnd = function() {
     clearTimeout(magazinePressTimer);
 };
-
-window.handleMagazineClick = function(e, index) {
-    if (isMagazineSelectionMode) {
-        e.stopPropagation();
-        if (selectedMagazineIndices.has(index)) {
-            selectedMagazineIndices.delete(index);
-        } else {
-            selectedMagazineIndices.add(index);
-        }
-        renderMagazineStatus();
-    }
-};
-
-window.selectAllMagazineStatus = function() {
-    const config = statusBarData[currentChatRoleId];
-    if (!config || config.history.length === 0) return;
-    if (selectedMagazineIndices.size === config.history.length) {
-        selectedMagazineIndices.clear();
-    } else {
-        config.history.forEach((_, i) => selectedMagazineIndices.add(i));
-    }
-    renderMagazineStatus();
-};
-
-window.deleteSelectedMagazineStatus = function() {
-    if (selectedMagazineIndices.size === 0) return;
-    if (confirm(`确定删除选中的 ${selectedMagazineIndices.size} 条心声记录吗？`)) {
-        const config = statusBarData[currentChatRoleId];
-        const sortedIndices = Array.from(selectedMagazineIndices).sort((a, b) => b - a);
-        sortedIndices.forEach(idx => config.history.splice(idx, 1));
-        DB.set('statusBarData', statusBarData);
-        
-        isMagazineSelectionMode = false;
-        selectedMagazineIndices.clear();
-        $('#magazine-selection-bar').style.display = 'none';
-        
-        if (config.history.length === 0) {
-            closeStatusPanel();
-        } else {
-            magazineCurrentIndex = Math.max(0, Math.min(magazineCurrentIndex, config.history.length - 1));
-            renderMagazineStatus();
-        }
-    }
-};
-
-window.cancelMagazineSelection = function() {
-    isMagazineSelectionMode = false;
-    selectedMagazineIndices.clear();
-    $('#magazine-selection-bar').style.display = 'none';
-    renderMagazineStatus();
-};
-
 function selectAllStatus() {
     if (!currentChatRoleId) return;
     const config = statusBarData[currentChatRoleId];
@@ -16848,7 +16772,7 @@ async function confirmGenerateAiWallPosts() {
     let successCount = 0;
     for (let i = 0; i < count; i++) {
         const role = roles[Math.floor(Math.random() * roles.length)];
-        const promptText = `你是${role.realName}。${role.persona}\n你现在在一个匿名的“漂流墙”上留言。请写下一段符合你当前心境的留言（吐槽、思念、或者隐晦地提到用户）。\n要求：\n1. 极度口语化，像随手写的便签。\n2. 字数在50-150字之间，内容要丰富、有细节、有情感深度。\n3. 不要加引号，直接输出内容。`;
+        const promptText = `你是${role.realName}。${role.persona}\n你现在在一个匿名的“漂流墙”上留言。请写下一段符合你当前心境的留言（吐槽、思念、或者隐晦地提到用户）。\n要求：\n1. 极度口语化，像随手写的便签。\n2. 字数在 50-150 字之间，内容丰富一些，多一些细节和情感表达。\n3. 不要加引号，直接输出内容。`;
         
         try {
             const endpoint = getChatEndpoint(apiConfig.url);
@@ -17346,7 +17270,7 @@ async function generateAiWallPost() {
     if (Math.random() > 0.3) return;
     
     const role = roles[Math.floor(Math.random() * roles.length)];
-    const prompt = `你是${role.realName}。${role.persona}\n你现在在一个匿名的“漂流墙”上留言。请写下一段符合你当前心境的留言（吐槽、思念、或者隐晦地提到用户）。\n要求：\n1. 极度口语化，像随手写的便签。\n2. 字数在50-150字之间，内容要丰富、有细节、有情感深度。\n3. 不要加引号，直接输出内容。`;
+    const prompt = `你是${role.realName}。${role.persona}\n你现在在一个匿名的“漂流墙”上留言。请写下一段符合你当前心境的留言（吐槽、思念、或者隐晦地提到用户）。\n要求：\n1. 极度口语化，像随手写的便签。\n2. 字数在 50-150 字之间，内容丰富一些，多一些细节和情感表达。\n3. 不要加引号，直接输出内容。`;
     
     try {
         const endpoint = getChatEndpoint(apiConfig.url);
