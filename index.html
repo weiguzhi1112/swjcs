@@ -1424,8 +1424,14 @@
             <div id="chat-messages"></div>
 
             <!-- 杂志风心声覆盖层 -->
-            <div id="char-status-overlay" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.4); z-index:100000; backdrop-filter:blur(25px); -webkit-backdrop-filter:blur(25px); flex-direction:column;">
-                <div style="display:flex; justify-content:flex-end; padding:calc(env(safe-area-inset-top) + 20px) 20px 10px 20px; align-items:center; z-index:100001;">
+            <div id="char-status-overlay" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.4); z-index:100000; backdrop-filter:blur(25px); -webkit-backdrop-filter:blur(25px); flex-direction:column; opacity:0; transition: opacity 0.4s ease;">
+                <div style="display:flex; justify-content:space-between; padding:calc(env(safe-area-inset-top) + 20px) 20px 10px 20px; align-items:center; z-index:100001;">
+                    <div id="magazine-selection-bar" style="display:none; gap:10px;">
+                        <button onclick="selectAllMagazineStatus()" style="background:rgba(255,255,255,0.2); border:none; color:#fff; padding:6px 12px; border-radius:16px; font-size:10px; font-weight:bold; cursor:pointer;">全选</button>
+                        <button onclick="deleteSelectedMagazineStatus()" style="background:#ff4d4d; border:none; color:#fff; padding:6px 12px; border-radius:16px; font-size:10px; font-weight:bold; cursor:pointer;">删除</button>
+                        <button onclick="cancelMagazineSelection()" style="background:rgba(255,255,255,0.2); border:none; color:#fff; padding:6px 12px; border-radius:16px; font-size:10px; font-weight:bold; cursor:pointer;">取消</button>
+                    </div>
+                    <div style="flex:1;"></div>
                     <button onclick="closeStatusPanel()" style="background:rgba(255,255,255,0.2); border:none; color:#fff; width:32px; height:32px; border-radius:50%; display:flex; align-items:center; justify-content:center; cursor:pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.2);">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
                     </button>
@@ -1677,8 +1683,32 @@
         <div class="setting-group" style="border:none; padding:0;"><label>ALIAS / 备注</label><input type="text" id="role-remark" placeholder="OPTIONAL" style="width: 100%; padding: 10px 12px; border: 1px solid var(--border-color); background: transparent; color: var(--text-color); font-family: var(--font-sans); font-size: 11px; outline: none;"></div>
         <div class="setting-group" style="border:none; padding:0;"><label>RELATIONSHIP DATE / 定情时间</label><input type="text" id="role-relationship-date" placeholder="例如: 2026-05-20 13:14:00 (留空则未在一起)" style="width: 100%; padding: 10px 12px; border: 1px solid var(--border-color); background: transparent; color: var(--text-color); font-family: var(--font-sans); font-size: 11px; outline: none;"></div>
         <div class="setting-group" style="border:none; padding:0; display: flex; gap: 10px;">
-            <div style="flex: 1; min-width: 0;"><label>TIMEZONE / 国家时差</label><input type="text" id="role-timezone" placeholder="例如: UTC+8 或 纽约" style="width: 100%; padding: 10px 12px; border: 1px solid var(--border-color); background: transparent; color: var(--text-color); font-family: var(--font-sans); font-size: 11px; outline: none; box-sizing: border-box;"></div>
-            <div style="flex: 1; min-width: 0;"><label>CURRENCY / 常用货币</label><input type="text" id="role-currency" placeholder="例如: CNY 或 USD" style="width: 100%; padding: 10px 12px; border: 1px solid var(--border-color); background: transparent; color: var(--text-color); font-family: var(--font-sans); font-size: 11px; outline: none; box-sizing: border-box;"></div>
+            <div style="flex: 1; min-width: 0;">
+                <label>TIMEZONE / 国家时差</label>
+                <select id="role-timezone" style="width: 100%; padding: 10px 12px; border: 1px solid var(--border-color); background: transparent; color: var(--text-color); font-family: var(--font-sans); font-size: 11px; outline: none; box-sizing: border-box;">
+                    <option value="">-- 默认 (跟随系统) --</option>
+                    <option value="UTC+8 - 北京/新加坡">UTC+8 - 北京/新加坡</option>
+                    <option value="UTC+9 - 东京/首尔">UTC+9 - 东京/首尔</option>
+                    <option value="UTC+0 - 伦敦(格林威治)">UTC+0 - 伦敦(格林威治)</option>
+                    <option value="UTC-5 - 纽约/华盛顿">UTC-5 - 纽约/华盛顿</option>
+                    <option value="UTC-8 - 洛杉矶/旧金山">UTC-8 - 洛杉矶/旧金山</option>
+                    <option value="UTC+1 - 巴黎/柏林">UTC+1 - 巴黎/柏林</option>
+                    <option value="UTC+10 - 悉尼/墨尔本">UTC+10 - 悉尼/墨尔本</option>
+                </select>
+            </div>
+            <div style="flex: 1; min-width: 0;">
+                <label>CURRENCY / 常用货币</label>
+                <select id="role-currency" style="width: 100%; padding: 10px 12px; border: 1px solid var(--border-color); background: transparent; color: var(--text-color); font-family: var(--font-sans); font-size: 11px; outline: none; box-sizing: border-box;">
+                    <option value="">-- 默认 (无) --</option>
+                    <option value="CNY - 人民币">CNY - 人民币</option>
+                    <option value="USD - 美元">USD - 美元</option>
+                    <option value="JPY - 日元">JPY - 日元</option>
+                    <option value="EUR - 欧元">EUR - 欧元</option>
+                    <option value="GBP - 英镑">GBP - 英镑</option>
+                    <option value="KRW - 韩元">KRW - 韩元</option>
+                    <option value="HKD - 韩元">HKD - 港币</option>
+                </select>
+            </div>
         </div>
         <div class="setting-group" style="border:none; padding:0;"><label>TITLE COLOR / 装饰颜色</label><input type="color" id="role-title-color" value="#000000" style="width: 100%; height: 40px; padding: 0; border: 1px solid var(--border-color); background: transparent; outline: none; cursor: pointer;"></div>
         <div class="setting-group" style="border:none; padding:0;"><label>CORE DIRECTIVES / 人设</label><textarea id="role-persona" placeholder="..." style="width: 100%; height: 180px; resize: vertical; padding: 10px 12px; border: 1px solid var(--border-color); background: transparent; color: var(--text-color); font-family: var(--font-sans); font-size: 11px; outline: none;"></textarea></div>
