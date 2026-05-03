@@ -1725,7 +1725,6 @@ let lastNotifBody = '';
 function showSystemNotification(roleId, title, body, icon) {
     if (settings.notificationSound) {
         try {
-            // 【核心修复】：每次播放声音克隆一个新节点，防止多条消息同时到达时声音被吞
             const audio = new Audio(settings.notificationSound);
             audio.play().catch(e => console.log("Audio play failed:", e));
         } catch(e) {}
@@ -1733,32 +1732,36 @@ function showSystemNotification(roleId, title, body, icon) {
     const cleanBody = body.replace(/<[^>]*>/g, '').replace(/\[VIRTUAL_IMG:.*?\]/g, '[图片]').replace(/\[VOICE:.*?\]/g, '[语音]').replace(/\[MUSIC_CARD:.*?\]/g, '[一起听邀请]').replace(/\[FORUM_CARD:.*?\]/g, '[论坛帖子]');
     if (!cleanBody.trim()) return;
 
-    // 【核心修复】：移除 500ms 的拦截限制，允许极短时间内的多条不同消息连续弹出
     const now = Date.now();
     if (now - lastNotifTime < 100 && lastNotifBody === cleanBody) {
-        return; // 仅拦截 100ms 内完全重复的幽灵触发
+        return; 
     }
     lastNotifTime = now;
     lastNotifBody = cleanBody;
 
-    const isCurrentChat = (document.visibilityState === 'visible' && currentChatRoleId === roleId);
+    const isVisible = document.visibilityState === 'visible';
+    const isCurrentChat = (isVisible && currentChatRoleId === roleId);
 
     if (isCurrentChat && !settings.notifyInChat) {
         return; 
     }
 
+    // 核心修复：如果应用在前台（可见），强制使用应用内通知（In-App），因为很多浏览器/PWA在前台时会拦截或静默原生通知
+    if (isVisible) {
+        showInAppNotification(roleId, title, cleanBody, icon);
+        return;
+    }
+
     let systemNotifSent = false;
 
-    /* 修复毒瘤：移除 !isCurrentChat 限制，只要开启了通知权限，即使在聊天界面也强制发送系统通知 */
     if ("Notification" in window && Notification.permission === "granted") {
-        // 【核心修复】：使用极度随机的 tag，并强制 renotify 为 true，彻底打破操作系统的通知折叠/合并机制
         const uniqueTag = 'msg_' + Date.now() + '_' + Math.random().toString(36).substr(2, 10);
         const options = { 
             body: cleanBody, 
             icon: icon || DEFAULT_AVATAR, 
             badge: icon || DEFAULT_AVATAR, 
             tag: uniqueTag, 
-            renotify: true, // 强制重新提醒，不合并
+            renotify: true, 
             silent: false, 
             requireInteraction: false, 
             data: { roleId: roleId } 
@@ -1783,7 +1786,6 @@ function showSystemNotification(roleId, title, body, icon) {
         }
     }
 
-    // 如果系统通知发送成功，就不再弹局内通知，避免重复打扰
     if (!systemNotifSent) {
         showInAppNotification(roleId, title, cleanBody, icon);
     }
@@ -2881,10 +2883,14 @@ ${promptText}
     function clearCurrentChatFromMenu() {
         $('#attachment-popup').style.display = 'none';
         if (!currentChatRoleId) return;
-        if (confirm("确定要清空与该角色的所有聊天记录吗？此操作不可恢复！")) { 
+        if (confirm("确定要清空与该角色的所有聊天记录及心声卡片吗？此操作不可恢复！")) { 
             chats[currentChatRoleId] = []; 
             DB.set('chats', chats); 
-            alert("聊天记录已清空"); 
+            if (statusBarData[currentChatRoleId]) {
+                statusBarData[currentChatRoleId].history = [];
+                DB.set('statusBarData', statusBarData);
+            }
+            alert("聊天记录及心声已清空"); 
             renderMessages(); 
         }
     }
@@ -6464,7 +6470,7 @@ function updateRoleWbPreview() {
     function closeRoleView() { $('#view-role-edit').classList.remove('active'); }
     function exportCurrentChat() { const roleId = $('#role-realname').dataset.id; if (!roleId || !chats[roleId] || chats[roleId].length === 0) return alert("暂无聊天记录"); const role = roles.find(r => r.id === roleId); const data = JSON.stringify(chats[roleId], null, 2); const blob = new Blob([data], {type: 'application/json'}); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `chat_${role.realName}_${Date.now()}.json`; a.click(); URL.revokeObjectURL(a.href); }
     function importCurrentChat(event) { const file = event.target.files[0]; if(!file) return; const roleId = $('#role-realname').dataset.id; if(!roleId) return; const reader = new FileReader(); reader.onload = function(e) { try { const data = JSON.parse(e.target.result); if(Array.isArray(data)) { if(confirm('确定要导入聊天记录吗？这将会和现有的记录合并。')) { if(!chats[roleId]) chats[roleId] = []; chats[roleId] = chats[roleId].concat(data); chats[roleId].sort((a, b) => a.rawTime - b.rawTime); DB.set('chats', chats); alert('导入成功！'); if(currentChatRoleId === roleId) renderMessages(); } } else { alert('文件格式不正确，请导入导出的聊天记录JSON文件。'); } } catch(err) { alert('解析失败: ' + err.message); } }; reader.readAsText(file); event.target.value = ''; }
-    function clearCurrentChat() { const roleId = $('#role-realname').dataset.id; if (!roleId) return; if (confirm("确定要清空与该角色的所有聊天记录吗？此操作不可恢复！")) { chats[roleId] = []; DB.set('chats', chats); alert("聊天记录已清空"); if (currentChatRoleId === roleId) renderMessages(); } }
+    function clearCurrentChat() { const roleId = $('#role-realname').dataset.id; if (!roleId) return; if (confirm("确定要清空与该角色的所有聊天记录及心声卡片吗？此操作不可恢复！")) { chats[roleId] = []; DB.set('chats', chats); if (statusBarData[roleId]) { statusBarData[roleId].history = []; DB.set('statusBarData', statusBarData); } alert("聊天记录及心声已清空"); if (currentChatRoleId === roleId) renderMessages(); } }
     function editRole(id) { openRoleModal(id); }
     function saveRole() { 
         const id = $('#role-realname').dataset.id || Date.now().toString(); 
@@ -16703,17 +16709,20 @@ function eiNavTo(pageId) {
     if (pageId === 'island') renderEiIsland();
 }
 
-async function promptGenerateAiWallPosts() {
+function promptGenerateAiWallPosts() {
     if (!apiConfig.url || roles.length === 0) return alert("请先配置API并创建角色");
+    $('#wall-gen-count').value = 5;
+    $('#wall-gen-interval').value = 30;
+    openModal('modal-wall-generate');
+}
+
+async function confirmGenerateAiWallPosts() {
+    const count = parseInt($('#wall-gen-count').value);
+    const intervalMins = parseInt($('#wall-gen-interval').value) || 0;
     
-    const inputStr = prompt("请输入要生成的留言条数 和 自动刷新间隔(分钟)，用逗号分隔。\n例如输入「5,30」表示立即生成5条，且以后每30分钟自动生成1条。\n(仅输入数字则只生成不自动刷新)", "5,30");
-    if (!inputStr) return;
-    
-    const parts = inputStr.split(',');
-    const count = parseInt(parts[0]);
-    const intervalMins = parts.length > 1 ? parseInt(parts[1]) : 0;
-    
-    if (isNaN(count) || count <= 0) return;
+    if (isNaN(count) || count <= 0) return alert("请输入有效的生成条数");
+
+    closeModal('modal-wall-generate');
 
     const btn = document.querySelector('#ei-page-wall .action-btn');
     const origText = btn.innerText;
@@ -16760,6 +16769,12 @@ async function promptGenerateAiWallPosts() {
             generateAiWallPost(); 
         }, intervalMins * 60 * 1000);
         alert(`已开启自动刷新：每 ${intervalMins} 分钟将自动生成 1 条新留言。`);
+    } else {
+        if (window.wallRefreshTimer) {
+            clearInterval(window.wallRefreshTimer);
+            window.wallRefreshTimer = null;
+            alert(`已关闭自动刷新。`);
+        }
     }
 }
 
