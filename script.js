@@ -16583,7 +16583,7 @@ window.restoreAllMemories = function() {
 };
 /* ==================== 情绪岛 核心逻辑 ==================== */
 let eiCurrentRoleId = null;
-let eiChatMode = 'confide'; // 'confide' 或 'comfort'
+let eiChatMode = 'confide'; 
 let eiChatHistory = [];
 let eiWallData = DB.get('eiWallData', []);
 let eiDrawerData = DB.get('eiDrawerData', []);
@@ -16595,42 +16595,31 @@ function renderEmotionIsland() {
         list.innerHTML = '<div style="text-align:center; color:var(--text-secondary); padding:30px; font-size:10px;">请先在通讯录创建角色</div>';
         return;
     }
-    list.innerHTML = roles.map(r => `
-        <div class="list-item" onclick="openEiSpace('${r.id}')" style="padding: 15px; border: 1px solid var(--border-color); border-radius: 12px; background: var(--gray-light); cursor: pointer;">
-            <img class="avatar" src="${r.avatar || DEFAULT_AVATAR}" style="width: 48px; height: 48px; border-radius: 50%;">
-            <div class="item-info">
-                <div class="item-name" style="font-size: 16px;">${getDisplayName(r)}</div>
-                <div class="item-desc">${(r.persona || '').substring(0, 20)}...</div>
+    list.innerHTML = roles.map((r, index) => `
+        <div class="ei-char-card" onclick="openEiSpace('${r.id}')" style="animation-delay: ${index * 0.1}s">
+            <div>
+                <div class="ei-char-name">${getDisplayName(r)}</div>
+                <div class="ei-char-desc">${(r.persona || '').substring(0, 15)}...</div>
             </div>
-            <div class="item-actions"><span style="font-size:16px; color:var(--text-secondary);">›</span></div>
+            <div class="ei-char-tag">相遇</div>
         </div>
     `).join('');
 }
 
-function eiSwitchTab(tabId, el) {
-    document.querySelectorAll('#view-emotionisland .ei-page').forEach(p => p.style.display = 'none');
-    document.getElementById('ei-page-' + tabId).style.display = 'flex';
-    
-    if (el) {
-        document.querySelectorAll('#ei-bottom-nav .nav-item').forEach(n => n.classList.remove('active'));
-        el.classList.add('active');
-    }
-
-    if (tabId === 'roles') renderEmotionIsland();
-    if (tabId === 'wall') renderEiWall();
-    if (tabId === 'drawer') renderEiDrawer();
-}
-
 function eiNavTo(pageId) {
-    document.querySelectorAll('#view-emotionisland .ei-page').forEach(p => p.style.display = 'none');
-    document.getElementById('ei-page-' + pageId).style.display = 'flex';
+    document.querySelectorAll('#ei-app-container .ei-page').forEach(p => p.classList.remove('active'));
+    document.getElementById('ei-page-' + pageId).classList.add('active');
+    
+    if (pageId === 'roles') renderEmotionIsland();
+    if (pageId === 'wall') renderEiWall();
+    if (pageId === 'drawer') renderEiDrawer();
 }
 
 function openEiSpace(roleId) {
     eiCurrentRoleId = roleId;
     const role = roles.find(r => r.id === roleId);
-    document.getElementById('ei-space-avatar').src = role.avatar || DEFAULT_AVATAR;
-    document.getElementById('ei-space-name').innerText = getDisplayName(role);
+    document.getElementById('ei-space-title').innerText = `${getDisplayName(role)}的空间`;
+    document.querySelectorAll('.ei-current-name').forEach(el => el.innerText = getDisplayName(role));
     eiNavTo('space');
 }
 
@@ -16639,16 +16628,25 @@ function openEiChat(mode) {
     eiChatHistory = [];
     const role = roles.find(r => r.id === eiCurrentRoleId);
     
-    document.getElementById('ei-chat-title').innerText = mode === 'confide' ? `向 ${getDisplayName(role)} 倾诉` : `安慰 ${getDisplayName(role)}`;
-    document.getElementById('ei-chat-messages').innerHTML = '';
+    document.getElementById('ei-chat-header-title').innerText = mode === 'confide' ? `向 ${getDisplayName(role)} 倾诉` : `安慰 ${getDisplayName(role)}`;
+    document.getElementById('ei-chat-messages').innerHTML = `<div class="ei-msg char">你好，今天过得怎么样？</div>`;
+    
+    const statusEl = document.getElementById('ei-comfort-status');
+    if (mode === 'comfort') {
+        statusEl.innerText = `${getDisplayName(role)}今天好像有些低落。`;
+        statusEl.style.display = 'block';
+        document.getElementById('ei-chat-messages').innerHTML = `<div class="ei-msg char" style="border-left: 1px dashed var(--line);">（沉默）</div>`;
+    } else {
+        statusEl.style.display = 'none';
+    }
+
     document.getElementById('ei-throw-btn').style.display = mode === 'confide' ? 'block' : 'none';
+    document.getElementById('ei-chat-input').placeholder = mode === 'confide' ? '写下你想说的话...' : `安慰一下${getDisplayName(role)}吧...`;
     
     eiNavTo('chat');
 }
 
 function openEiLetter() {
-    const role = roles.find(r => r.id === eiCurrentRoleId);
-    document.getElementById('ei-letter-title').innerText = `写给 ${getDisplayName(role)} 的信`;
     document.getElementById('ei-letter-input').value = '';
     eiNavTo('letter');
 }
@@ -16668,9 +16666,18 @@ async function sendEiMessage() {
 
     const api = getSubApi('emotionisland');
     if (!api.url) {
-        container.innerHTML += `<div class="ei-msg ai">(请先配置 API)</div>`;
+        setTimeout(() => {
+            container.innerHTML += `<div class="ei-msg char">(请先配置 API)</div>`;
+            container.scrollTop = container.scrollHeight;
+        }, 500);
         return;
     }
+
+    const msgId = 'ei-msg-' + Date.now();
+    setTimeout(() => {
+        container.innerHTML += `<div class="ei-msg char" id="${msgId}">...</div>`;
+        container.scrollTop = container.scrollHeight;
+    }, 300);
 
     let prompt = `你是${role.realName}。${role.persona}\n用户在“情绪岛”空间对你说：“${text}”。\n`;
     if (eiChatMode === 'confide') {
@@ -16689,13 +16696,29 @@ async function sendEiMessage() {
         const data = await res.json();
         const reply = data.choices[0].message.content.trim();
         
-        container.innerHTML += `<div class="ei-msg ai">${reply}</div>`;
+        const replyEl = document.getElementById(msgId);
+        if (replyEl) {
+            replyEl.innerText = reply;
+            if (eiChatMode === 'comfort') {
+                replyEl.style.borderLeft = '1px dashed var(--accent)';
+                replyEl.style.transition = 'border-color 1s';
+            }
+        }
         eiChatHistory.push({ role: 'ai', content: reply });
         container.scrollTop = container.scrollHeight;
     } catch (e) {
-        container.innerHTML += `<div class="ei-msg ai" style="color: #ff4d4d;">回复失败: ${e.message}</div>`;
+        const replyEl = document.getElementById(msgId);
+        if (replyEl) replyEl.innerText = `回复失败: ${e.message}`;
     }
 }
+
+document.getElementById('ei-chat-input').addEventListener('keypress', function (e) {
+    if (e.key === 'Enter') sendEiMessage();
+});
+
+document.getElementById('ei-wall-input').addEventListener('keypress', function (e) {
+    if (e.key === 'Enter') eiSendWall();
+});
 
 function eiThrowAway() {
     const msgs = document.querySelectorAll('.ei-msg.user');
@@ -16719,11 +16742,11 @@ function eiSaveLetter() {
     });
     DB.set('eiDrawerData', eiDrawerData);
     alert('已放入「记忆抽屉」');
-    eiSwitchTab('drawer', document.querySelectorAll('#ei-bottom-nav .nav-item')[2]);
+    eiNavTo('drawer');
 }
 
 function eiTearLetter() {
-    const paper = document.getElementById('ei-letter-input');
+    const paper = document.getElementById('ei-letter-paper');
     paper.style.transition = 'all 1.2s ease';
     paper.style.filter = 'blur(10px)';
     paper.style.opacity = '0';
@@ -16733,7 +16756,7 @@ function eiTearLetter() {
         paper.style.filter = 'none';
         paper.style.opacity = '1';
         paper.style.transform = 'none';
-        paper.value = '';
+        document.getElementById('ei-letter-input').value = '';
         eiNavTo('space');
     }, 1200);
 }
@@ -16752,11 +16775,11 @@ function eiSendWall() {
 function renderEiWall() {
     const grid = document.getElementById('ei-wall-grid');
     if (eiWallData.length === 0) {
-        grid.innerHTML = `<div style="grid-column: 1/-1; text-align:center; color:var(--text-secondary); font-size:10px; margin-top:40px;">墙上空空如也。</div>`;
+        grid.innerHTML = `<div class="ei-empty-state">墙上空空如也。</div>`;
         return;
     }
     grid.innerHTML = eiWallData.map((item, i) => `
-        <div class="ei-wall-card" style="transform: rotate(${item.rot}deg); opacity: ${1 - i*0.05 > 0.5 ? 1 - i*0.05 : 0.5};">
+        <div class="ei-card" style="transform: rotate(${item.rot}deg); opacity: ${1 - i*0.05 > 0.5 ? 1 - i*0.05 : 0.5};">
             ${item.text}
         </div>
     `).join('');
@@ -16765,18 +16788,18 @@ function renderEiWall() {
 function renderEiDrawer() {
     const list = document.getElementById('ei-drawer-list');
     if (eiDrawerData.length === 0) {
-        list.innerHTML = `<div style="text-align:center; color:var(--text-secondary); font-size:10px; margin-top:40px;">抽屉里还没有东西。</div>`;
+        list.innerHTML = `<div class="ei-empty-state">抽屉里还没有东西。</div>`;
         return;
     }
     list.innerHTML = eiDrawerData.map((item, i) => `
-        <div class="ei-drawer-card">
-            <div style="display:flex; justify-content:space-between; font-size:10px; color:var(--text-secondary); margin-bottom:8px;">
-                <span>✉ 写给 ${item.roleName} 的信</span>
+        <div class="ei-card">
+            <div class="ei-card-meta">
+                <span>✉ 信件 - ${item.roleName}</span>
                 <span>${item.time}</span>
             </div>
-            <div style="font-size:12px; line-height:1.6; color:var(--text-color); white-space:pre-wrap;">${item.content}</div>
-            <div style="text-align:right; margin-top:10px;">
-                <button class="text-btn" style="padding:0; font-size:10px; color:#ff4d4d;" onclick="eiDeleteDrawer(${i})">删除</button>
+            <div style="margin-bottom: 10px;">${item.content}</div>
+            <div style="text-align: right;">
+                <button class="text-btn" style="padding:0; font-size:9px; color:#ff4d4d; display:inline-block;" onclick="eiDeleteDrawer(${i})">删除</button>
             </div>
         </div>
     `).join('');
@@ -16831,6 +16854,6 @@ const originalOpenAppForEi = window.openApp;
 window.openApp = function(appId) {
     originalOpenAppForEi(appId);
     if (appId === 'emotionisland') {
-        eiSwitchTab('roles', document.querySelectorAll('#ei-bottom-nav .nav-item')[0]);
+        eiNavTo('roles');
     }
 };

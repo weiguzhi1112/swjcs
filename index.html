@@ -596,103 +596,103 @@
 <!-- ================= 情绪密码 App 结束 ================= -->
 <!-- ================= 情绪岛 App 开始 ================= -->
 <div id="view-emotionisland" class="view-container">
-    <div class="view-header" style="border-bottom: 1px solid var(--border-color);">
-        <button class="text-btn" onclick="exitEmotionIsland()">RETURN<span>返回</span></button>
-        <h2 class="title-serif">Island.<span class="title-sub">情绪岛</span></h2>
-        <div style="display:flex; align-items:center; gap:10px;">
-            <button class="text-btn" onclick="openSubApiModal('emotionisland')">ENGINE<span>引擎</span></button>
+    <div class="view-header" style="border-bottom: 1px solid var(--line); background: var(--bg); padding-bottom: 15px;">
+        <button class="text-btn" onclick="exitEmotionIsland()" style="color: var(--text-main);">RETURN<span>返回</span></button>
+        <div style="display: flex; gap: 20px; font-size: 12px; color: var(--text-sub); font-family: var(--font-sans);">
+            <span onclick="eiNavTo('roles')" style="cursor: pointer; transition: color 0.3s;" onmouseover="this.style.color='var(--text-main)'" onmouseout="this.style.color='var(--text-sub)'">首页</span>
+            <span onclick="eiNavTo('wall')" style="cursor: pointer; transition: color 0.3s;" onmouseover="this.style.color='var(--text-main)'" onmouseout="this.style.color='var(--text-sub)'">漂流墙</span>
+            <span onclick="eiNavTo('drawer')" style="cursor: pointer; transition: color 0.3s;" onmouseover="this.style.color='var(--text-main)'" onmouseout="this.style.color='var(--text-sub)'">记忆抽屉</span>
         </div>
+        <button class="text-btn" onclick="openSubApiModal('emotionisland')" style="color: var(--text-main);">ENGINE<span>引擎</span></button>
     </div>
-    <div class="view-content has-bottom-nav" style="padding: 0; display: flex; flex-direction: column; position: relative; background: var(--bg-color);">
+    
+    <div class="view-content" id="ei-app-container" style="padding: 20px; display: flex; flex-direction: column; background: var(--bg); color: var(--text-main); font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; line-height: 1.8;">
         
-        <!-- 1. 角色列表页 -->
-        <div id="ei-page-roles" class="ei-page active" style="padding: 20px; overflow-y: auto; flex: 1;">
-            <div style="text-align: center; margin-bottom: 30px;">
-                <div style="font-family: var(--font-serif); font-size: 24px;">相遇</div>
-                <div style="font-size: 10px; color: var(--text-secondary); letter-spacing: 2px;">选择一个灵魂，进入TA的空间</div>
-            </div>
-            <div id="ei-role-list" style="display: flex; flex-direction: column; gap: 15px;"></div>
+        <!-- 1. 角色选择页 -->
+        <div id="ei-page-roles" class="ei-page active">
+            <div class="ei-char-list" id="ei-role-list"></div>
         </div>
 
         <!-- 2. 角色个人空间 -->
-        <div id="ei-page-space" class="ei-page" style="padding: 40px 20px; overflow-y: auto; flex: 1; display: none; flex-direction: column; align-items: center;">
-            <img id="ei-space-avatar" src="" style="width: 60px; height: 60px; border-radius: 50%; margin-bottom: 15px; border: 1px solid var(--border-color);">
-            <div id="ei-space-name" style="font-family: var(--font-serif); font-size: 24px; margin-bottom: 40px;">Name</div>
-            
-            <div style="display: flex; flex-direction: column; gap: 30px; width: 100%; max-width: 260px;">
-                <div class="ei-action-btn" onclick="openEiChat('confide')">向TA倾诉<span class="ei-action-sub">说出你的心事，TA会温柔倾听</span></div>
-                <div class="ei-action-btn" onclick="openEiChat('comfort')">安慰TA<span class="ei-action-sub">陪陪此刻的TA</span></div>
+        <div id="ei-page-space" class="ei-page">
+            <div class="ei-space-header">
+                <div class="ei-space-title" id="ei-space-title">TA的空间</div>
+                <div class="ei-calendar-wrap">
+                    <svg class="ei-calendar-svg" viewBox="0 0 150 30">
+                        <path d="M0 15 Q 25 5, 50 15 T 100 15 T 150 15"></path>
+                        <circle class="ei-calendar-dot" cx="125" cy="15" r="3"></circle>
+                    </svg>
+                </div>
             </div>
-            <div style="margin-top: 60px; font-size: 12px; color: var(--text-secondary); text-decoration: underline; cursor: pointer;" onclick="openEiLetter()">写封信给TA</div>
+            <div class="ei-space-actions">
+                <div class="ei-action-btn" onclick="openEiChat('confide')">向<span class="ei-current-name">TA</span>倾诉<span class="ei-action-sub">说出你的心事</span></div>
+                <div class="ei-action-btn" onclick="openEiChat('comfort')">安慰<span class="ei-current-name">TA</span><span class="ei-action-sub">陪陪此刻的TA</span></div>
+            </div>
+            <div class="ei-write-letter" onclick="openEiLetter()">写封信给<span class="ei-current-name">TA</span></div>
         </div>
 
         <!-- 3. 倾诉/安慰 聊天室 -->
-        <div id="ei-page-chat" class="ei-page" style="display: none; flex-direction: column; height: 100%;">
-            <div style="padding: 15px; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center;">
-                <div id="ei-chat-title" style="font-weight: bold; font-size: 14px;"></div>
-                <button class="text-btn" style="padding: 0;" onclick="eiNavTo('space')">BACK</button>
+        <div id="ei-page-chat" class="ei-page">
+            <div class="ei-char-switcher" onclick="eiNavTo('space')">
+                <span id="ei-chat-header-title">TA</span> 
+                <svg viewBox="0 0 24 24"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>
             </div>
-            <div id="ei-chat-messages" style="flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 15px;"></div>
-            <div style="padding: 15px; border-top: 1px solid var(--border-color); display: flex; flex-direction: column; gap: 10px;">
-                <div style="display: flex; gap: 10px; align-items: center;">
-                    <input type="text" id="ei-chat-input" placeholder="写下你想说的话..." style="flex: 1; padding: 10px 0; border: none; border-bottom: 1px solid var(--border-color); background: transparent; color: var(--text-color); outline: none; border-radius: 0;">
-                    <button class="text-btn" style="padding: 0; font-size: 12px;" onclick="sendEiMessage()">SEND</button>
-                </div>
-                <div id="ei-throw-btn" style="font-size: 10px; color: var(--text-secondary); text-align: right; cursor: pointer; display: none;" onclick="eiThrowAway()">帮我把这些丢掉</div>
+            <div id="ei-comfort-status" style="text-align:center; margin-bottom: 30px; color: var(--text-sub); font-size: 12px; display: none;">
+                TA今天好像有些低落。
             </div>
+            <div class="ei-chat-container" id="ei-chat-messages"></div>
+            <div class="ei-input-area">
+                <input type="text" class="ei-chat-input" id="ei-chat-input" placeholder="写下你想说的话...">
+                <button class="ei-send-btn" onclick="sendEiMessage()">
+                    <svg viewBox="0 0 24 24"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>
+                </button>
+            </div>
+            <div class="ei-throw-away" id="ei-throw-btn" onclick="eiThrowAway()">帮我把这些丢掉</div>
         </div>
 
         <!-- 4. 写信页 -->
-        <div id="ei-page-letter" class="ei-page" style="display: none; flex-direction: column; height: 100%; padding: 20px;">
-            <div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 20px; text-align: center;" id="ei-letter-title">写给 TA 的信</div>
-            <textarea id="ei-letter-input" placeholder="写下你想说的话..." style="flex: 1; width: 100%; border: 1px solid var(--border-color); background: transparent; color: var(--text-color); padding: 20px; font-size: 13px; line-height: 2; resize: none; outline: none; margin-bottom: 20px;"></textarea>
-            <div style="display: flex; justify-content: space-between; font-size: 10px; color: var(--text-secondary);">
-                <span style="cursor: pointer;" onclick="eiSaveLetter()">放入抽屉</span>
-                <span style="cursor: pointer;" onclick="eiTearLetter()">撕掉</span>
+        <div id="ei-page-letter" class="ei-page">
+            <div class="ei-char-switcher" onclick="eiNavTo('space')">
+                写给 <span class="ei-current-name">TA</span> 的信 
+                <svg viewBox="0 0 24 24"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>
+            </div>
+            <div class="ei-letter-paper" id="ei-letter-paper">
+                <textarea class="ei-letter-input" id="ei-letter-input" placeholder="写下你想说的话..."></textarea>
+            </div>
+            <div class="ei-letter-actions">
+                <span onclick="eiSaveLetter()">放入抽屉</span>
+                <span onclick="eiTearLetter()">撕掉</span>
             </div>
         </div>
 
         <!-- 5. 漂流墙 -->
-        <div id="ei-page-wall" class="ei-page" style="display: none; flex-direction: column; height: 100%; padding: 20px; overflow-y: auto;">
-            <div style="text-align: center; margin-bottom: 20px;">
-                <div style="font-family: var(--font-serif); font-size: 24px;">漂流墙</div>
-                <div style="font-size: 10px; color: var(--text-secondary); letter-spacing: 2px;">写完就放它走吧</div>
+        <div id="ei-page-wall" class="ei-page">
+            <div class="ei-space-header">
+                <div class="ei-space-title">漂流墙</div>
+                <div class="ei-action-sub">写完就放它走吧。</div>
             </div>
-            <div style="display: flex; gap: 10px; margin-bottom: 30px;">
-                <input type="text" id="ei-wall-input" placeholder="有什么想写给此刻的吗？" maxlength="128" style="flex: 1; padding: 10px 0; border: none; border-bottom: 1px solid var(--border-color); background: transparent; color: var(--text-color); outline: none; border-radius: 0;">
-                <button class="text-btn" style="padding: 0; font-size: 12px;" onclick="eiSendWall()">放走</button>
+            <div class="ei-input-area" style="margin-bottom: 40px;">
+                <input type="text" class="ei-chat-input" id="ei-wall-input" placeholder="有什么想写给此刻的吗？" maxlength="128">
+                <button class="ei-send-btn" onclick="eiSendWall()">
+                    <svg viewBox="0 0 24 24"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>
+                </button>
             </div>
-            <div id="ei-wall-grid" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px;"></div>
+            <div class="ei-grid-layout" id="ei-wall-grid"></div>
         </div>
 
         <!-- 6. 记忆抽屉 -->
-        <div id="ei-page-drawer" class="ei-page" style="display: none; flex-direction: column; height: 100%; padding: 20px; overflow-y: auto;">
-            <div style="text-align: center; margin-bottom: 30px;">
-                <div style="font-family: var(--font-serif); font-size: 24px;">记忆抽屉</div>
-                <div style="font-size: 10px; color: var(--text-secondary); letter-spacing: 2px;">留下的话</div>
+        <div id="ei-page-drawer" class="ei-page">
+            <div class="ei-space-header">
+                <div class="ei-space-title">记忆抽屉</div>
+                <div class="ei-action-sub">留下的话。</div>
             </div>
-            <div id="ei-drawer-list" style="display: flex; flex-direction: column; gap: 15px;"></div>
+            <div class="ei-grid-layout" id="ei-drawer-list"></div>
         </div>
 
     </div>
-    
-    <!-- 底部导航 -->
-    <div class="app-bottom-nav" id="ei-bottom-nav">
-        <div class="nav-item active" onclick="eiSwitchTab('roles', this)">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
-            <span>相遇</span>
-        </div>
-        <div class="nav-item" onclick="eiSwitchTab('wall', this)">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
-            <span>漂流墙</span>
-        </div>
-        <div class="nav-item" onclick="eiSwitchTab('drawer', this)">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="3" y1="9" x2="21" y2="9"></line><line x1="9" y1="21" x2="9" y2="9"></line></svg>
-            <span>抽屉</span>
-        </div>
-    </div>
 </div>
 <!-- ================= 情绪岛 App 结束 ================= -->
+
 <!-- ================= 物品前世今生 App 开始 ================= -->
 
 
