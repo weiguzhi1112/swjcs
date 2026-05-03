@@ -16588,13 +16588,14 @@ let eiChatHistory = [];
 let eiWallData = DB.get('eiWallData', []);
 let eiDrawerData = DB.get('eiDrawerData', []);
 let eiIslandData = DB.get('eiIslandData', []); 
-let eiBonds = DB.get('eiBonds', {}); // 羁绊计数
+let eiBonds = DB.get('eiBonds', {}); 
 
 let eiPressTimer = null;
 let eiTargetMsgIndex = -1;
 let eiStayTimer = null;
 let eiStayTextTimer = null;
 let eiStayStartTime = 0;
+let eiActionEnabled = false; // 动作描写开关
 
 // 切换暗黑模式
 function eiToggleTheme() {
@@ -16649,6 +16650,7 @@ function renderEmotionIsland() {
 }
 
 function eiNavTo(pageId) {
+    // 离开聊天界面时自动保存记忆
     if (document.getElementById('ei-page-chat').classList.contains('active') && pageId !== 'chat') {
         saveEiMemory();
     }
@@ -16690,6 +16692,19 @@ function openEiSpace(roleId) {
     eiNavTo('space');
 }
 
+function eiToggleActionDesc() {
+    eiActionEnabled = !eiActionEnabled;
+    const thumb = document.getElementById('ei-action-toggle-thumb');
+    const track = document.getElementById('ei-action-toggle-btn');
+    if (eiActionEnabled) {
+        thumb.style.left = '13px';
+        track.style.background = 'var(--accent)';
+    } else {
+        thumb.style.left = '1px';
+        track.style.background = 'var(--line)';
+    }
+}
+
 async function openEiChat(mode) {
     eiChatMode = mode;
     eiChatHistory = [];
@@ -16710,6 +16725,13 @@ async function openEiChat(mode) {
         statusEl.style.display = 'block';
     } else {
         statusEl.style.display = 'none';
+    }
+
+    // 动作描写开关初始化：如果角色在 wechat 是 offline 模式，默认开启
+    if (role.lastChatMode === 'offline' && !eiActionEnabled) {
+        eiToggleActionDesc();
+    } else if (role.lastChatMode !== 'offline' && eiActionEnabled) {
+        eiToggleActionDesc();
     }
 
     // 情绪回响
@@ -16811,8 +16833,8 @@ function eiTouchStart(e, index, el) {
         if (top + 120 > window.innerHeight) {
             top = rect.top - 125;
         }
-        if (left + 100 > window.innerWidth) {
-            left = window.innerWidth - 110;
+        if (left + 110 > window.innerWidth) {
+            left = window.innerWidth - 120;
         }
         
         menu.style.top = top + 'px';
@@ -16900,9 +16922,20 @@ async function sendEiMessage() {
 
     let prompt = `你是${role.realName}。${role.persona}\n用户在“情绪岛”空间对你说：“${text}”。\n`;
     if (eiChatMode === 'confide') {
-        prompt += `【倾诉模式】：用户正在向你倾诉。请给予温柔的倾听或回应。不要说教，不要比惨，保持极简和克制。直接输出回复。`;
+        prompt += `【倾诉模式】：用户正在向你倾诉。请给予温柔的倾听或回应。不要说教，不要比惨，保持极简和克制。`;
     } else {
-        prompt += `【安慰模式】：用户正在安慰你。请根据你的人设，表现出被安慰后的反应（可能嘴硬，可能感动）。直接输出回复。`;
+        prompt += `【安慰模式】：用户正在安慰你。请根据你的人设，表现出被安慰后的反应（可能嘴硬，可能感动）。`;
+    }
+    
+    prompt += `\n【强制输出要求】：
+1. 你的回复必须像短信一样，分成多条发送。
+2. 必须输出 5 句话以上！每句话必须有深度，不能特别简短敷衍。
+3. 每句话独占一行（按回车换行），系统会自动切分为多个气泡。`;
+
+    if (eiActionEnabled) {
+        prompt += `\n4. 允许在回复中包含动作描写，请用括号包裹动作。`;
+    } else {
+        prompt += `\n4. 绝对禁止输出任何动作描写！只能输出纯文字对话！`;
     }
 
     try {
@@ -16910,7 +16943,7 @@ async function sendEiMessage() {
         const res = await fetch(endpoint, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${api.key}` },
-            body: JSON.stringify({ model: api.model, messages: [{ role: 'user', content: prompt }], max_tokens: 300, temperature: 0.8 })
+            body: JSON.stringify({ model: api.model, messages: [{ role: 'user', content: prompt }], max_tokens: 600, temperature: 0.85 })
         });
         const data = await res.json();
         const reply = data.choices[0].message.content.trim();
@@ -16969,7 +17002,7 @@ function eiThrowAway() {
     if (msgs.length === 0) return;
     msgs.forEach(msg => {
         msg.classList.add('dissipate');
-        setTimeout(() => msg.remove(), 600);
+        setTimeout(() => msg.remove(), 800);
     });
     eiChatHistory = eiChatHistory.filter(m => m.role !== 'user');
 }
@@ -17120,7 +17153,7 @@ function openEiStay() {
         setTimeout(() => {
             textEl.innerText = texts[Math.floor(Math.random() * texts.length)];
             textEl.classList.remove('fade');
-        }, 600);
+        }, 800);
     }, 15000);
 
     eiStayTimer = setTimeout(() => {
@@ -17181,11 +17214,14 @@ function exitEmotionIsland() {
     closeApp('emotionisland');
 }
 
-// 拦截 openApp 逻辑，确保打开情绪岛时渲染列表
-const originalOpenAppForEi = window.openApp;
-window.openApp = function(appId) {
-    originalOpenAppForEi(appId);
-    if (appId === 'emotionisland') {
-        eiNavTo('roles');
-    }
-};
+// 拦截 openApp 逻辑，确保打开情绪岛时渲染列表，并防止无限递归
+if (!window._eiOpenAppWrapped) {
+    const originalOpenAppForEi = window.openApp;
+    window.openApp = function(appId) {
+        originalOpenAppForEi(appId);
+        if (appId === 'emotionisland') {
+            eiNavTo('roles');
+        }
+    };
+    window._eiOpenAppWrapped = true;
+}

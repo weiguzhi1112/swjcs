@@ -2184,13 +2184,13 @@ body.is-app .to-page { padding-bottom: calc(70px + env(safe-area-inset-bottom)) 
 
 .ei-theme-toggle { width: 16px; height: 16px; cursor: pointer; fill: none; stroke: var(--text-main); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; transition: stroke var(--transition); }
 
-#ei-app-container .ei-page { display: none; animation: eiFadeIn 0.6s ease-out forwards; flex: 1; }
+#ei-app-container .ei-page { display: none; animation: eiFadeIn 0.8s cubic-bezier(0.2, 0.8, 0.2, 1) forwards; flex: 1; }
 #ei-app-container .ei-page.active { display: flex; flex-direction: column; }
-@keyframes eiFadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes eiFadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
 
 .ei-char-list { display: flex; flex-direction: column; gap: 15px; margin: auto 0; }
-.ei-char-card { padding: 15px 20px; border: 1px solid var(--line); border-radius: 4px; cursor: pointer; transition: all 0.3s ease; display: flex; justify-content: space-between; align-items: center; background: transparent; }
-.ei-char-card:hover { transform: translateY(-3px); border-color: var(--accent); color: var(--accent); }
+.ei-char-card { padding: 15px 20px; border: 1px solid var(--line); border-radius: 4px; cursor: pointer; transition: all 0.4s cubic-bezier(0.2, 0.8, 0.2, 1); display: flex; justify-content: space-between; align-items: center; background: transparent; }
+.ei-char-card:hover { transform: translateY(-4px); border-color: var(--accent); color: var(--accent); box-shadow: 0 10px 20px rgba(0,0,0,0.02); }
 .ei-char-name { font-size: 16px; font-weight: 300; margin-bottom: 4px; font-family: var(--font-serif); display: flex; align-items: center; gap: 8px; }
 .ei-char-desc { font-size: 10px; color: var(--text-sub); font-family: var(--font-serif); }
 .ei-char-tag { font-size: 9px; padding: 2px 8px; border: 1px solid var(--line); border-radius: 12px; color: var(--text-sub); font-family: var(--font-serif); }
@@ -2199,11 +2199,12 @@ body.is-app .to-page { padding-bottom: calc(70px + env(safe-area-inset-bottom)) 
 .ei-space-header { text-align: center; margin-bottom: 30px; margin-top: 10px; }
 .ei-space-title { font-size: 24px; font-weight: 300; margin-bottom: 8px; font-family: var(--font-serif); }
 .ei-space-actions { display: flex; flex-direction: column; gap: 25px; align-items: center; margin: 20px 0; }
-.ei-action-btn { font-size: 18px; font-weight: 300; position: relative; padding-bottom: 4px; cursor: pointer; font-family: var(--font-serif); }
-.ei-action-btn::after { content: ''; position: absolute; bottom: 0; left: 50%; transform: translateX(-50%); width: 0; height: 1px; background: var(--text-main); transition: width 0.3s; }
+.ei-action-btn { font-size: 18px; font-weight: 300; position: relative; padding-bottom: 4px; cursor: pointer; font-family: var(--font-serif); transition: color 0.3s; }
+.ei-action-btn::after { content: ''; position: absolute; bottom: 0; left: 50%; transform: translateX(-50%); width: 0; height: 1px; background: var(--text-main); transition: width 0.4s cubic-bezier(0.2, 0.8, 0.2, 1); }
 .ei-action-btn:hover::after { width: 100%; }
 .ei-action-sub { font-size: 9px; color: var(--text-sub); display: block; margin-top: 4px; font-family: var(--font-serif); }
-.ei-write-letter { text-align: center; font-size: 11px; color: var(--text-sub); margin-top: 30px; text-decoration: underline; text-underline-offset: 4px; cursor: pointer; font-family: var(--font-serif); }
+.ei-write-letter { text-align: center; font-size: 11px; color: var(--text-sub); margin-top: 30px; text-decoration: underline; text-underline-offset: 4px; cursor: pointer; font-family: var(--font-serif); transition: color 0.3s; }
+.ei-write-letter:hover { color: var(--text-main); }
 .ei-stay-awhile { text-align: center; font-size: 9px; color: var(--text-sub); margin-top: 15px; cursor: pointer; font-family: var(--font-serif); opacity: 0.7; transition: opacity 0.3s; }
 .ei-stay-awhile:hover { opacity: 1; }
 
@@ -2213,71 +2214,78 @@ body.is-app .to-page { padding-bottom: calc(70px + env(safe-area-inset-bottom)) 
 
 .ei-chat-container { flex: 1; display: flex; flex-direction: column; overflow-y: auto; padding-bottom: 20px; gap: 12px; scrollbar-width: none; }
 .ei-chat-container::-webkit-scrollbar { display: none; }
-.ei-msg { max-width: 75%; padding: 10px 14px; border-radius: 4px; font-size: 12px; position: relative; transition: all 0.3s; line-height: 1.6; cursor: pointer; font-family: var(--font-serif); }
+.ei-msg { max-width: 75%; padding: 10px 14px; border-radius: 4px; font-size: 12px; position: relative; transition: all 0.3s; line-height: 1.6; cursor: pointer; font-family: var(--font-serif); animation: eiBubblePop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards; transform-origin: bottom left; }
+@keyframes eiBubblePop { 0% { opacity: 0; transform: scale(0.9) translateY(10px); } 100% { opacity: 1; transform: scale(1) translateY(0); } }
 .ei-msg:active { opacity: 0.7; }
-.ei-msg.user { align-self: flex-end; background: var(--bubble-bg); color: var(--text-main); }
+.ei-msg.user { align-self: flex-end; background: var(--bubble-bg); color: var(--text-main); transform-origin: bottom right; }
 .ei-msg.char { align-self: flex-start; background: none; padding-left: 12px; color: var(--text-main); }
 .ei-msg.char::before { content: ''; position: absolute; left: 0; top: 14px; width: 3px; height: 3px; border-radius: 50%; background: var(--accent); }
-.ei-msg.dissipate { filter: blur(4px); opacity: 0; transform: translateY(-20px) scale(1.05); pointer-events: none; }
+.ei-msg.dissipate { filter: blur(8px); opacity: 0; transform: translateY(-30px) scale(1.1); pointer-events: none; transition: all 0.8s ease; }
 
 .ei-input-area { margin-top: 10px; position: relative; flex-shrink: 0; }
 .ei-chat-input { width: 100%; padding: 10px 30px 10px 0; border: none; border-bottom: 1px solid var(--line); background: transparent; color: var(--text-main); font-size: 12px; outline: none; transition: border-color 0.3s; border-radius: 0; font-family: var(--font-serif); }
 .ei-chat-input:focus { border-bottom-color: var(--accent); }
-.ei-send-btn { position: absolute; right: 0; top: 50%; transform: translateY(-50%); color: var(--text-sub); width: 16px; height: 16px; transition: color 0.3s; background: none; border: none; cursor: pointer; padding: 0; }
+.ei-send-btn { position: absolute; right: 0; top: 50%; transform: translateY(-50%); color: var(--text-sub); width: 16px; height: 16px; transition: color 0.3s, transform 0.2s; background: none; border: none; cursor: pointer; padding: 0; }
 .ei-chat-input:focus + .ei-send-btn { color: var(--accent); }
-.ei-throw-away { font-size: 9px; color: var(--text-sub); text-align: right; margin-top: 8px; cursor: pointer; flex-shrink: 0; font-family: var(--font-serif); }
+.ei-send-btn:active { transform: translateY(-50%) scale(0.8); }
+.ei-throw-away { font-size: 9px; color: var(--text-sub); text-align: right; margin-top: 8px; cursor: pointer; flex-shrink: 0; font-family: var(--font-serif); transition: color 0.3s; }
 .ei-throw-away:hover { color: var(--text-main); }
 
 .ei-grid-layout { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-top: 15px; }
-.ei-card { padding: 12px; border: 1px solid var(--line); border-radius: 2px; font-size: 10px; position: relative; transition: all 0.3s; background: transparent; font-family: var(--font-serif); }
-.ei-card:hover { border-color: var(--accent); }
+.ei-card { padding: 12px; border: 1px solid var(--line); border-radius: 2px; font-size: 10px; position: relative; transition: all 0.4s cubic-bezier(0.2, 0.8, 0.2, 1); background: transparent; font-family: var(--font-serif); }
+.ei-card:hover { border-color: var(--accent); transform: translateY(-2px); box-shadow: 0 5px 15px rgba(0,0,0,0.03); }
 .ei-card-meta { font-size: 8px; color: var(--text-sub); margin-bottom: 6px; display: flex; justify-content: space-between; }
 .ei-empty-state { text-align: center; color: var(--text-sub); margin-top: 40px; font-size: 10px; grid-column: 1 / -1; font-family: var(--font-serif); }
 
-.ei-letter-paper { flex: 1; padding: 15px; border: 1px solid var(--line); background: transparent; margin-bottom: 10px; display: flex; }
+.ei-letter-paper { flex: 1; padding: 15px; border: 1px solid var(--line); background: transparent; margin-bottom: 10px; display: flex; transition: all 0.3s; }
+.ei-letter-paper:focus-within { border-color: var(--accent); box-shadow: 0 0 10px rgba(140, 168, 154, 0.1); }
 .ei-letter-input { width: 100%; height: 100%; line-height: 2; border: none; background: transparent; color: var(--text-main); font-size: 12px; outline: none; resize: none; font-family: var(--font-serif); }
 .ei-letter-actions { display: flex; justify-content: space-between; font-size: 9px; color: var(--text-sub); flex-shrink: 0; font-family: var(--font-serif); }
 .ei-letter-actions span { cursor: pointer; transition: color 0.3s; }
 .ei-letter-actions span:hover { color: var(--text-main); }
 
-.ei-char-switcher { display: inline-flex; align-items: center; gap: 4px; cursor: pointer; font-size: 11px; color: var(--text-sub); margin-bottom: 10px; flex-shrink: 0; font-family: var(--font-serif); }
+.ei-char-switcher { display: inline-flex; align-items: center; gap: 4px; cursor: pointer; font-size: 11px; color: var(--text-sub); margin-bottom: 10px; flex-shrink: 0; font-family: var(--font-serif); transition: color 0.3s; }
+.ei-char-switcher:hover { color: var(--text-main); }
 .ei-char-switcher svg { width: 8px; height: 8px; stroke: currentColor; }
 
 /* 贴合气泡的菜单 */
-.ei-context-menu { position: absolute; background: var(--glass-bg); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border: 1px solid var(--line); border-radius: 8px; padding: 4px 0; display: flex; flex-direction: column; box-shadow: 0 4px 15px rgba(0,0,0,0.1); transform: scale(0.9); opacity: 0; transition: all 0.2s ease; transform-origin: top left; z-index: 10000; min-width: 100px; }
+.ei-context-menu { position: absolute; background: var(--glass-bg); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border: 1px solid var(--line); border-radius: 8px; padding: 4px 0; display: flex; flex-direction: column; box-shadow: 0 10px 30px rgba(0,0,0,0.1); transform: scale(0.8); opacity: 0; transition: all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1); transform-origin: top left; z-index: 10000; min-width: 110px; }
 .ei-context-menu.active { transform: scale(1); opacity: 1; }
-.ei-ctx-btn { padding: 8px 12px; background: none; border: none; font-family: var(--font-serif); font-size: 10px; color: var(--text-main); cursor: pointer; text-align: left; transition: background 0.2s; }
+.ei-ctx-btn { padding: 10px 14px; background: none; border: none; font-family: var(--font-serif); font-size: 11px; color: var(--text-main); cursor: pointer; text-align: left; transition: background 0.2s; }
 .ei-ctx-btn:hover { background: var(--gray-light); }
 .ei-ctx-btn.danger { color: #ff4d4d; }
 
-/* 情绪天气动画 */
-.ei-weather-container { width: 40px; height: 40px; margin: 0 auto 10px auto; position: relative; display: flex; justify-content: center; align-items: center; transition: all 0.5s ease; }
-.ei-weather-ring { width: 20px; height: 20px; border: 1px solid var(--line); border-radius: 50%; position: absolute; transition: all 0.5s ease; }
-.ei-weather-sun { width: 2px; height: 2px; background: var(--accent); border-radius: 50%; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); box-shadow: 0 0 8px var(--accent); opacity: 0; transition: opacity 0.5s ease; }
-.ei-weather-cloud { width: 24px; height: 1px; background: var(--line); position: absolute; top: 60%; left: 50%; transform: translateX(-50%); opacity: 0; transition: opacity 0.5s ease; }
-.ei-weather-rain { position: absolute; top: 70%; left: 50%; transform: translateX(-50%); display: flex; gap: 3px; opacity: 0; transition: opacity 0.5s ease; }
-.ei-weather-rain span { width: 1px; height: 4px; background: var(--line); transform: rotate(15deg); }
-.ei-weather-fog { width: 30px; height: 30px; border: 1px solid var(--line); border-radius: 50%; position: absolute; opacity: 0; transition: opacity 0.5s ease; animation: eiFogPulse 2s infinite; }
-@keyframes eiFogPulse { 0% { transform: scale(0.8); opacity: 0.5; } 100% { transform: scale(1.2); opacity: 0; } }
+/* 情绪天气动画 (增强版) */
+.ei-weather-container { width: 50px; height: 50px; margin: 0 auto 15px auto; position: relative; display: flex; justify-content: center; align-items: center; transition: all 0.8s cubic-bezier(0.4, 0, 0.2, 1); }
+.ei-weather-ring { width: 24px; height: 24px; border: 1px solid var(--line); border-radius: 50%; position: absolute; transition: all 0.8s ease; }
+.ei-weather-sun { width: 4px; height: 4px; background: var(--accent); border-radius: 50%; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); box-shadow: 0 0 12px 2px var(--accent); opacity: 0; transition: opacity 0.8s ease; }
+.ei-weather-cloud { width: 30px; height: 1.5px; background: var(--line); position: absolute; top: 60%; left: 50%; transform: translateX(-50%); opacity: 0; transition: all 0.8s ease; }
+.ei-weather-rain { position: absolute; top: 75%; left: 50%; transform: translateX(-50%); display: flex; gap: 4px; opacity: 0; transition: opacity 0.8s ease; }
+.ei-weather-rain span { width: 1.5px; height: 6px; background: var(--line); transform: rotate(15deg); animation: eiRainDrop 1s infinite linear; }
+.ei-weather-rain span:nth-child(2) { animation-delay: 0.3s; }
+.ei-weather-rain span:nth-child(3) { animation-delay: 0.6s; }
+@keyframes eiRainDrop { 0% { transform: rotate(15deg) translateY(-2px); opacity: 0; } 50% { opacity: 1; } 100% { transform: rotate(15deg) translateY(6px); opacity: 0; } }
+.ei-weather-fog { width: 36px; height: 36px; border: 1px solid var(--line); border-radius: 50%; position: absolute; opacity: 0; transition: opacity 0.8s ease; animation: eiFogPulse 3s infinite ease-in-out; }
+@keyframes eiFogPulse { 0% { transform: scale(0.8); opacity: 0.8; } 100% { transform: scale(1.4); opacity: 0; } }
 
 /* 情绪天气状态类 */
-.ei-weather-container.sunny .ei-weather-sun { opacity: 1; }
-.ei-weather-container.cloudy .ei-weather-cloud { opacity: 1; }
+.ei-weather-container.sunny .ei-weather-sun { opacity: 1; transform: translate(-50%, -50%) scale(1.2); }
+.ei-weather-container.cloudy .ei-weather-cloud { opacity: 1; transform: translateX(-50%) translateY(-2px); }
 .ei-weather-container.rainy .ei-weather-rain { opacity: 1; }
 .ei-weather-container.foggy .ei-weather-fog { opacity: 1; }
-[data-theme="dark"] .ei-weather-container { filter: drop-shadow(0 0 5px var(--accent)); }
+[data-theme="dark"] .ei-weather-container { filter: drop-shadow(0 0 8px rgba(212, 163, 115, 0.3)); }
 
 /* 共处模式 */
-.ei-stay-text { font-size: 11px; color: var(--text-sub); font-family: var(--font-serif); font-style: italic; transition: opacity 0.6s ease; opacity: 1; text-align: center; }
+.ei-stay-text { font-size: 12px; color: var(--text-sub); font-family: var(--font-serif); font-style: italic; transition: opacity 0.8s ease; opacity: 1; text-align: center; letter-spacing: 1px; }
 .ei-stay-text.fade { opacity: 0; }
 
 /* 情绪回响 */
-.ei-echo-text { font-size: 9px; color: var(--text-sub); font-family: var(--font-serif); font-style: italic; text-align: center; margin-bottom: 15px; opacity: 0; transition: opacity 0.6s ease; cursor: pointer; }
-.ei-echo-text.visible { opacity: 0.7; }
-[data-theme="dark"] .ei-echo-text { color: var(--accent); opacity: 0.5; }
+.ei-echo-text { font-size: 10px; color: var(--text-sub); font-family: var(--font-serif); font-style: italic; text-align: center; margin-bottom: 15px; opacity: 0; transition: opacity 0.8s ease; cursor: pointer; }
+.ei-echo-text.visible { opacity: 0.8; }
+[data-theme="dark"] .ei-echo-text { color: var(--accent); opacity: 0.6; }
 
 /* 沉默的礼物 */
-.ei-gift-card { display: inline-flex; align-items: center; gap: 6px; padding: 4px 8px; border: 1px solid var(--line); border-radius: 4px; font-size: 9px; color: var(--text-sub); cursor: pointer; margin-top: 5px; font-family: var(--font-serif); }
-.ei-gift-card:hover { border-color: var(--accent); color: var(--accent); }
+.ei-gift-card { display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; border: 1px solid var(--line); border-radius: 4px; font-size: 10px; color: var(--text-sub); cursor: pointer; margin-top: 8px; font-family: var(--font-serif); transition: all 0.3s; }
+.ei-gift-card:hover { border-color: var(--accent); color: var(--accent); transform: translateY(-1px); }
 .ei-drawer-gift { background: var(--bg); border: 1px solid var(--line); }
 [data-theme="dark"] .ei-drawer-gift { background: #2A2D32; color: var(--accent); border-color: var(--accent); }
