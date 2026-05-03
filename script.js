@@ -2457,6 +2457,67 @@ function updateKeepAliveUI(isOn) {
         $('#attachment-popup').style.display = 'none'; renderMessages();
     }
     function toggleAttachmentPopup(e) { e.stopPropagation(); const menu = $('#attachment-popup'); menu.style.display = menu.style.display === 'none' || menu.style.display === '' ? 'flex' : 'none'; }
+    
+    window.openRedPacketModal = function() {
+        if (!currentChatRoleId) return alert("请先进入聊天界面");
+        $('#attachment-popup').style.display = 'none';
+        $('#red-packet-amount').value = '';
+        $('#red-packet-greeting').value = '恭喜发财，大吉大利';
+        openModal('modal-red-packet');
+    };
+
+    window.confirmSendRedPacket = function() {
+        const amount = parseFloat($('#red-packet-amount').value);
+        if (!amount || amount <= 0) return alert("请输入有效金额");
+        
+        if (!walletData['ME']) walletData['ME'] = { balance: 0, huabei: 0, bankCards: [], familyCards: [], bills: [] };
+        if (walletData['ME'].balance < amount) {
+            alert('钱包余额不足，请先去 Wallet 充值！');
+            return;
+        }
+        
+        const type = $('#red-packet-type').value;
+        const greeting = $('#red-packet-greeting').value.trim() || '恭喜发财，大吉大利';
+        
+        walletData['ME'].balance -= amount;
+        const nowStr = new Date().toLocaleString('zh-CN');
+        walletData['ME'].bills.unshift({ time: nowStr, location: '线上交易', merchant: `发红包`, amount: -amount, method: '钱包余额' });
+        DB.set('walletData', walletData);
+        
+        const payload = {
+            id: 'RP_' + Date.now(),
+            type: type,
+            amount: amount,
+            greeting: greeting,
+            status: '未领取'
+        };
+        
+        const msgContent = `[RED_PACKET:${encodeURIComponent(JSON.stringify(payload))}]`;
+        
+        if (!chats[currentChatRoleId]) chats[currentChatRoleId] = [];
+        const now = new Date();
+        chats[currentChatRoleId].push({ role: 'user', content: msgContent, time: now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }), rawTime: now.getTime(), status: 'SENT', mode: 'online' });
+        DB.set('chats', chats);
+        
+        closeModal('modal-red-packet');
+        renderMessages();
+        triggerAI();
+    };
+
+    window.openRedPacket = function(msgIndex) {
+        const msg = chats[currentChatRoleId][msgIndex];
+        if (!msg) return;
+        const raw = msg.content.slice(12, -1);
+        try {
+            const card = JSON.parse(decodeURIComponent(raw));
+            if (card.status === '已领取') {
+                alert('红包已被领取！');
+            } else {
+                alert('这是你发出的红包，等待对方领取。');
+            }
+        } catch(e) {}
+    };
+
     function triggerChatImageUpload() { const input = document.createElement('input'); input.type = 'file'; input.accept = 'image/*'; input.onchange = (e) => handleChatImageUpload(e.target); input.click(); $('#attachment-popup').style.display = 'none'; }
     function handleChatImageUpload(inputEl) {
         const file = inputEl.files[0];
@@ -4691,6 +4752,8 @@ function toInitApp(){
             const currencyContext = role.currency ? `\n- 你的常用货币：${role.currency}。` : '';
 
             const wallContext = (typeof eiWallData !== 'undefined' && eiWallData.length > 0) ? `\n[情绪岛漂流墙最新留言]\n${eiWallData.slice(0, 5).map(w => `${w.authorName}: ${w.text}`).join('\n')}\n(你可以根据这些留言质问用户，或者对其他人的留言发表看法)` : '';
+            const eiLetters = (typeof eiDrawerData !== 'undefined') ? eiDrawerData.filter(d => d.type === 'letter' && d.roleName === getDisplayName(role)).slice(0, 2).map(l => `用户写给你的信: ${l.content}`).join('\n') : '';
+            const eiLetterContext = eiLetters ? `\n[情绪岛记忆抽屉中的信件]\n${eiLetters}` : '';
 
             if (!window.musicCreds) window.musicCreds = DB.get('musicCreds', {});
             if (!window.musicCreds[targetRoleId]) {
@@ -4774,7 +4837,7 @@ ${activeMask.content}
 
 ${(globalWbs || localWbs) ? `<world_lore>\n【重要世界观与规则，必须严格遵守】\n${globalWbs}\n${localWbs}\n</world_lore>` : ''}
 ${memories[role.id] ? `<shared_memory>\n${memories[role.id]}\n</shared_memory>` : ''}
-${wallContext}
+${wallContext}${eiLetterContext}
 
 <context>
 - 当前设备真实时间: ${exactTimeStr} (请严格感知当前时间，精确到秒，体现活人感)
@@ -10425,6 +10488,8 @@ function checkAllAutoMsgRoles() {
         
         // 注入漂流墙上下文
         const wallContext = eiWallData.length > 0 ? `\n[情绪岛漂流墙最新留言]\n${eiWallData.slice(0, 5).map(w => `${w.authorName}: ${w.text}`).join('\n')}\n(你可以根据这些留言质问用户，或者对其他人的留言发表看法)` : '';
+        const eiLetters = (typeof eiDrawerData !== 'undefined') ? eiDrawerData.filter(d => d.type === 'letter' && d.roleName === getDisplayName(role)).slice(0, 2).map(l => `用户写给你的信: ${l.content}`).join('\n') : '';
+        const eiLetterContext = eiLetters ? `\n[情绪岛记忆抽屉中的信件]\n${eiLetters}` : '';
         
         let silenceDuration = '';
         let lastUserMsgTime = null;
@@ -10462,7 +10527,7 @@ function checkAllAutoMsgRoles() {
 
         const apiMessages = [];
 
-        const systemPrompt = `[CORE DIRECTIVE - 活人感主动消息模式]\n你是${role.realName}。以下是你的完整人设，你必须100%遵守，绝对不能OOC：\n${role.persona}${maskPrompt}${wbPrompt}${mapContext}${wallContext}${memorySummary}${osContext}\n\n[当前情境与时间感知]\n- ${timeContext}，${weekday}，${now.getFullYear()}年${now.getMonth()+1}月${now.getDate()}日 ${String(hour).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')}\n- 距离用户上一条消息已经过去了 ${silenceDuration || '一段时间'}。${relationshipContext}${tzContext}${currencyContext}\n- 你们上次聊天的最后内容是：【${lastTopic}】\n\n[活人感终极要求]\n1. 【承上启下】结合上次聊天的内容和流逝的时间，自然地开启话题。比如上次聊到睡觉，现在是早晨，就可以说“昨晚睡得好吗”。绝对不要像机器人一样干巴巴地问“在吗”。\n2. 【去油腻】说话必须口语化、自然、接地气。绝对禁止使用霸总、娇妻等夸张做作的语调。\n3. 【格式限制】严格输出 ${minB} 到 ${maxB} 句话！每句话独占一行。日常聊天绝对不要在句末加句号。\n4. 直接输出消息内容，不加引号，不加任何解释。`;
+        const systemPrompt = `[CORE DIRECTIVE - 活人感主动消息模式]\n你是${role.realName}。以下是你的完整人设，你必须100%遵守，绝对不能OOC：\n${role.persona}${maskPrompt}${wbPrompt}${mapContext}${wallContext}${eiLetterContext}${memorySummary}${osContext}\n\n[当前情境与时间感知]\n- ${timeContext}，${weekday}，${now.getFullYear()}年${now.getMonth()+1}月${now.getDate()}日 ${String(hour).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')}\n- 距离用户上一条消息已经过去了 ${silenceDuration || '一段时间'}。${relationshipContext}${tzContext}${currencyContext}\n- 你们上次聊天的最后内容是：【${lastTopic}】\n\n[活人感终极要求]\n1. 【承上启下】结合上次聊天的内容和流逝的时间，自然地开启话题。比如上次聊到睡觉，现在是早晨，就可以说“昨晚睡得好吗”。绝对不要像机器人一样干巴巴地问“在吗”。\n2. 【去油腻】说话必须口语化、自然、接地气。绝对禁止使用霸总、娇妻等夸张做作的语调。\n3. 【格式限制】严格输出 ${minB} 到 ${maxB} 句话！每句话独占一行。日常聊天绝对不要在句末加句号。\n4. 直接输出消息内容，不加引号，不加任何解释。`;
 
         apiMessages.push({ role: 'system', content: systemPrompt });
         
@@ -15818,10 +15883,7 @@ async function playGrimoireBGM(level, keywordContext) {
         const chatCss = $('#beauty-chat-css').value;
         const bubbleCss = $('#beauty-bubble-css').value;
 
-        let appTextStyle = document.getElementById('app-text-style');
-        if (appTextStyle) {
-            appTextStyle.innerHTML = ''; 
-        }
+        /* 修复：移除清空 app-text-style 的逻辑，防止覆盖桌面和Dock栏的独立颜色设置 */
 
         let chatStyleEl = document.getElementById('dynamic-chat-style');
         if (!chatStyleEl) {
