@@ -16583,7 +16583,10 @@ window.restoreAllMemories = function() {
 };
 /* ==================== 情绪岛 核心逻辑 ==================== */
 let eiCurrentRoleId = null;
+let eiChatMode = 'confide'; // 'confide' 或 'comfort'
 let eiChatHistory = [];
+let eiWallData = DB.get('eiWallData', []);
+let eiDrawerData = DB.get('eiDrawerData', []);
 
 function renderEmotionIsland() {
     const list = document.getElementById('ei-role-list');
@@ -16593,41 +16596,61 @@ function renderEmotionIsland() {
         return;
     }
     list.innerHTML = roles.map(r => `
-        <div class="list-item" onclick="openEiChat('${r.id}')" style="padding: 15px; border: 1px solid var(--border-color); border-radius: 12px; margin-bottom: 10px; background: var(--gray-light);">
+        <div class="list-item" onclick="openEiSpace('${r.id}')" style="padding: 15px; border: 1px solid var(--border-color); border-radius: 12px; background: var(--gray-light); cursor: pointer;">
             <img class="avatar" src="${r.avatar || DEFAULT_AVATAR}" style="width: 48px; height: 48px; border-radius: 50%;">
             <div class="item-info">
                 <div class="item-name" style="font-size: 16px;">${getDisplayName(r)}</div>
-                <div class="item-desc">进入TA的倾诉/安慰空间</div>
+                <div class="item-desc">${(r.persona || '').substring(0, 20)}...</div>
             </div>
             <div class="item-actions"><span style="font-size:16px; color:var(--text-secondary);">›</span></div>
         </div>
     `).join('');
 }
 
-function openEiChat(roleId) {
+function eiSwitchTab(tabId, el) {
+    document.querySelectorAll('#view-emotionisland .ei-page').forEach(p => p.style.display = 'none');
+    document.getElementById('ei-page-' + tabId).style.display = 'flex';
+    
+    if (el) {
+        document.querySelectorAll('#ei-bottom-nav .nav-item').forEach(n => n.classList.remove('active'));
+        el.classList.add('active');
+    }
+
+    if (tabId === 'roles') renderEmotionIsland();
+    if (tabId === 'wall') renderEiWall();
+    if (tabId === 'drawer') renderEiDrawer();
+}
+
+function eiNavTo(pageId) {
+    document.querySelectorAll('#view-emotionisland .ei-page').forEach(p => p.style.display = 'none');
+    document.getElementById('ei-page-' + pageId).style.display = 'flex';
+}
+
+function openEiSpace(roleId) {
     eiCurrentRoleId = roleId;
-    eiChatHistory = [];
     const role = roles.find(r => r.id === roleId);
-    document.getElementById('ei-role-list').style.display = 'none';
-    document.getElementById('ei-chat-space').style.display = 'flex';
-    document.getElementById('ei-chat-title').innerText = `与 ${getDisplayName(role)} 的情绪空间`;
-    document.getElementById('ei-chat-messages').innerHTML = '<div style="text-align:center; color:var(--text-secondary); font-size:10px; margin-top:20px;">在这里，你可以倾诉，也可以安慰TA。</div>';
+    document.getElementById('ei-space-avatar').src = role.avatar || DEFAULT_AVATAR;
+    document.getElementById('ei-space-name').innerText = getDisplayName(role);
+    eiNavTo('space');
 }
 
-function closeEiChat() {
-    if (eiChatHistory.length > 0) {
-        saveEiMemory();
-    }
-    document.getElementById('ei-chat-space').style.display = 'none';
-    document.getElementById('ei-role-list').style.display = 'block';
-    eiCurrentRoleId = null;
+function openEiChat(mode) {
+    eiChatMode = mode;
+    eiChatHistory = [];
+    const role = roles.find(r => r.id === eiCurrentRoleId);
+    
+    document.getElementById('ei-chat-title').innerText = mode === 'confide' ? `向 ${getDisplayName(role)} 倾诉` : `安慰 ${getDisplayName(role)}`;
+    document.getElementById('ei-chat-messages').innerHTML = '';
+    document.getElementById('ei-throw-btn').style.display = mode === 'confide' ? 'block' : 'none';
+    
+    eiNavTo('chat');
 }
 
-function exitEmotionIsland() {
-    if (eiCurrentRoleId && eiChatHistory.length > 0) {
-        saveEiMemory();
-    }
-    closeApp('emotionisland');
+function openEiLetter() {
+    const role = roles.find(r => r.id === eiCurrentRoleId);
+    document.getElementById('ei-letter-title').innerText = `写给 ${getDisplayName(role)} 的信`;
+    document.getElementById('ei-letter-input').value = '';
+    eiNavTo('letter');
 }
 
 async function sendEiMessage() {
@@ -16638,19 +16661,23 @@ async function sendEiMessage() {
     const role = roles.find(r => r.id === eiCurrentRoleId);
     const container = document.getElementById('ei-chat-messages');
     
-    // 渲染用户消息
-    container.innerHTML += `<div style="align-self: flex-end; background: var(--text-color); color: var(--bg-color); padding: 10px 15px; border-radius: 16px 16px 0 16px; max-width: 80%; font-size: 13px;">${text}</div>`;
+    container.innerHTML += `<div class="ei-msg user">${text}</div>`;
     eiChatHistory.push({ role: 'user', content: text });
     input.value = '';
     container.scrollTop = container.scrollHeight;
 
     const api = getSubApi('emotionisland');
     if (!api.url) {
-        container.innerHTML += `<div style="align-self: flex-start; background: var(--gray-light); color: var(--text-color); padding: 10px 15px; border-radius: 16px 16px 16px 0; max-width: 80%; font-size: 13px;">(请先配置 API)</div>`;
+        container.innerHTML += `<div class="ei-msg ai">(请先配置 API)</div>`;
         return;
     }
 
-    const prompt = `你是${role.realName}。${role.persona}\n用户在“情绪岛”空间对你说：“${text}”。\n请根据你的人设，给予温柔的倾听或回应。不要说教，不要比惨，保持极简和克制。直接输出回复。`;
+    let prompt = `你是${role.realName}。${role.persona}\n用户在“情绪岛”空间对你说：“${text}”。\n`;
+    if (eiChatMode === 'confide') {
+        prompt += `【倾诉模式】：用户正在向你倾诉。请给予温柔的倾听或回应。不要说教，不要比惨，保持极简和克制。直接输出回复。`;
+    } else {
+        prompt += `【安慰模式】：用户正在安慰你。请根据你的人设，表现出被安慰后的反应（可能嘴硬，可能感动）。直接输出回复。`;
+    }
 
     try {
         const endpoint = getChatEndpoint(api.url);
@@ -16662,11 +16689,104 @@ async function sendEiMessage() {
         const data = await res.json();
         const reply = data.choices[0].message.content.trim();
         
-        container.innerHTML += `<div style="align-self: flex-start; background: var(--gray-light); color: var(--text-color); padding: 10px 15px; border-radius: 16px 16px 16px 0; max-width: 80%; font-size: 13px;">${reply}</div>`;
+        container.innerHTML += `<div class="ei-msg ai">${reply}</div>`;
         eiChatHistory.push({ role: 'ai', content: reply });
         container.scrollTop = container.scrollHeight;
     } catch (e) {
-        container.innerHTML += `<div style="align-self: flex-start; color: #ff4d4d; font-size: 10px;">回复失败: ${e.message}</div>`;
+        container.innerHTML += `<div class="ei-msg ai" style="color: #ff4d4d;">回复失败: ${e.message}</div>`;
+    }
+}
+
+function eiThrowAway() {
+    const msgs = document.querySelectorAll('.ei-msg.user');
+    if (msgs.length === 0) return;
+    msgs.forEach(msg => {
+        msg.classList.add('dissipate');
+        setTimeout(() => msg.remove(), 600);
+    });
+    eiChatHistory = eiChatHistory.filter(m => m.role !== 'user');
+}
+
+function eiSaveLetter() {
+    const text = document.getElementById('ei-letter-input').value.trim();
+    if (!text) return;
+    const role = roles.find(r => r.id === eiCurrentRoleId);
+    eiDrawerData.unshift({
+        type: 'letter',
+        roleName: getDisplayName(role),
+        content: text,
+        time: new Date().toLocaleDateString()
+    });
+    DB.set('eiDrawerData', eiDrawerData);
+    alert('已放入「记忆抽屉」');
+    eiSwitchTab('drawer', document.querySelectorAll('#ei-bottom-nav .nav-item')[2]);
+}
+
+function eiTearLetter() {
+    const paper = document.getElementById('ei-letter-input');
+    paper.style.transition = 'all 1.2s ease';
+    paper.style.filter = 'blur(10px)';
+    paper.style.opacity = '0';
+    paper.style.transform = 'scale(0.9) translateY(20px)';
+    setTimeout(() => {
+        paper.style.transition = 'none';
+        paper.style.filter = 'none';
+        paper.style.opacity = '1';
+        paper.style.transform = 'none';
+        paper.value = '';
+        eiNavTo('space');
+    }, 1200);
+}
+
+function eiSendWall() {
+    const input = document.getElementById('ei-wall-input');
+    const text = input.value.trim();
+    if (text) {
+        eiWallData.unshift({ text: text, rot: (Math.random() * 6 - 3).toFixed(1) });
+        DB.set('eiWallData', eiWallData);
+        input.value = '';
+        renderEiWall();
+    }
+}
+
+function renderEiWall() {
+    const grid = document.getElementById('ei-wall-grid');
+    if (eiWallData.length === 0) {
+        grid.innerHTML = `<div style="grid-column: 1/-1; text-align:center; color:var(--text-secondary); font-size:10px; margin-top:40px;">墙上空空如也。</div>`;
+        return;
+    }
+    grid.innerHTML = eiWallData.map((item, i) => `
+        <div class="ei-wall-card" style="transform: rotate(${item.rot}deg); opacity: ${1 - i*0.05 > 0.5 ? 1 - i*0.05 : 0.5};">
+            ${item.text}
+        </div>
+    `).join('');
+}
+
+function renderEiDrawer() {
+    const list = document.getElementById('ei-drawer-list');
+    if (eiDrawerData.length === 0) {
+        list.innerHTML = `<div style="text-align:center; color:var(--text-secondary); font-size:10px; margin-top:40px;">抽屉里还没有东西。</div>`;
+        return;
+    }
+    list.innerHTML = eiDrawerData.map((item, i) => `
+        <div class="ei-drawer-card">
+            <div style="display:flex; justify-content:space-between; font-size:10px; color:var(--text-secondary); margin-bottom:8px;">
+                <span>✉ 写给 ${item.roleName} 的信</span>
+                <span>${item.time}</span>
+            </div>
+            <div style="font-size:12px; line-height:1.6; color:var(--text-color); white-space:pre-wrap;">${item.content}</div>
+            <div style="text-align:right; margin-top:10px;">
+                <button class="text-btn" style="padding:0; font-size:10px; color:#ff4d4d;" onclick="eiDeleteDrawer(${i})">删除</button>
+            </div>
+        </div>
+    `).join('');
+}
+
+function eiDeleteDrawer(index) {
+    if (confirm('确定要删除这封信吗？')) {
+        eiDrawerData.splice(index, 1);
+        DB.set('eiDrawerData', eiDrawerData);
+        renderEiDrawer();
     }
 }
 
@@ -16675,10 +16795,7 @@ async function saveEiMemory() {
     if (!role || eiChatHistory.length === 0) return;
     
     const api = getSubApi('emotionisland');
-    if (!api.url) {
-        alert("未配置API，无法保存情绪岛记忆。");
-        return;
-    }
+    if (!api.url) return;
 
     const chatText = eiChatHistory.map(m => `${m.role === 'user' ? '我' : role.realName}: ${m.content}`).join('\n');
     const prompt = `你是${role.realName}。你刚刚和用户在“情绪岛”进行了一次深度的倾诉与安慰。\n对话记录：\n${chatText}\n请以你的第一人称视角，用一句话总结这次情绪交流的感受（不超过50字）。`;
@@ -16698,8 +16815,15 @@ async function saveEiMemory() {
         DB.set('advancedMemories', advancedMemories);
         alert(`已成功将本次情绪岛交流保存至 ${role.realName} 的情景记忆中！`);
     } catch (e) {
-        alert("保存情绪岛记忆失败: " + e.message);
+        console.error("保存情绪岛记忆失败", e);
     }
+}
+
+function exitEmotionIsland() {
+    if (eiCurrentRoleId && eiChatHistory.length > 0) {
+        saveEiMemory();
+    }
+    closeApp('emotionisland');
 }
 
 // 拦截 openApp 逻辑，确保打开情绪岛时渲染列表
@@ -16707,8 +16831,6 @@ const originalOpenAppForEi = window.openApp;
 window.openApp = function(appId) {
     originalOpenAppForEi(appId);
     if (appId === 'emotionisland') {
-        document.getElementById('ei-chat-space').style.display = 'none';
-        document.getElementById('ei-role-list').style.display = 'block';
-        renderEmotionIsland();
+        eiSwitchTab('roles', document.querySelectorAll('#ei-bottom-nav .nav-item')[0]);
     }
 };
