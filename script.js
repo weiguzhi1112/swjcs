@@ -7314,7 +7314,8 @@ window.newRoleTempWbs = null;
     }
 }
 
-       const DESKTOP_APPS = { ourspace: { name: 'OURSPACE', sub: '心动日常', defaultIconUrl: 'https://img.heliar.top/file/1774013511285_1774013431400.png' }, wallet: { name: 'WALLET', sub: '钱包', defaultIconUrl: 'https://img.heliar.top/file/1775254950249_1775254906961.png' }, messages: { name: 'WECHAT', sub: '信息', defaultIconUrl: 'https://image.uglycat.cc/06gh2h.png' }, contacts: { name: 'DIRECTORY', sub: '通讯录', defaultIconUrl: 'https://img.heliar.top/file/1775255175970_1775255073802.png' }, feed: { name: 'FEED', sub: '动态', defaultIconUrl: 'https://img.heliar.top/file/1775255165794_1775255083124.png' }, music: { name: 'MUSIC', sub: '音乐', defaultIconUrl: 'https://img.heliar.top/file/1775254958459_1775254915365.png' }, masks: { name: 'PERSONAS', sub: '面具', defaultIconUrl: 'https://img.heliar.top/file/1775255165280_1775255099496.png' }, worldbook: { name: 'LORE', sub: '世界书', defaultIconUrl: 'https://img.heliar.top/file/1775255160509_1775255104547.png' }, album: { name: 'GALLERY', sub: '相册', defaultIconUrl: 'https://img.heliar.top/file/1775255167459_1775255109998.png' }, stickers: { name: 'STICKERS', sub: '表情包', defaultIconUrl: 'https://img.heliar.top/file/1775255317084_1775255272600.png' }, weather: { name: 'CLIMATE', sub: '天气', defaultIconUrl: 'https://img.heliar.top/file/1775255315347_1775255278680.png' }, memory: { name: 'MEMORY', sub: '记忆', defaultIconUrl: 'https://img.heliar.top/file/1775255305211_1775255288213.png' }, profile: { name: 'SYSTEM', sub: '设置', defaultIconUrl: 'https://img.heliar.top/file/1775255312935_1775255292122.png' }, appearance: { name: 'VISUALS', sub: '外观', defaultIconUrl: 'https://img.heliar.top/file/1775255539359_1775255395114.png' }, calendar: { name: 'CALENDAR', sub: '日历', defaultIconUrl: 'https://img.heliar.top/file/1775255530103_1775255398416.png' }, forum: { name: 'BBS', sub: '叙欲', defaultIconUrl: 'https://img.heliar.top/file/1775255533786_1775255403609.png' }, cipher: { name: 'CIPHER', sub: '情绪密码', defaultIconUrl: 'https://img.heliar.top/file/1775255548068_1775255406864.png' }, reincarnation: { name: 'PASTLIFE', sub: '前世今生', defaultIconUrl: 'https://img.heliar.top/file/1775255431218_1775255413469.png' }, takeout: { name: 'TAKEOUT', sub: '外卖', defaultIconUrl: 'https://img.heliar.top/file/1775254945792_1775254925975.png' }, map: { name: 'MAP', sub: '地图', defaultIconUrl: 'https://img.heliar.top/file/1775255724786_1772884815291.png' }, grimoire: { name: 'GRIMOIRE', sub: '命之书', defaultIconUrl: 'https://img.heliar.top/file/1775255160509_1775255104547.png' }, beauty: { name: 'BEAUTY', sub: '美容院', defaultIconUrl: 'https://img.heliar.top/file/1775255312935_1775255292122.png' } };
+       const DESKTOP_APPS = { ourspace: { name: 'OURSPACE', sub: '心动日常', defaultIconUrl: 'https://img.heliar.top/file/1774013511285_1774013431400.png' }, wallet: { name: 'WALLET', sub: '钱包', defaultIconUrl: 'https://img.heliar.top/file/1775254950249_1775254906961.png' }, messages: { name: 'WECHAT', sub: '信息', defaultIconUrl: 'https://image.uglycat.cc/06gh2h.png' }, contacts: { name: 'DIRECTORY', sub: '通讯录', defaultIconUrl: 'https://img.heliar.top/file/1775255175970_1775255073802.png' }, feed: { name: 'FEED', sub: '动态', defaultIconUrl: 'https://img.heliar.top/file/1775255165794_1775255083124.png' }, music: { name: 'MUSIC', sub: '音乐', defaultIconUrl: 'https://img.heliar.top/file/1775254958459_1775254915365.png' }, masks: { name: 'PERSONAS', sub: '面具', defaultIconUrl: 'https://img.heliar.top/file/1775255165280_1775255099496.png' }, worldbook: { name: 'LORE', sub: '世界书', defaultIconUrl: 'https://img.heliar.top/file/1775255160509_1775255104547.png' }, album: { name: 'GALLERY', sub: '相册', defaultIconUrl: 'https://img.heliar.top/file/1775255167459_1775255109998.png' }, stickers: { name: 'STICKERS', sub: '表情包', defaultIconUrl: 'https://img.heliar.top/file/1775255317084_1775255272600.png' }, weather: { name: 'CLIMATE', sub: '天气', defaultIconUrl: 'https://img.heliar.top/file/1775255315347_1775255278680.png' }, memory: { name: 'MEMORY', sub: '记忆', defaultIconUrl: 'https://img.heliar.top/file/1775255305211_1775255288213.png' }, profile: { name: 'SYSTEM', sub: '设置', defaultIconUrl: 'https://img.heliar.top/file/1775255312935_1775255292122.png' }, appearance: { name: 'VISUALS', sub: '外观', defaultIconUrl: 'https://img.heliar.top/file/1775255539359_1775255395114.png' }, calendar: { name: 'CALENDAR', sub: '日历', defaultIconUrl: 'https://img.heliar.top/file/1775255530103_1775255398416.png' }, forum: { name: 'BBS', sub: '叙欲', defaultIconUrl: 'https://img.heliar.top/file/1775255533786_1775255403609.png' }, cipher: { name: 'CIPHER', sub: '情绪密码', defaultIconUrl: 'https://img.heliar.top/file/1775255548068_1775255406864.png' }, reincarnation: { name: 'PASTLIFE', sub: '前世今生', defaultIconUrl: 'https://img.heliar.top/file/1775255431218_1775255413469.png' }, takeout: { name: 'TAKEOUT', sub: '外卖', defaultIconUrl: 'https://img.heliar.top/file/1775254945792_1775254925975.png' }, map: { name: 'MAP', sub: '地图', defaultIconUrl: 'https://img.heliar.top/file/1775255724786_1772884815291.png' }, grimoire: { name: 'GRIMOIRE', sub: '命之书', defaultIconUrl: 'https://img.heliar.top/file/1775255160509_1775255104547.png' }, beauty: { name: 'BEAUTY', sub: '美容院', defaultIconUrl: 'https://img.heliar.top/file/1775255312935_1775255292122.png' } };healing: { name: 'EMOTIONAl lSlAND', sub: '情绪岛', defaultIconUrl: 'https://img.heliar.top/file/1775255160509_1775255104547.png' } 
+};
 
     const DOCK_APPS = ['messages', 'music', 'appearance', 'profile'];
     let _moveDragHandler = null;
@@ -16581,3 +16582,199 @@ window.restoreAllMemories = function() {
         alert("恢复失败: " + e.message);
     }
 };
+/* ==================== 情绪岛 (Emotional Island) 核心逻辑 ==================== */
+let healState = DB.get('healState', { island: [], wall: [], drawer: [] });
+let currentHealTab = 'space';
+
+// 监听 App 打开事件，初始化角色列表
+const originalOpenAppForHeal = window.openApp;
+window.openApp = function(appId) {
+    originalOpenAppForHeal(appId);
+    if (appId === 'healing') {
+        const sel = document.getElementById('heal-role-select');
+        if (roles.length === 0) {
+            sel.innerHTML = '<option value="">请先在通讯录创建角色</option>';
+        } else {
+            sel.innerHTML = roles.map(r => `<option value="${r.id}">${getDisplayName(r)}</option>`).join('');
+            healNav('space');
+        }
+    }
+};
+
+function healSave() {
+    DB.set('healState', healState);
+}
+
+function healNav(tab) {
+    currentHealTab = tab;
+    healRenderCurrent();
+}
+
+function healRenderCurrent() {
+    const area = document.getElementById('heal-content-area');
+    const roleId = document.getElementById('heal-role-select').value;
+    const role = roles.find(r => r.id === roleId);
+
+    if (!role && currentHealTab === 'space') {
+        area.innerHTML = '<div style="text-align:center; color:var(--text-secondary); margin-top:50px; font-size:10px;">请先选择角色</div>';
+        return;
+    }
+
+    if (currentHealTab === 'space') {
+        area.innerHTML = `
+            <div style="text-align:center; margin-bottom:40px; margin-top:20px;">
+                <img src="${role.avatar || DEFAULT_AVATAR}" style="width:80px; height:80px; border-radius:50%; object-fit:cover; border:1px solid var(--border-color); margin-bottom:15px;">
+                <div style="font-family:var(--font-serif); font-size:24px;">${getDisplayName(role)}</div>
+                <div style="font-size:10px; color:var(--text-secondary); margin-top:5px;">TA 的专属治愈空间</div>
+            </div>
+            <div style="display:flex; flex-direction:column; gap:15px;">
+                <button class="action-btn primary" style="padding:15px; border-radius:12px;" onclick="healStartChat('confide')">向 TA 倾诉</button>
+                <button class="action-btn" style="padding:15px; border-radius:12px;" onclick="healStartChat('comfort')">安慰 TA</button>
+                <button class="action-btn" style="padding:15px; border-radius:12px; border-style:dashed;" onclick="healWriteLetter()">写封未寄出的信</button>
+            </div>
+        `;
+    } else if (currentHealTab === 'island') {
+        area.innerHTML = `
+            <div style="text-align:center; margin-bottom:20px;">
+                <div style="font-family:var(--font-serif); font-size:20px;">情绪岛</div>
+                <div style="font-size:9px; color:var(--text-secondary);">那些未被说出的，落在这里。</div>
+            </div>
+            ${healState.island.length === 0 ? '<div style="text-align:center; color:var(--text-secondary); font-size:10px; margin-top:40px;">这里很安静，还没有情绪落下。</div>' : 
+            healState.island.map((item, i) => `
+                <div style="padding:15px; border:1px solid var(--border-color); border-radius:8px; margin-bottom:10px; background:var(--glass-bg);">
+                    <div style="display:flex; justify-content:space-between; font-size:9px; color:var(--text-secondary); margin-bottom:8px;">
+                        <span>${item.roleName}</span><span>${item.time}</span>
+                    </div>
+                    <div style="font-size:12px; line-height:1.6;">${item.text}</div>
+                    <div style="text-align:right; margin-top:10px;">
+                        <button class="text-btn" style="padding:0; color:#ff4d4d;" onclick="healDelete('island', ${i})">DEL</button>
+                    </div>
+                </div>
+            `).join('')}
+        `;
+    } else if (currentHealTab === 'wall') {
+        area.innerHTML = `
+            <div style="text-align:center; margin-bottom:20px;">
+                <div style="font-family:var(--font-serif); font-size:20px;">漂流墙</div>
+                <div style="font-size:9px; color:var(--text-secondary);">写完就放它走吧。</div>
+            </div>
+            <div style="display:flex; gap:10px; margin-bottom:20px;">
+                <input type="text" id="heal-wall-input" placeholder="有什么想写给此刻的吗？" style="flex:1; padding:10px; border:1px solid var(--border-color); background:transparent; color:var(--text-color); border-radius:8px; font-size:11px; outline:none;">
+                <button class="action-btn primary" style="margin:0; border-radius:8px;" onclick="healSendWall()">放走</button>
+            </div>
+            <div style="display:flex; flex-wrap:wrap; gap:10px;">
+                ${healState.wall.map((item, i) => `
+                    <div style="padding:15px; border:1px solid var(--border-color); border-radius:4px; background:var(--glass-bg); width:48%; transform:rotate(${item.rot}deg); opacity:${1 - i*0.05 > 0.4 ? 1 - i*0.05 : 0.4};">
+                        <div style="font-size:11px; line-height:1.5;">${item.text}</div>
+                    </div>
+                `).join('')}
+            </div>
+        `;
+    } else if (currentHealTab === 'drawer') {
+        area.innerHTML = `
+            <div style="text-align:center; margin-bottom:20px;">
+                <div style="font-family:var(--font-serif); font-size:20px;">记忆抽屉</div>
+                <div style="font-size:9px; color:var(--text-secondary);">留下的话。</div>
+            </div>
+            ${healState.drawer.length === 0 ? '<div style="text-align:center; color:var(--text-secondary); font-size:10px; margin-top:40px;">抽屉里还没有东西。</div>' : 
+            healState.drawer.map((item, i) => `
+                <div style="padding:15px; border:1px solid var(--border-color); border-radius:8px; margin-bottom:10px; background:var(--glass-bg);">
+                    <div style="display:flex; justify-content:space-between; font-size:9px; color:var(--text-secondary); margin-bottom:8px;">
+                        <span>${item.type === 'letter' ? '✉ 信件' : '对话'} - ${item.roleName}</span><span>${item.time}</span>
+                    </div>
+                    <div style="font-size:12px; line-height:1.6; white-space:pre-wrap;">${item.text}</div>
+                    <div style="text-align:right; margin-top:10px;">
+                        <button class="text-btn" style="padding:0; color:#ff4d4d;" onclick="healDelete('drawer', ${i})">DEL</button>
+                    </div>
+                </div>
+            `).join('')}
+        `;
+    }
+}
+
+function healDelete(type, index) {
+    if(confirm('确定删除吗？')) {
+        healState[type].splice(index, 1);
+        healSave();
+        healRenderCurrent();
+    }
+}
+
+function healSendWall() {
+    const input = document.getElementById('heal-wall-input');
+    const text = input.value.trim();
+    if(text) {
+        healState.wall.unshift({ text: text, rot: (Math.random() * 6 - 3).toFixed(1) });
+        healSave();
+        healRenderCurrent();
+    }
+}
+
+function healWriteLetter() {
+    const roleId = document.getElementById('heal-role-select').value;
+    const role = roles.find(r => r.id === roleId);
+    const text = prompt(`写给 ${getDisplayName(role)} 的信：\n(写完将存入记忆抽屉)`);
+    if(text && text.trim()) {
+        healState.drawer.unshift({
+            type: 'letter',
+            roleName: getDisplayName(role),
+            text: text.trim(),
+            time: new Date().toLocaleString('zh-CN')
+        });
+        healSave();
+        alert('已放入「记忆抽屉」');
+        healNav('drawer');
+    }
+}
+
+async function healStartChat(mode) {
+    const roleId = document.getElementById('heal-role-select').value;
+    const role = roles.find(r => r.id === roleId);
+    if (!apiConfig.url) return alert("请先在 System -> Engine 中配置 API");
+
+    const text = prompt(mode === 'confide' ? `向 ${getDisplayName(role)} 倾诉你的心事：` : `安慰一下此刻的 ${getDisplayName(role)}：`);
+    if (!text || !text.trim()) return;
+
+    const area = document.getElementById('heal-content-area');
+    area.innerHTML = `<div style="text-align:center; margin-top:50px; font-size:12px; color:var(--text-secondary);">TA 正在感受你的情绪...</div>`;
+
+    const promptStr = mode === 'confide' 
+        ? `你是${role.realName}。${role.persona}\n用户向你倾诉：“${text}”\n请用你的人设温柔地回应、倾听，不要说教，字数50字以内。`
+        : `你是${role.realName}。${role.persona}\n你今天心情有些低落。用户安慰你：“${text}”\n请用你的人设回应，表现出被治愈或傲娇的感谢，字数50字以内。`;
+
+    try {
+        const endpoint = getChatEndpoint(apiConfig.url);
+        const res = await fetch(endpoint, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiConfig.key}` },
+            body: JSON.stringify({ model: apiConfig.model, messages: [{ role: 'user', content: promptStr }], max_tokens: 150, temperature: 0.8 })
+        });
+        const data = await res.json();
+        const reply = data.choices[0].message.content.trim();
+
+        // 如果是安慰模式，有概率掉落情绪碎片到情绪岛
+        if (mode === 'comfort' && Math.random() > 0.3) {
+            healState.island.unshift({
+                roleName: getDisplayName(role),
+                text: `(内心独白) ${reply.substring(0, 20)}... 有人陪着的感觉，还不赖。`,
+                time: new Date().toLocaleString('zh-CN')
+            });
+            healSave();
+        }
+
+        area.innerHTML = `
+            <div style="margin-bottom:20px; text-align:right;">
+                <div style="display:inline-block; background:var(--text-color); color:var(--bg-color); padding:10px 15px; border-radius:12px 12px 0 12px; font-size:12px; max-width:80%; text-align:left;">${text}</div>
+            </div>
+            <div style="margin-bottom:20px; text-align:left;">
+                <div style="display:inline-block; background:var(--gray-light); color:var(--text-color); padding:10px 15px; border-radius:12px 12px 12px 0; font-size:12px; max-width:80%; border:1px solid var(--border-color);">${reply}</div>
+            </div>
+            <div style="text-align:center; margin-top:30px;">
+                <button class="action-btn" onclick="healNav('space')">返回空间</button>
+            </div>
+        `;
+    } catch (e) {
+        alert("生成失败: " + e.message);
+        healNav('space');
+    }
+}
