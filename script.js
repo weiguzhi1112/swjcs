@@ -381,6 +381,10 @@ cipherState = DB.get('cipherState', {score:0,created:0,solved:0,collection:[], h
 
         calendarSettings = DB.get('calendarSettings', { notifyRoleIds: [] });
         apiLogs = DB.get('apiLogs', []);
+        eiWallData = DB.get('eiWallData', []);
+        eiDrawerData = DB.get('eiDrawerData', []);
+        eiIslandData = DB.get('eiIslandData', []);
+        eiBonds = DB.get('eiBonds', {});
                 listenTogetherSession = DB.get('listenTogetherSession', { isActive: false, roleId: null, startTime: null, inviteId: null });
         listenTogetherHistory = DB.get('listenTogetherHistory', {});
         musicUserInfo = DB.get('musicUserInfo', null);
@@ -4746,6 +4750,7 @@ ${activeMask.content}
 
 ${(globalWbs || localWbs) ? `<world_lore>\n【重要世界观与规则，必须严格遵守】\n${globalWbs}\n${localWbs}\n</world_lore>` : ''}
 ${memories[role.id] ? `<shared_memory>\n${memories[role.id]}\n</shared_memory>` : ''}
+${wallContext}
 
 <context>
 - 当前设备真实时间: ${exactTimeStr} (请严格感知当前时间，体现活人感)
@@ -10356,6 +10361,9 @@ function checkAllAutoMsgRoles() {
         const wbPrompt = (globalWbs || localWbs) ? `\n[世界观设定]\n${globalWbs}\n${localWbs}`.substring(0, 600) : ''; 
         const mapContext = virtualLocations.length > 0 ? `\n[当前世界地图已知地点]\n${virtualLocations.map(l => `${l.name} (${l.desc})`).join(', ')}` : '';
         
+        // 注入漂流墙上下文
+        const wallContext = eiWallData.length > 0 ? `\n[情绪岛漂流墙最新留言]\n${eiWallData.slice(0, 5).map(w => `${w.authorName}: ${w.text}`).join('\n')}\n(你可以根据这些留言质问用户，或者对其他人的留言发表看法)` : '';
+        
         let silenceDuration = '';
         let lastUserMsgTime = null;
         let lastTopic = '无';
@@ -10388,7 +10396,7 @@ function checkAllAutoMsgRoles() {
             
         const apiMessages = [];
 
-        const systemPrompt = `[CORE DIRECTIVE - 活人感主动消息模式]\n你是${role.realName}。以下是你的完整人设，你必须100%遵守，绝对不能OOC：\n${role.persona}${maskPrompt}${wbPrompt}${mapContext}${memorySummary}${osContext}\n\n[当前情境与时间感知]\n- ${timeContext}，${weekday}，${now.getFullYear()}年${now.getMonth()+1}月${now.getDate()}日 ${String(hour).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}\n- 距离用户上一条消息已经过去了 ${silenceDuration || '一段时间'}。\n- 你们上次聊天的最后内容是：【${lastTopic}】\n\n[活人感终极要求]\n1. 【承上启下】结合上次聊天的内容和流逝的时间，自然地开启话题。比如上次聊到睡觉，现在是早晨，就可以说“昨晚睡得好吗”。绝对不要像机器人一样干巴巴地问“在吗”。\n2. 【去油腻】说话必须口语化、自然、接地气。绝对禁止使用霸总、娇妻等夸张做作的语调。\n3. 【格式限制】严格输出 ${minB} 到 ${maxB} 句话！每句话独占一行。日常聊天绝对不要在句末加句号。\n4. 直接输出消息内容，不加引号，不加任何解释。`;
+        const systemPrompt = `[CORE DIRECTIVE - 活人感主动消息模式]\n你是${role.realName}。以下是你的完整人设，你必须100%遵守，绝对不能OOC：\n${role.persona}${maskPrompt}${wbPrompt}${mapContext}${wallContext}${memorySummary}${osContext}\n\n[当前情境与时间感知]\n- ${timeContext}，${weekday}，${now.getFullYear()}年${now.getMonth()+1}月${now.getDate()}日 ${String(hour).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}\n- 距离用户上一条消息已经过去了 ${silenceDuration || '一段时间'}。\n- 你们上次聊天的最后内容是：【${lastTopic}】\n\n[活人感终极要求]\n1. 【承上启下】结合上次聊天的内容和流逝的时间，自然地开启话题。比如上次聊到睡觉，现在是早晨，就可以说“昨晚睡得好吗”。绝对不要像机器人一样干巴巴地问“在吗”。\n2. 【去油腻】说话必须口语化、自然、接地气。绝对禁止使用霸总、娇妻等夸张做作的语调。\n3. 【格式限制】严格输出 ${minB} 到 ${maxB} 句话！每句话独占一行。日常聊天绝对不要在句末加句号。\n4. 直接输出消息内容，不加引号，不加任何解释。`;
 
         apiMessages.push({ role: 'system', content: systemPrompt });
         
@@ -16592,10 +16600,10 @@ window.restoreAllMemories = function() {
 let eiCurrentRoleId = null;
 let eiChatMode = 'confide'; 
 let eiChatHistory = [];
-let eiWallData = DB.get('eiWallData', []);
-let eiDrawerData = DB.get('eiDrawerData', []);
-let eiIslandData = DB.get('eiIslandData', []); 
-let eiBonds = DB.get('eiBonds', {}); 
+let eiWallData = [];
+let eiDrawerData = [];
+let eiIslandData = []; 
+let eiBonds = {}; 
 
 let eiPressTimer = null;
 let eiTargetMsgIndex = -1;
@@ -16662,14 +16670,18 @@ function eiNavTo(pageId) {
         saveEiMemory();
     }
     if (document.getElementById('ei-page-stay').classList.contains('active') && pageId !== 'stay') {
-        eiExitStay();
+        clearTimeout(eiStayTimer);
+        clearInterval(eiStayTextTimer);
     }
 
     document.querySelectorAll('#ei-app-container .ei-page').forEach(p => p.classList.remove('active'));
     document.getElementById('ei-page-' + pageId).classList.add('active');
     
     if (pageId === 'roles') renderEmotionIsland();
-    if (pageId === 'wall') renderEiWall();
+    if (pageId === 'wall') {
+        renderEiWall();
+        generateAiWallPost(); // 触发AI随机写漂流墙
+    }
     if (pageId === 'drawer') renderEiDrawer();
     if (pageId === 'island') renderEiIsland();
 }
@@ -17108,11 +17120,47 @@ function eiSendWall() {
     const input = document.getElementById('ei-wall-input');
     const text = input.value.trim();
     if (text) {
-        eiWallData.unshift({ text: text, rot: (Math.random() * 6 - 3).toFixed(1) });
+        eiWallData.unshift({ 
+            text: text, 
+            rot: (Math.random() * 6 - 3).toFixed(1),
+            authorId: 'user',
+            authorName: settings.userName || 'ME'
+        });
         DB.set('eiWallData', eiWallData);
         input.value = '';
         renderEiWall();
     }
+}
+
+async function generateAiWallPost() {
+    if (!apiConfig.url || roles.length === 0) return;
+    // 30% 概率触发 AI 留言
+    if (Math.random() > 0.3) return;
+    
+    const role = roles[Math.floor(Math.random() * roles.length)];
+    const prompt = `你是${role.realName}。${role.persona}\n你现在在一个匿名的“漂流墙”上留言。请写下一句符合你当前心境的简短留言（吐槽、思念、或者隐晦地提到用户）。\n要求：\n1. 极度口语化，像随手写的便签。\n2. 不超过30字。\n3. 不要加引号，直接输出内容。`;
+    
+    try {
+        const endpoint = getChatEndpoint(apiConfig.url);
+        const res = await fetch(endpoint, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiConfig.key}` },
+            body: JSON.stringify({ model: apiConfig.model, messages: [{ role: 'user', content: prompt }], max_tokens: 50, temperature: 0.85 })
+        });
+        const data = await res.json();
+        const text = data.choices[0].message.content.trim();
+        
+        eiWallData.unshift({ 
+            text: text, 
+            rot: (Math.random() * 6 - 3).toFixed(1),
+            authorId: role.id,
+            authorName: role.realName
+        });
+        DB.set('eiWallData', eiWallData);
+        if (document.getElementById('ei-page-wall').classList.contains('active')) {
+            renderEiWall();
+        }
+    } catch (e) {}
 }
 
 function renderEiWall() {
@@ -17123,9 +17171,11 @@ function renderEiWall() {
     }
     grid.innerHTML = eiWallData.map((item, i) => {
         const touchHandlers = `onmousedown="eiTouchStart(event, ${i}, this, 'wall')" onmouseup="eiTouchEnd()" onmouseleave="eiTouchEnd()" ontouchstart="eiTouchStart(event, ${i}, this, 'wall')" ontouchend="eiTouchEnd()" ontouchcancel="eiTouchEnd()"`;
+        const authorHtml = item.authorName ? `<div style="text-align:right; font-size:8px; color:var(--text-secondary); margin-top:8px; opacity:0.6;">- ${item.authorName}</div>` : '';
         return `
         <div class="ei-card" style="transform: rotate(${item.rot}deg); opacity: ${1 - i*0.05 > 0.5 ? 1 - i*0.05 : 0.5}; cursor: pointer;" ${touchHandlers}>
             ${item.text}
+            ${authorHtml}
         </div>
     `}).join('');
 }
@@ -17225,7 +17275,7 @@ function openEiStay() {
 function eiExitStay() {
     clearTimeout(eiStayTimer);
     clearInterval(eiStayTextTimer);
-    eiNavTo('space');
+    // 移除 eiNavTo('space') 避免死循环，由外层控制跳转
 }
 
 async function saveEiMemory() {
