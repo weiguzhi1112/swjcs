@@ -2207,7 +2207,8 @@ body.is-app .to-page { padding-bottom: calc(70px + env(safe-area-inset-bottom)) 
 
 .ei-chat-container { flex: 1; display: flex; flex-direction: column; overflow-y: auto; padding-bottom: 20px; gap: 15px; scrollbar-width: none; }
 .ei-chat-container::-webkit-scrollbar { display: none; }
-.ei-msg { max-width: 80%; padding: 10px 16px; border-radius: 4px; font-size: 13px; position: relative; transition: all 0.3s; line-height: 1.6; }
+.ei-msg { max-width: 80%; padding: 10px 16px; border-radius: 4px; font-size: 13px; position: relative; transition: all 0.3s; line-height: 1.6; cursor: pointer; }
+.ei-msg:active { opacity: 0.7; }
 .ei-msg.user { align-self: flex-end; background: var(--bubble-bg); color: var(--text-main); }
 .ei-msg.char { align-self: flex-start; background: none; padding-left: 15px; color: var(--text-main); }
 .ei-msg.char::before { content: ''; position: absolute; left: 0; top: 16px; width: 4px; height: 4px; border-radius: 50%; background: var(--accent); }

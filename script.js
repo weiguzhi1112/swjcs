@@ -16587,6 +16587,10 @@ let eiChatMode = 'confide';
 let eiChatHistory = [];
 let eiWallData = DB.get('eiWallData', []);
 let eiDrawerData = DB.get('eiDrawerData', []);
+let eiIslandData = DB.get('eiIslandData', []); // 情绪碎片数据
+
+let eiPressTimer = null;
+let eiTargetMsgIndex = -1;
 
 function renderEmotionIsland() {
     const list = document.getElementById('ei-role-list');
@@ -16607,12 +16611,18 @@ function renderEmotionIsland() {
 }
 
 function eiNavTo(pageId) {
+    // 离开聊天界面时自动保存记忆
+    if (document.getElementById('ei-page-chat').classList.contains('active') && pageId !== 'chat') {
+        saveEiMemory();
+    }
+
     document.querySelectorAll('#ei-app-container .ei-page').forEach(p => p.classList.remove('active'));
     document.getElementById('ei-page-' + pageId).classList.add('active');
     
     if (pageId === 'roles') renderEmotionIsland();
     if (pageId === 'wall') renderEiWall();
     if (pageId === 'drawer') renderEiDrawer();
+    if (pageId === 'island') renderEiIsland();
 }
 
 function openEiSpace(roleId) {
@@ -16623,32 +16633,131 @@ function openEiSpace(roleId) {
     eiNavTo('space');
 }
 
-function openEiChat(mode) {
+async function openEiChat(mode) {
     eiChatMode = mode;
     eiChatHistory = [];
     const role = roles.find(r => r.id === eiCurrentRoleId);
     
     document.getElementById('ei-chat-header-title').innerText = mode === 'confide' ? `向 ${getDisplayName(role)} 倾诉` : `安慰 ${getDisplayName(role)}`;
-    document.getElementById('ei-chat-messages').innerHTML = `<div class="ei-msg char">你好，今天过得怎么样？</div>`;
+    document.getElementById('ei-throw-btn').style.display = mode === 'confide' ? 'block' : 'none';
+    document.getElementById('ei-chat-input').placeholder = mode === 'confide' ? '写下你想说的话...' : `安慰一下${getDisplayName(role)}吧...`;
     
     const statusEl = document.getElementById('ei-comfort-status');
     if (mode === 'comfort') {
         statusEl.innerText = `${getDisplayName(role)}今天好像有些低落。`;
         statusEl.style.display = 'block';
-        document.getElementById('ei-chat-messages').innerHTML = `<div class="ei-msg char" style="border-left: 1px dashed var(--line);">（沉默）</div>`;
     } else {
         statusEl.style.display = 'none';
     }
 
-    document.getElementById('ei-throw-btn').style.display = mode === 'confide' ? 'block' : 'none';
-    document.getElementById('ei-chat-input').placeholder = mode === 'confide' ? '写下你想说的话...' : `安慰一下${getDisplayName(role)}吧...`;
-    
     eiNavTo('chat');
+    renderEiChat();
+
+    // 动态生成开场白
+    const api = getSubApi('emotionisland');
+    if (api.url) {
+        const container = document.getElementById('ei-chat-messages');
+        container.innerHTML = `<div class="ei-msg char">...</div>`;
+        
+        let prompt = `你是${role.realName}。${role.persona}\n用户进入了你的“情绪岛”空间。\n`;
+        if (mode === 'confide') {
+            prompt += `用户想向你倾诉。请用符合你人设的语气，说一句温柔、包容的开场白，引导用户说出心事。不要超过20字。`;
+        } else {
+            prompt += `你今天心情很低落，用户来安慰你。请用符合你人设的语气，说一句低落、或者嘴硬掩饰脆弱的开场白。不要超过20字。`;
+        }
+
+        try {
+            const endpoint = getChatEndpoint(api.url);
+            const res = await fetch(endpoint, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${api.key}` },
+                body: JSON.stringify({ model: api.model, messages: [{ role: 'user', content: prompt }], max_tokens: 50, temperature: 0.8 })
+            });
+            const data = await res.json();
+            const reply = data.choices[0].message.content.trim();
+            eiChatHistory.push({ id: Date.now(), role: 'ai', content: reply, time: new Date().toLocaleTimeString() });
+            renderEiChat();
+        } catch (e) {
+            eiChatHistory.push({ id: Date.now(), role: 'ai', content: mode === 'confide' ? '我在听，慢慢说。' : '（沉默）', time: new Date().toLocaleTimeString() });
+            renderEiChat();
+        }
+    } else {
+        eiChatHistory.push({ id: Date.now(), role: 'ai', content: mode === 'confide' ? '我在听，慢慢说。' : '（沉默）', time: new Date().toLocaleTimeString() });
+        renderEiChat();
+    }
 }
 
-function openEiLetter() {
-    document.getElementById('ei-letter-input').value = '';
-    eiNavTo('letter');
+function renderEiChat() {
+    const container = document.getElementById('ei-chat-messages');
+    container.innerHTML = eiChatHistory.map((m, index) => {
+        const touchHandlers = `onmousedown="eiTouchStart(event, ${index})" onmouseup="eiTouchEnd()" onmouseleave="eiTouchEnd()" ontouchstart="eiTouchStart(event, ${index})" ontouchend="eiTouchEnd()" ontouchcancel="eiTouchEnd()"`;
+        let style = '';
+        if (eiChatMode === 'comfort' && m.role === 'ai') {
+            style = 'border-left: 1px dashed var(--accent);';
+        }
+        return `<div class="ei-msg ${m.role === 'user' ? 'user' : 'char'}" style="${style}" ${touchHandlers}>${m.content.replace(/\n/g, '<br>')}</div>`;
+    }).join('');
+    container.scrollTop = container.scrollHeight;
+}
+
+// 长按事件处理
+function eiTouchStart(e, index) {
+    eiPressTimer = setTimeout(() => {
+        if (navigator.vibrate) navigator.vibrate(50);
+        eiTargetMsgIndex = index;
+        document.getElementById('ei-context-menu-overlay').style.display = 'block';
+        setTimeout(() => {
+            document.getElementById('ei-context-menu').style.transform = 'translateY(0)';
+        }, 10);
+    }, 500);
+}
+function eiTouchEnd() { clearTimeout(eiPressTimer); }
+
+function closeEiContextMenu() {
+    document.getElementById('ei-context-menu').style.transform = 'translateY(100%)';
+    setTimeout(() => {
+        document.getElementById('ei-context-menu-overlay').style.display = 'none';
+    }, 300);
+}
+
+function eiActionFav() {
+    if (eiTargetMsgIndex > -1) {
+        const msg = eiChatHistory[eiTargetMsgIndex];
+        const role = roles.find(r => r.id === eiCurrentRoleId);
+        eiDrawerData.unshift({
+            type: 'chat',
+            roleName: getDisplayName(role),
+            content: msg.content,
+            time: new Date().toLocaleDateString()
+        });
+        DB.set('eiDrawerData', eiDrawerData);
+        alert('已放入「记忆抽屉」');
+    }
+    closeEiContextMenu();
+}
+
+function eiActionEdit() {
+    if (eiTargetMsgIndex > -1) {
+        const msg = eiChatHistory[eiTargetMsgIndex];
+        const newText = prompt("编辑内容：", msg.content);
+        if (newText !== null) {
+            if (newText.trim() === '') {
+                eiChatHistory.splice(eiTargetMsgIndex, 1);
+            } else {
+                eiChatHistory[eiTargetMsgIndex].content = newText;
+            }
+            renderEiChat();
+        }
+    }
+    closeEiContextMenu();
+}
+
+function eiActionDel() {
+    if (eiTargetMsgIndex > -1 && confirm("确定删除此条记录？")) {
+        eiChatHistory.splice(eiTargetMsgIndex, 1);
+        renderEiChat();
+    }
+    closeEiContextMenu();
 }
 
 async function sendEiMessage() {
@@ -16657,27 +16766,23 @@ async function sendEiMessage() {
     if (!text || !eiCurrentRoleId) return;
 
     const role = roles.find(r => r.id === eiCurrentRoleId);
-    const container = document.getElementById('ei-chat-messages');
     
-    container.innerHTML += `<div class="ei-msg user">${text}</div>`;
-    eiChatHistory.push({ role: 'user', content: text });
+    eiChatHistory.push({ id: Date.now(), role: 'user', content: text, time: new Date().toLocaleTimeString() });
     input.value = '';
-    container.scrollTop = container.scrollHeight;
+    renderEiChat();
 
     const api = getSubApi('emotionisland');
     if (!api.url) {
         setTimeout(() => {
-            container.innerHTML += `<div class="ei-msg char">(请先配置 API)</div>`;
-            container.scrollTop = container.scrollHeight;
+            eiChatHistory.push({ id: Date.now(), role: 'ai', content: '(请先配置 API)', time: new Date().toLocaleTimeString() });
+            renderEiChat();
         }, 500);
         return;
     }
 
-    const msgId = 'ei-msg-' + Date.now();
-    setTimeout(() => {
-        container.innerHTML += `<div class="ei-msg char" id="${msgId}">...</div>`;
-        container.scrollTop = container.scrollHeight;
-    }, 300);
+    const msgId = Date.now() + 1;
+    eiChatHistory.push({ id: msgId, role: 'ai', content: '...', time: new Date().toLocaleTimeString(), isTemp: true });
+    renderEiChat();
 
     let prompt = `你是${role.realName}。${role.persona}\n用户在“情绪岛”空间对你说：“${text}”。\n`;
     if (eiChatMode === 'confide') {
@@ -16691,24 +16796,40 @@ async function sendEiMessage() {
         const res = await fetch(endpoint, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${api.key}` },
-            body: JSON.stringify({ model: api.model, messages: [{ role: 'user', content: prompt }], max_tokens: 200, temperature: 0.8 })
+            body: JSON.stringify({ model: api.model, messages: [{ role: 'user', content: prompt }], max_tokens: 300, temperature: 0.8 })
         });
         const data = await res.json();
         const reply = data.choices[0].message.content.trim();
         
-        const replyEl = document.getElementById(msgId);
-        if (replyEl) {
-            replyEl.innerText = reply;
-            if (eiChatMode === 'comfort') {
-                replyEl.style.borderLeft = '1px dashed var(--accent)';
-                replyEl.style.transition = 'border-color 1s';
-            }
+        // 移除临时消息
+        eiChatHistory = eiChatHistory.filter(m => !m.isTemp);
+        
+        // 按换行分割成多条气泡
+        const sentences = reply.split('\n').map(s => s.trim()).filter(s => s);
+        sentences.forEach((sentence, idx) => {
+            eiChatHistory.push({ id: msgId + idx, role: 'ai', content: sentence, time: new Date().toLocaleTimeString() });
+        });
+        
+        renderEiChat();
+
+        // 安慰模式下，有几率掉落情绪碎片
+        if (eiChatMode === 'comfort' && Math.random() > 0.5) {
+            const fragmentPrompt = `你是${role.realName}。用户刚刚安慰了你。请用一句话（不超过20字）写下你此刻内心最深处的一丝感触或独白。不要加引号。`;
+            fetch(endpoint, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${api.key}` },
+                body: JSON.stringify({ model: api.model, messages: [{ role: 'user', content: fragmentPrompt }], max_tokens: 50, temperature: 0.9 })
+            }).then(r => r.json()).then(d => {
+                const frag = d.choices[0].message.content.trim();
+                eiIslandData.unshift({ char: role.realName, text: frag, time: new Date().toLocaleDateString() });
+                DB.set('eiIslandData', eiIslandData);
+            }).catch(e=>{});
         }
-        eiChatHistory.push({ role: 'ai', content: reply });
-        container.scrollTop = container.scrollHeight;
+
     } catch (e) {
-        const replyEl = document.getElementById(msgId);
-        if (replyEl) replyEl.innerText = `回复失败: ${e.message}`;
+        eiChatHistory = eiChatHistory.filter(m => !m.isTemp);
+        eiChatHistory.push({ id: msgId, role: 'ai', content: `回复失败: ${e.message}`, time: new Date().toLocaleTimeString() });
+        renderEiChat();
     }
 }
 
@@ -16728,6 +16849,13 @@ function eiThrowAway() {
         setTimeout(() => msg.remove(), 600);
     });
     eiChatHistory = eiChatHistory.filter(m => m.role !== 'user');
+}
+
+function openEiLetter() {
+    const role = roles.find(r => r.id === eiCurrentRoleId);
+    document.querySelectorAll('.ei-current-name').forEach(el => el.innerText = getDisplayName(role));
+    document.getElementById('ei-letter-input').value = '';
+    eiNavTo('letter');
 }
 
 function eiSaveLetter() {
@@ -16794,10 +16922,10 @@ function renderEiDrawer() {
     list.innerHTML = eiDrawerData.map((item, i) => `
         <div class="ei-card">
             <div class="ei-card-meta">
-                <span>✉ 信件 - ${item.roleName}</span>
+                <span>${item.type === 'letter' ? '✉ 信件' : '💬 对话'} - ${item.roleName}</span>
                 <span>${item.time}</span>
             </div>
-            <div style="margin-bottom: 10px;">${item.content}</div>
+            <div style="margin-bottom: 10px; line-height: 1.6;">${item.content}</div>
             <div style="text-align: right;">
                 <button class="text-btn" style="padding:0; font-size:9px; color:#ff4d4d; display:inline-block;" onclick="eiDeleteDrawer(${i})">删除</button>
             </div>
@@ -16806,10 +16934,38 @@ function renderEiDrawer() {
 }
 
 function eiDeleteDrawer(index) {
-    if (confirm('确定要删除这封信吗？')) {
+    if (confirm('确定要删除这条记忆吗？')) {
         eiDrawerData.splice(index, 1);
         DB.set('eiDrawerData', eiDrawerData);
         renderEiDrawer();
+    }
+}
+
+function renderEiIsland() {
+    const grid = document.getElementById('ei-island-grid');
+    if (eiIslandData.length === 0) {
+        grid.innerHTML = `<div class="ei-empty-state">这里很安静，还没有情绪落下。</div>`;
+        return;
+    }
+    grid.innerHTML = eiIslandData.map((item, i) => `
+        <div class="ei-card">
+            <div class="ei-card-meta">
+                <span>${item.char}</span>
+                <span>${item.time}</span>
+            </div>
+            <div style="line-height: 1.6;">${item.text}</div>
+            <div style="text-align: right; margin-top: 10px;">
+                <button class="text-btn" style="padding:0; font-size:9px; color:#ff4d4d; display:inline-block;" onclick="eiDeleteIsland(${i})">删除</button>
+            </div>
+        </div>
+    `).join('');
+}
+
+function eiDeleteIsland(index) {
+    if (confirm('确定要清理这片情绪碎片吗？')) {
+        eiIslandData.splice(index, 1);
+        DB.set('eiIslandData', eiIslandData);
+        renderEiIsland();
     }
 }
 
@@ -16836,7 +16992,12 @@ async function saveEiMemory() {
         initRoleMemory(role.id);
         advancedMemories[role.id].episodicMemories.push({ content: `[情绪岛记忆] ${summary}`, time: new Date().toLocaleString(), auto: true });
         DB.set('advancedMemories', advancedMemories);
-        alert(`已成功将本次情绪岛交流保存至 ${role.realName} 的情景记忆中！`);
+        
+        // 清空当前聊天记录，避免重复保存
+        eiChatHistory = [];
+        
+        // 使用锁雾机内置的顶部通知，而不是 alert 弹窗打断体验
+        showInAppNotification(role.id, '记忆已封存', `本次情绪岛交流已保存至 ${role.realName} 的情景记忆中。`, role.avatar);
     } catch (e) {
         console.error("保存情绪岛记忆失败", e);
     }
