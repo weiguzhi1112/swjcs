@@ -4668,6 +4668,8 @@ function toInitApp(){
             const exactNow = new Date();
             const exactTimeStr = `${exactNow.getFullYear()}年${exactNow.getMonth()+1}月${exactNow.getDate()}日 ${String(exactNow.getHours()).padStart(2,'0')}:${String(exactNow.getMinutes()).padStart(2,'0')}`;
 
+            const wallContext = (typeof eiWallData !== 'undefined' && eiWallData.length > 0) ? `\n[情绪岛漂流墙最新留言]\n${eiWallData.slice(0, 5).map(w => `${w.authorName}: ${w.text}`).join('\n')}\n(你可以根据这些留言质问用户，或者对其他人的留言发表看法)` : '';
+
             if (!window.musicCreds) window.musicCreds = DB.get('musicCreds', {});
             if (!window.musicCreds[targetRoleId]) {
                 window.musicCreds[targetRoleId] = {
@@ -5260,6 +5262,24 @@ ${modeRules}
             
             if (document.hidden) {
                 showSystemNotification(targetRoleId, getDisplayName(role), finalLines.join(' '), role.avatar);
+            }
+
+            const emotionWords = ['难过', '伤心', '累', '烦', '痛', '哭', '开心', '想你', '孤独', '寂寞'];
+            if (emotionWords.some(w => fullReply.includes(w))) {
+                if (Math.random() > 0.5) { 
+                    const fragmentPrompt = `你是${role.realName}。根据刚才的对话，用一句话（不超过15字）写下你此刻内心最深处的一丝感触。不要加引号。`;
+                    fetch(endpoint, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiConfig.key}` },
+                        body: JSON.stringify({ model: apiConfig.model, messages: [{ role: 'user', content: fragmentPrompt }], max_tokens: 50, temperature: 0.9 })
+                    }).then(r => r.json()).then(d => {
+                        const frag = d.choices[0].message.content.trim();
+                        if (typeof eiIslandData !== 'undefined') {
+                            eiIslandData.unshift({ char: role.realName, text: frag, time: new Date().toLocaleDateString() });
+                            DB.set('eiIslandData', eiIslandData);
+                        }
+                    }).catch(e=>{});
+                }
             }
 
         } catch (err) {
@@ -14839,7 +14859,7 @@ function endPanMap(e) {
     isPanningMap = false;
     document.getElementById('vmap-canvas').style.cursor = 'grab';
     document.removeEventListener('mousemove', movePanMap);
-    document.removeEventListener('touchmove', movePanMap);
+    document.removeEventListener('touchmove', movePanMap, {passive: false});
     document.removeEventListener('mouseup', endPanMap);
     document.removeEventListener('touchend', endPanMap);
 
@@ -15050,7 +15070,7 @@ function vmapMoveDrag(e) {
 
 function vmapEndDrag(e) {
     document.removeEventListener('mousemove', vmapMoveDrag);
-    document.removeEventListener('touchmove', vmapMoveDrag);
+    document.removeEventListener('touchmove', vmapMoveDrag, {passive: false});
     document.removeEventListener('mouseup', vmapEndDrag);
     document.removeEventListener('touchend', vmapEndDrag);
 
@@ -16678,12 +16698,69 @@ function eiNavTo(pageId) {
     document.getElementById('ei-page-' + pageId).classList.add('active');
     
     if (pageId === 'roles') renderEmotionIsland();
-    if (pageId === 'wall') {
-        renderEiWall();
-        generateAiWallPost(); // 触发AI随机写漂流墙
-    }
+    if (pageId === 'wall') renderEiWall();
     if (pageId === 'drawer') renderEiDrawer();
     if (pageId === 'island') renderEiIsland();
+}
+
+async function promptGenerateAiWallPosts() {
+    if (!apiConfig.url || roles.length === 0) return alert("请先配置API并创建角色");
+    
+    const inputStr = prompt("请输入要生成的留言条数 和 自动刷新间隔(分钟)，用逗号分隔。\n例如输入「5,30」表示立即生成5条，且以后每30分钟自动生成1条。\n(仅输入数字则只生成不自动刷新)", "5,30");
+    if (!inputStr) return;
+    
+    const parts = inputStr.split(',');
+    const count = parseInt(parts[0]);
+    const intervalMins = parts.length > 1 ? parseInt(parts[1]) : 0;
+    
+    if (isNaN(count) || count <= 0) return;
+
+    const btn = document.querySelector('#ei-page-wall .action-btn');
+    const origText = btn.innerText;
+    btn.innerText = "GENERATING...";
+    btn.disabled = true;
+
+    let successCount = 0;
+    for (let i = 0; i < count; i++) {
+        const role = roles[Math.floor(Math.random() * roles.length)];
+        const promptText = `你是${role.realName}。${role.persona}\n你现在在一个匿名的“漂流墙”上留言。请写下一句符合你当前心境的简短留言（吐槽、思念、或者隐晦地提到用户）。\n要求：\n1. 极度口语化，像随手写的便签。\n2. 不超过30字。\n3. 不要加引号，直接输出内容。`;
+        
+        try {
+            const endpoint = getChatEndpoint(apiConfig.url);
+            const res = await fetch(endpoint, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiConfig.key}` },
+                body: JSON.stringify({ model: apiConfig.model, messages: [{ role: 'user', content: promptText }], max_tokens: 50, temperature: 0.9 })
+            });
+            const data = await res.json();
+            const text = data.choices[0].message.content.trim();
+            
+            eiWallData.unshift({ 
+                text: text, 
+                rot: (Math.random() * 6 - 3).toFixed(1),
+                authorId: role.id,
+                authorName: role.realName
+            });
+            successCount++;
+        } catch (e) {
+            console.error("生成漂流墙留言失败", e);
+        }
+    }
+
+    DB.set('eiWallData', eiWallData);
+    renderEiWall();
+    btn.innerText = origText;
+    btn.disabled = false;
+    
+    alert(`成功生成了 ${successCount} 条漂流墙留言！`);
+
+    if (intervalMins > 0) {
+        if (window.wallRefreshTimer) clearInterval(window.wallRefreshTimer);
+        window.wallRefreshTimer = setInterval(() => {
+            generateAiWallPost(); 
+        }, intervalMins * 60 * 1000);
+        alert(`已开启自动刷新：每 ${intervalMins} 分钟将自动生成 1 条新留言。`);
+    }
 }
 
 function updateEiWeather(state) {
@@ -17275,7 +17352,7 @@ function openEiStay() {
 function eiExitStay() {
     clearTimeout(eiStayTimer);
     clearInterval(eiStayTextTimer);
-    // 移除 eiNavTo('space') 避免死循环，由外层控制跳转
+    eiNavTo('space'); // 恢复跳转，死循环已在 eiNavTo 中解决
 }
 
 async function saveEiMemory() {

@@ -694,6 +694,7 @@
             <div class="ei-space-header">
                 <div class="ei-space-title">漂流墙</div>
                 <div class="ei-action-sub">写完就放它走吧。</div>
+                <button class="action-btn" style="margin: 15px auto 0; font-size: 9px; border-radius: 12px; padding: 6px 12px;" onclick="promptGenerateAiWallPosts()">AI 批量生成留言</button>
             </div>
             <div class="ei-input-area" style="margin-bottom: 40px;">
                 <input type="text" class="ei-chat-input" id="ei-wall-input" placeholder="有什么想写给此刻的吗？" maxlength="128">
@@ -715,8 +716,8 @@
 
         <!-- 8. 共处模式 -->
         <div id="ei-page-stay" class="ei-page" style="align-items: center; justify-content: center; height: 100%; position: relative;">
-            <div class="ei-char-switcher" onclick="eiExitStay()" style="position: absolute; top: 0; left: 0; z-index: 100; padding: 10px;">
-                <svg viewBox="0 0 24 24" style="transform: rotate(90deg); margin-right: 5px;"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>
+            <div class="ei-char-switcher" onclick="eiExitStay()" style="position: absolute; top: 0; left: 0; z-index: 9999; padding: 20px; pointer-events: auto;">
+                <svg viewBox="0 0 24 24" style="transform: rotate(90deg); margin-right: 5px; width: 16px; height: 16px;"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>
                 返回
             </div>
             <div class="ei-space-title ei-current-name" style="margin-bottom: 40px;">TA</div>
