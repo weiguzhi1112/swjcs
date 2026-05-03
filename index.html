@@ -594,35 +594,31 @@
     </div>
 </div>
 <!-- ================= 情绪密码 App 结束 ================= -->
-<!-- ================= 治愈空间 App 开始 ================= -->
-<div id="view-healing" class="view-container">
+<!-- ================= 情绪岛 App 开始 ================= -->
+<div id="view-emotionisland" class="view-container">
     <div class="view-header">
-        <button class="text-btn" onclick="closeApp('healing')">RETURN<span>返回</span></button>
-        <h2 class="title-serif">Sanctuary.<span class="title-sub">治愈空间</span></h2>
-        <div style="width: 60px;"></div>
+        <button class="text-btn" onclick="exitEmotionIsland()">RETURN<span>返回</span></button>
+        <h2 class="title-serif">Island.<span class="title-sub">情绪岛</span></h2>
+        <div style="display:flex; align-items:center; gap:10px;">
+            <button class="text-btn" onclick="openSubApiModal('emotionisland')">ENGINE<span>引擎</span></button>
+        </div>
     </div>
     <div class="view-content" style="padding: 0; display: flex; flex-direction: column;">
-        <!-- 顶部导航 -->
-        <div style="display: flex; justify-content: space-around; padding: 10px 0; background: var(--glass-bg); border-bottom: 1px solid var(--border-color);">
-            <button class="text-btn" onclick="healNav('space')">SPACE<span>个人空间</span></button>
-            <button class="text-btn" onclick="healNav('island')">ISLAND<span>情绪岛</span></button>
-            <button class="text-btn" onclick="healNav('wall')">WALL<span>漂流墙</span></button>
-            <button class="text-btn" onclick="healNav('drawer')">DRAWER<span>记忆抽屉</span></button>
-        </div>
-        
-        <!-- 角色切换器 -->
-        <div style="padding: 10px 20px; border-bottom: 1px solid var(--border-color); display: flex; align-items: center; justify-content: space-between; background: var(--bg-color);">
-            <span style="font-size: 9px; font-weight: 600; color: var(--text-secondary); letter-spacing: 1px;">CURRENT ENTITY</span>
-            <select id="heal-role-select" onchange="healRenderCurrent()" style="background: transparent; border: none; color: var(--text-color); font-size: 12px; font-weight: 600; outline: none; text-align: right; direction: rtl;"></select>
-        </div>
-
-        <!-- 动态内容区 -->
-        <div id="heal-content-area" style="flex: 1; overflow-y: auto; padding: 20px; background: var(--bg-color);">
-            <!-- JS 动态渲染 -->
+        <div id="ei-role-list" style="padding: 20px; flex: 1; overflow-y: auto;"></div>
+        <div id="ei-chat-space" style="display: none; flex-direction: column; height: 100%; background: var(--bg-color);">
+            <div style="padding: 15px; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center;">
+                <div id="ei-chat-title" style="font-weight: bold; font-size: 16px;"></div>
+                <button class="action-btn" style="margin: 0;" onclick="closeEiChat()">返回列表</button>
+            </div>
+            <div id="ei-chat-messages" style="flex: 1; overflow-y: auto; padding: 15px; display: flex; flex-direction: column; gap: 10px;"></div>
+            <div style="padding: 10px; border-top: 1px solid var(--border-color); display: flex; gap: 10px;">
+                <input type="text" id="ei-chat-input" placeholder="倾诉或安慰..." style="flex: 1; padding: 10px; border-radius: 20px; border: 1px solid var(--border-color); background: transparent; color: var(--text-color); outline: none;">
+                <button class="action-btn primary" style="margin: 0; border-radius: 20px; padding: 0 20px;" onclick="sendEiMessage()">发送</button>
+            </div>
         </div>
     </div>
 </div>
-<!-- ================= 治愈空间 App 结束 ================= -->
+<!-- ================= 情绪岛 App 结束 ================= -->
 <!-- ================= 物品前世今生 App 开始 ================= -->
 
 
