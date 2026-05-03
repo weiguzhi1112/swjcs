@@ -597,17 +597,22 @@
 <!-- ================= 情绪岛 App 开始 ================= -->
 <div id="view-emotionisland" class="view-container">
     <div class="view-header" style="border-bottom: 1px solid var(--line); background: var(--bg); padding-bottom: 15px;">
-        <button class="text-btn" onclick="exitEmotionIsland()" style="color: var(--text-main);">RETURN<span>返回</span></button>
-        <div style="display: flex; gap: 15px; font-size: 11px; color: var(--text-sub); font-family: var(--font-sans); font-weight: 600;">
+        <button class="text-btn" onclick="exitEmotionIsland()" style="color: var(--text-main); font-family: var(--font-serif);">RETURN<span>返回</span></button>
+        <div style="display: flex; gap: 15px; font-size: 11px; color: var(--text-sub); font-family: var(--font-serif); font-weight: 600;">
             <span onclick="eiNavTo('roles')" style="cursor: pointer; transition: color 0.3s;" onmouseover="this.style.color='var(--text-main)'" onmouseout="this.style.color='var(--text-sub)'">相遇</span>
             <span onclick="eiNavTo('island')" style="cursor: pointer; transition: color 0.3s;" onmouseover="this.style.color='var(--text-main)'" onmouseout="this.style.color='var(--text-sub)'">情绪岛</span>
             <span onclick="eiNavTo('wall')" style="cursor: pointer; transition: color 0.3s;" onmouseover="this.style.color='var(--text-main)'" onmouseout="this.style.color='var(--text-sub)'">漂流墙</span>
             <span onclick="eiNavTo('drawer')" style="cursor: pointer; transition: color 0.3s;" onmouseover="this.style.color='var(--text-main)'" onmouseout="this.style.color='var(--text-sub)'">抽屉</span>
         </div>
-        <button class="text-btn" onclick="openSubApiModal('emotionisland')" style="color: var(--text-main);">ENGINE<span>引擎</span></button>
+        <div style="display:flex; align-items:center; gap:10px;">
+            <svg class="ei-theme-toggle" id="eiThemeToggle" viewBox="0 0 24 24" onclick="eiToggleTheme()">
+                <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+            </svg>
+            <button class="text-btn" onclick="openSubApiModal('emotionisland')" style="color: var(--text-main); font-family: var(--font-serif);">ENGINE<span>引擎</span></button>
+        </div>
     </div>
     
-    <div class="view-content" id="ei-app-container" style="padding: 20px; display: flex; flex-direction: column; background: var(--bg); color: var(--text-main); font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; line-height: 1.8;">
+    <div class="view-content" id="ei-app-container" style="padding: 20px; display: flex; flex-direction: column; background: var(--bg); color: var(--text-main); font-family: var(--font-serif); line-height: 1.8;">
         
         <!-- 1. 角色选择页 -->
         <div id="ei-page-roles" class="ei-page active">
@@ -615,7 +620,8 @@
         </div>
 
         <!-- 2. 角色个人空间 -->
-        <div id="ei-page-space" class="ei-page">
+        <div id="ei-page-space" class="ei-page" style="align-items: center;">
+            <div id="ei-weather-container" class="ei-weather-container"></div>
             <div class="ei-space-header">
                 <div class="ei-space-title" id="ei-space-title">TA的空间</div>
                 <div class="ei-calendar-wrap">
@@ -630,6 +636,7 @@
                 <div class="ei-action-btn" onclick="openEiChat('comfort')">安慰<span class="ei-current-name">TA</span><span class="ei-action-sub">陪陪此刻的TA</span></div>
             </div>
             <div class="ei-write-letter" onclick="openEiLetter()">写封信给<span class="ei-current-name">TA</span></div>
+            <div class="ei-stay-awhile" onclick="openEiStay()">只是待一会儿</div>
         </div>
 
         <!-- 3. 倾诉/安慰 聊天室 -->
@@ -638,6 +645,7 @@
                 <svg viewBox="0 0 24 24" style="transform: rotate(90deg); margin-right: 5px;"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>
                 <span id="ei-chat-header-title">TA</span> 
             </div>
+            <div id="ei-echo-text" class="ei-echo-text"></div>
             <div id="ei-comfort-status" style="text-align:center; margin-bottom: 20px; color: var(--text-sub); font-size: 12px; display: none;">
                 TA今天好像有些低落。
             </div>
@@ -669,7 +677,7 @@
         <!-- 5. 情绪岛 (碎片) -->
         <div id="ei-page-island" class="ei-page">
             <div class="ei-space-header">
-                <div class="ei-space-title" style="font-family: var(--font-serif);">情绪岛</div>
+                <div class="ei-space-title">情绪岛</div>
                 <div class="ei-action-sub">那些未被说出的，落在这里。</div>
             </div>
             <div class="ei-grid-layout" id="ei-island-grid"></div>
@@ -699,20 +707,29 @@
             <div class="ei-grid-layout" id="ei-drawer-list"></div>
         </div>
 
+        <!-- 8. 共处模式 -->
+        <div id="ei-page-stay" class="ei-page" style="align-items: center; justify-content: center; height: 100%;">
+            <div class="ei-char-switcher" onclick="eiExitStay()" style="position: absolute; top: 20px; left: 20px;">
+                <svg viewBox="0 0 24 24" style="transform: rotate(90deg); margin-right: 5px;"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>
+                返回
+            </div>
+            <div class="ei-space-title ei-current-name" style="margin-bottom: 40px;">TA</div>
+            <div id="ei-stay-text" class="ei-stay-text">TA正在...</div>
+        </div>
+
     </div>
 </div>
 
-<!-- 情绪岛长按菜单 -->
-<div class="modal-overlay" id="ei-context-menu-overlay" onclick="closeEiContextMenu()">
-    <div id="ei-context-menu" style="position: absolute; bottom: 0; left: 0; width: 100%; background: var(--bg); border-top-left-radius: 20px; border-top-right-radius: 20px; padding: 20px; display: flex; flex-direction: column; gap: 10px; transform: translateY(100%); transition: transform 0.3s ease;" onclick="event.stopPropagation()">
-        <div style="text-align: center; font-size: 12px; color: var(--text-sub); margin-bottom: 10px;">消息操作</div>
-        <button class="action-btn" style="border-radius: 12px; padding: 12px;" onclick="eiActionFav()">收藏到「记忆抽屉」</button>
-        <button class="action-btn" style="border-radius: 12px; padding: 12px;" onclick="eiActionEdit()">编辑内容</button>
-        <button class="action-btn" style="border-radius: 12px; padding: 12px; color: #ff4d4d; border-color: #ff4d4d;" onclick="eiActionDel()">删除此条</button>
-        <button class="action-btn primary" style="border-radius: 12px; padding: 12px; margin-top: 10px;" onclick="closeEiContextMenu()">取消</button>
+<!-- 情绪岛长按菜单 (贴合气泡) -->
+<div class="modal-overlay" id="ei-context-menu-overlay" onclick="closeEiContextMenu()" style="background: transparent;">
+    <div id="ei-context-menu" class="ei-context-menu" onclick="event.stopPropagation()">
+        <button class="ei-ctx-btn" onclick="eiActionFav()">收藏到抽屉</button>
+        <button class="ei-ctx-btn" onclick="eiActionEdit()">编辑内容</button>
+        <button class="ei-ctx-btn danger" onclick="eiActionDel()">删除此条</button>
     </div>
 </div>
 <!-- ================= 情绪岛 App 结束 ================= -->
+
 <!-- ================= 物品前世今生 App 开始 ================= -->
 
 

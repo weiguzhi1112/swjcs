@@ -16587,10 +16587,46 @@ let eiChatMode = 'confide';
 let eiChatHistory = [];
 let eiWallData = DB.get('eiWallData', []);
 let eiDrawerData = DB.get('eiDrawerData', []);
-let eiIslandData = DB.get('eiIslandData', []); // 情绪碎片数据
+let eiIslandData = DB.get('eiIslandData', []); 
+let eiBonds = DB.get('eiBonds', {}); // 羁绊计数
 
 let eiPressTimer = null;
 let eiTargetMsgIndex = -1;
+let eiStayTimer = null;
+let eiStayTextTimer = null;
+let eiStayStartTime = 0;
+
+// 切换暗黑模式
+function eiToggleTheme() {
+    const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+    const newTheme = isDark ? 'light' : 'dark';
+    document.documentElement.setAttribute('data-theme', newTheme);
+    settings.theme = newTheme;
+    DB.set('settings', settings);
+    
+    const toggleIcon = document.getElementById('eiThemeToggle');
+    if (newTheme === 'dark') {
+        toggleIcon.innerHTML = '<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>';
+    } else {
+        toggleIcon.innerHTML = '<circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>';
+    }
+}
+
+function initEiBonds(roleId) {
+    if (!eiBonds[roleId]) {
+        eiBonds[roleId] = { confide: 0, comfort: 0, letter: 0, stay: 0 };
+    }
+}
+
+function getEiBondMarks(roleId) {
+    const b = eiBonds[roleId];
+    if (!b) return '';
+    let marks = '';
+    if (b.confide >= 3) marks += '·';
+    if (b.comfort >= 5) marks += '··';
+    if (b.letter >= 1) marks += '✉';
+    return `<span class="ei-bond-marks">${marks}</span>`;
+}
 
 function renderEmotionIsland() {
     const list = document.getElementById('ei-role-list');
@@ -16599,21 +16635,25 @@ function renderEmotionIsland() {
         list.innerHTML = '<div style="text-align:center; color:var(--text-secondary); padding:30px; font-size:10px;">请先在通讯录创建角色</div>';
         return;
     }
-    list.innerHTML = roles.map((r, index) => `
+    list.innerHTML = roles.map((r, index) => {
+        initEiBonds(r.id);
+        return `
         <div class="ei-char-card" onclick="openEiSpace('${r.id}')" style="animation-delay: ${index * 0.1}s">
             <div>
-                <div class="ei-char-name">${getDisplayName(r)}</div>
+                <div class="ei-char-name">${getDisplayName(r)} ${getEiBondMarks(r.id)}</div>
                 <div class="ei-char-desc">${(r.persona || '').substring(0, 15)}...</div>
             </div>
             <div class="ei-char-tag">相遇</div>
         </div>
-    `).join('');
+    `}).join('');
 }
 
 function eiNavTo(pageId) {
-    // 离开聊天界面时自动保存记忆
     if (document.getElementById('ei-page-chat').classList.contains('active') && pageId !== 'chat') {
         saveEiMemory();
+    }
+    if (document.getElementById('ei-page-stay').classList.contains('active') && pageId !== 'stay') {
+        eiExitStay();
     }
 
     document.querySelectorAll('#ei-app-container .ei-page').forEach(p => p.classList.remove('active'));
@@ -16625,11 +16665,28 @@ function eiNavTo(pageId) {
     if (pageId === 'island') renderEiIsland();
 }
 
+function updateEiWeather(state) {
+    const container = document.getElementById('ei-weather-container');
+    if (!container) return;
+    container.className = 'ei-weather-container';
+    container.innerHTML = '<div class="ei-weather-ring"></div><div class="ei-weather-sun"></div><div class="ei-weather-cloud"></div><div class="ei-weather-rain"><span></span><span></span><span></span></div><div class="ei-weather-fog"></div>';
+    
+    if (state === '平静' || state === '开心') container.classList.add('sunny');
+    else if (state === '低落' || state === '难过') container.classList.add('rainy');
+    else if (state === '迷茫' || state === '思考') container.classList.add('foggy');
+    else container.classList.add('cloudy');
+}
+
 function openEiSpace(roleId) {
     eiCurrentRoleId = roleId;
     const role = roles.find(r => r.id === roleId);
     document.getElementById('ei-space-title').innerText = `${getDisplayName(role)}的空间`;
     document.querySelectorAll('.ei-current-name').forEach(el => el.innerText = getDisplayName(role));
+    
+    // 随机一个天气状态
+    const states = ['平静', '低落', '迷茫', '多云'];
+    updateEiWeather(states[Math.floor(Math.random() * states.length)]);
+    
     eiNavTo('space');
 }
 
@@ -16638,6 +16695,11 @@ async function openEiChat(mode) {
     eiChatHistory = [];
     const role = roles.find(r => r.id === eiCurrentRoleId);
     
+    initEiBonds(role.id);
+    if (mode === 'confide') eiBonds[role.id].confide++;
+    else eiBonds[role.id].comfort++;
+    DB.set('eiBonds', eiBonds);
+
     document.getElementById('ei-chat-header-title').innerText = mode === 'confide' ? `向 ${getDisplayName(role)} 倾诉` : `安慰 ${getDisplayName(role)}`;
     document.getElementById('ei-throw-btn').style.display = mode === 'confide' ? 'block' : 'none';
     document.getElementById('ei-chat-input').placeholder = mode === 'confide' ? '写下你想说的话...' : `安慰一下${getDisplayName(role)}吧...`;
@@ -16650,10 +16712,23 @@ async function openEiChat(mode) {
         statusEl.style.display = 'none';
     }
 
+    // 情绪回响
+    const echoEl = document.getElementById('ei-echo-text');
+    echoEl.classList.remove('visible');
+    if (Math.random() < 0.3 && eiDrawerData.length > 0) {
+        const pastChats = eiDrawerData.filter(d => d.type === 'chat' && d.roleName === getDisplayName(role));
+        if (pastChats.length > 0) {
+            const randomChat = pastChats[Math.floor(Math.random() * pastChats.length)];
+            echoEl.innerText = `你曾对${getDisplayName(role)}说过：“${randomChat.content.substring(0, 15)}...”`;
+            echoEl.onclick = () => eiNavTo('drawer');
+            setTimeout(() => echoEl.classList.add('visible'), 500);
+            setTimeout(() => echoEl.classList.remove('visible'), 3500);
+        }
+    }
+
     eiNavTo('chat');
     renderEiChat();
 
-    // 动态生成开场白
     const api = getSubApi('emotionisland');
     if (api.url) {
         const container = document.getElementById('ei-chat-messages');
@@ -16690,34 +16765,73 @@ async function openEiChat(mode) {
 function renderEiChat() {
     const container = document.getElementById('ei-chat-messages');
     container.innerHTML = eiChatHistory.map((m, index) => {
-        const touchHandlers = `onmousedown="eiTouchStart(event, ${index})" onmouseup="eiTouchEnd()" onmouseleave="eiTouchEnd()" ontouchstart="eiTouchStart(event, ${index})" ontouchend="eiTouchEnd()" ontouchcancel="eiTouchEnd()"`;
+        const touchHandlers = `onmousedown="eiTouchStart(event, ${index}, this)" onmouseup="eiTouchEnd()" onmouseleave="eiTouchEnd()" ontouchstart="eiTouchStart(event, ${index}, this)" ontouchend="eiTouchEnd()" ontouchcancel="eiTouchEnd()"`;
         let style = '';
         if (eiChatMode === 'comfort' && m.role === 'ai') {
             style = 'border-left: 1px dashed var(--accent);';
         }
-        return `<div class="ei-msg ${m.role === 'user' ? 'user' : 'char'}" style="${style}" ${touchHandlers}>${m.content.replace(/\n/g, '<br>')}</div>`;
+        
+        let contentHtml = m.content.replace(/\n/g, '<br>');
+        if (m.gift) {
+            contentHtml += `<br><div class="ei-gift-card" onclick="eiCollectGift('${m.gift}')">🎁 收到一份沉默的礼物</div>`;
+        }
+        
+        return `<div class="ei-msg ${m.role === 'user' ? 'user' : 'char'}" style="${style}" ${touchHandlers}>${contentHtml}</div>`;
     }).join('');
     container.scrollTop = container.scrollHeight;
 }
 
-// 长按事件处理
-function eiTouchStart(e, index) {
+function eiCollectGift(giftText) {
+    const role = roles.find(r => r.id === eiCurrentRoleId);
+    eiDrawerData.unshift({
+        type: 'gift',
+        roleName: getDisplayName(role),
+        content: giftText,
+        time: new Date().toLocaleDateString()
+    });
+    DB.set('eiDrawerData', eiDrawerData);
+    alert(`已将「${giftText}」放进记忆抽屉`);
+}
+
+// 贴合气泡的长按菜单
+function eiTouchStart(e, index, el) {
     eiPressTimer = setTimeout(() => {
         if (navigator.vibrate) navigator.vibrate(50);
         eiTargetMsgIndex = index;
-        document.getElementById('ei-context-menu-overlay').style.display = 'block';
+        
+        const rect = el.getBoundingClientRect();
+        const menu = document.getElementById('ei-context-menu');
+        const overlay = document.getElementById('ei-context-menu-overlay');
+        
+        overlay.style.display = 'block';
+        
+        let top = rect.bottom + 5;
+        let left = rect.left;
+        
+        if (top + 120 > window.innerHeight) {
+            top = rect.top - 125;
+        }
+        if (left + 100 > window.innerWidth) {
+            left = window.innerWidth - 110;
+        }
+        
+        menu.style.top = top + 'px';
+        menu.style.left = left + 'px';
+        menu.style.bottom = 'auto';
+        
         setTimeout(() => {
-            document.getElementById('ei-context-menu').style.transform = 'translateY(0)';
+            menu.classList.add('active');
         }, 10);
     }, 500);
 }
 function eiTouchEnd() { clearTimeout(eiPressTimer); }
 
 function closeEiContextMenu() {
-    document.getElementById('ei-context-menu').style.transform = 'translateY(100%)';
+    const menu = document.getElementById('ei-context-menu');
+    menu.classList.remove('active');
     setTimeout(() => {
         document.getElementById('ei-context-menu-overlay').style.display = 'none';
-    }, 300);
+    }, 200);
 }
 
 function eiActionFav() {
@@ -16801,29 +16915,38 @@ async function sendEiMessage() {
         const data = await res.json();
         const reply = data.choices[0].message.content.trim();
         
-        // 移除临时消息
         eiChatHistory = eiChatHistory.filter(m => !m.isTemp);
         
-        // 按换行分割成多条气泡
+        // 自动分割多气泡
         const sentences = reply.split('\n').map(s => s.trim()).filter(s => s);
         sentences.forEach((sentence, idx) => {
-            eiChatHistory.push({ id: msgId + idx, role: 'ai', content: sentence, time: new Date().toLocaleTimeString() });
+            let gift = null;
+            // 沉默的礼物
+            if (eiChatMode === 'comfort' && idx === sentences.length - 1 && Math.random() > 0.6) {
+                const gifts = ['一颗叫孤单的星星', '一页空白', '一片安静', '一阵微风'];
+                gift = gifts[Math.floor(Math.random() * gifts.length)];
+                document.getElementById('ei-comfort-status').innerText = 'TA的心情被点亮了。';
+            }
+            eiChatHistory.push({ id: msgId + idx, role: 'ai', content: sentence, time: new Date().toLocaleTimeString(), gift: gift });
         });
         
         renderEiChat();
 
-        // 安慰模式下，有几率掉落情绪碎片
-        if (eiChatMode === 'comfort' && Math.random() > 0.5) {
-            const fragmentPrompt = `你是${role.realName}。用户刚刚安慰了你。请用一句话（不超过20字）写下你此刻内心最深处的一丝感触或独白。不要加引号。`;
-            fetch(endpoint, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${api.key}` },
-                body: JSON.stringify({ model: api.model, messages: [{ role: 'user', content: fragmentPrompt }], max_tokens: 50, temperature: 0.9 })
-            }).then(r => r.json()).then(d => {
-                const frag = d.choices[0].message.content.trim();
-                eiIslandData.unshift({ char: role.realName, text: frag, time: new Date().toLocaleDateString() });
-                DB.set('eiIslandData', eiIslandData);
-            }).catch(e=>{});
+        // 情绪碎片掉落
+        const negativeWords = ['难过', '伤心', '累', '烦', '痛', '哭'];
+        if (negativeWords.some(w => text.includes(w) || reply.includes(w))) {
+            if (Math.random() > 0.4) {
+                const fragmentPrompt = `你是${role.realName}。根据刚才的对话，用一句话（不超过15字）写下你此刻内心最深处的一丝感触。不要加引号。`;
+                fetch(endpoint, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${api.key}` },
+                    body: JSON.stringify({ model: api.model, messages: [{ role: 'user', content: fragmentPrompt }], max_tokens: 50, temperature: 0.9 })
+                }).then(r => r.json()).then(d => {
+                    const frag = d.choices[0].message.content.trim();
+                    eiIslandData.unshift({ char: role.realName, text: frag, time: new Date().toLocaleDateString() });
+                    DB.set('eiIslandData', eiIslandData);
+                }).catch(e=>{});
+            }
         }
 
     } catch (e) {
@@ -16853,6 +16976,10 @@ function eiThrowAway() {
 
 function openEiLetter() {
     const role = roles.find(r => r.id === eiCurrentRoleId);
+    initEiBonds(role.id);
+    eiBonds[role.id].letter++;
+    DB.set('eiBonds', eiBonds);
+    
     document.querySelectorAll('.ei-current-name').forEach(el => el.innerText = getDisplayName(role));
     document.getElementById('ei-letter-input').value = '';
     eiNavTo('letter');
@@ -16919,10 +17046,12 @@ function renderEiDrawer() {
         list.innerHTML = `<div class="ei-empty-state">抽屉里还没有东西。</div>`;
         return;
     }
-    list.innerHTML = eiDrawerData.map((item, i) => `
-        <div class="ei-card">
+    list.innerHTML = eiDrawerData.map((item, i) => {
+        const isGift = item.type === 'gift';
+        return `
+        <div class="ei-card ${isGift ? 'ei-drawer-gift' : ''}">
             <div class="ei-card-meta">
-                <span>${item.type === 'letter' ? '✉ 信件' : '💬 对话'} - ${item.roleName}</span>
+                <span>${isGift ? '🎁 礼物' : (item.type === 'letter' ? '✉ 信件' : '💬 对话')} - ${item.roleName}</span>
                 <span>${item.time}</span>
             </div>
             <div style="margin-bottom: 10px; line-height: 1.6;">${item.content}</div>
@@ -16930,7 +17059,7 @@ function renderEiDrawer() {
                 <button class="text-btn" style="padding:0; font-size:9px; color:#ff4d4d; display:inline-block;" onclick="eiDeleteDrawer(${i})">删除</button>
             </div>
         </div>
-    `).join('');
+    `}).join('');
 }
 
 function eiDeleteDrawer(index) {
@@ -16969,6 +17098,46 @@ function eiDeleteIsland(index) {
     }
 }
 
+// 共处模式
+function openEiStay() {
+    eiNavTo('stay');
+    eiStayStartTime = Date.now();
+    
+    const texts = [
+        "TA正在整理书架...",
+        "TA正看着窗外出神...",
+        "TA翻过了一页书...",
+        "TA轻轻叹了口气...",
+        "TA闭着眼睛在听歌...",
+        "TA似乎在想什么心事..."
+    ];
+    
+    const textEl = document.getElementById('ei-stay-text');
+    textEl.innerText = texts[0];
+    
+    eiStayTextTimer = setInterval(() => {
+        textEl.classList.add('fade');
+        setTimeout(() => {
+            textEl.innerText = texts[Math.floor(Math.random() * texts.length)];
+            textEl.classList.remove('fade');
+        }, 600);
+    }, 15000);
+
+    eiStayTimer = setTimeout(() => {
+        const role = roles.find(r => r.id === eiCurrentRoleId);
+        initEiBonds(role.id);
+        eiBonds[role.id].stay++;
+        DB.set('eiBonds', eiBonds);
+        showInAppNotification(role.id, '羁绊加深', `你和 ${role.realName} 静静地待了一会儿。`, role.avatar);
+    }, 120000); // 2分钟
+}
+
+function eiExitStay() {
+    clearTimeout(eiStayTimer);
+    clearInterval(eiStayTextTimer);
+    eiNavTo('space');
+}
+
 async function saveEiMemory() {
     const role = roles.find(r => r.id === eiCurrentRoleId);
     if (!role || eiChatHistory.length === 0) return;
@@ -16990,13 +17159,15 @@ async function saveEiMemory() {
         const summary = data.choices[0].message.content.trim();
         
         initRoleMemory(role.id);
+        // 传统记忆优化：每次 push 新对象，而不是拼接字符串
+        if (!memories[role.id] || typeof memories[role.id] === 'string') memories[role.id] = [];
+        memories[role.id].push({ content: `[情绪岛记忆] ${summary}`, time: new Date().toLocaleString('zh-CN') });
+        DB.set('memories', memories);
+        
         advancedMemories[role.id].episodicMemories.push({ content: `[情绪岛记忆] ${summary}`, time: new Date().toLocaleString(), auto: true });
         DB.set('advancedMemories', advancedMemories);
         
-        // 清空当前聊天记录，避免重复保存
         eiChatHistory = [];
-        
-        // 使用锁雾机内置的顶部通知，而不是 alert 弹窗打断体验
         showInAppNotification(role.id, '记忆已封存', `本次情绪岛交流已保存至 ${role.realName} 的情景记忆中。`, role.avatar);
     } catch (e) {
         console.error("保存情绪岛记忆失败", e);
