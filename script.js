@@ -1605,16 +1605,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 chatHeader.style.backdropFilter = 'none';
                 chatHeader.style.webkitBackdropFilter = 'none';
                 chatHeader.style.borderBottom = 'none';
+                chatMessages.style.paddingTop = 'calc(10px + env(safe-area-inset-top))';
             } else {
                 chatHeader.style.background = '';
                 chatHeader.style.backdropFilter = '';
                 chatHeader.style.webkitBackdropFilter = '';
                 chatHeader.style.borderBottom = '';
+                chatMessages.style.paddingTop = 'calc(70px + env(safe-area-inset-top))';
             }
-            /* 核心修复：无论顶栏是否透明，都必须保留 paddingTop。
-               这样初始状态下最上面的消息才不会被返回按钮挡住；
-               而在向上滑动时，因为顶栏背景透明了，消息自然就会从按钮下方透过去显示。 */
-            chatMessages.style.paddingTop = 'calc(70px + env(safe-area-inset-top))';
         }
     }
 
@@ -17573,6 +17571,7 @@ function eiTouchStart(e, index, el, type = 'chat') {
         menu.style.bottom = 'auto';
         
         setTimeout(() => {
+            overlay.classList.add('anim-active');
             menu.classList.add('active');
         }, 10);
     }, 500);
@@ -17581,10 +17580,12 @@ function eiTouchEnd() { clearTimeout(eiPressTimer); }
 
 function closeEiContextMenu() {
     const menu = document.getElementById('ei-context-menu');
+    const overlay = document.getElementById('ei-context-menu-overlay');
     menu.classList.remove('active');
+    overlay.classList.remove('anim-active');
     setTimeout(() => {
-        document.getElementById('ei-context-menu-overlay').style.display = 'none';
-    }, 200);
+        overlay.style.display = 'none';
+    }, 300);
 }
 
 function eiActionFav() {
