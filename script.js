@@ -17413,7 +17413,8 @@ async function confirmGenerateAiWallPosts() {
                 text: text, 
                 rot: (Math.random() * 6 - 3).toFixed(1),
                 authorId: role.id,
-                authorName: role.realName
+                authorName: role.realName,
+                time: new Date().toLocaleDateString()
             });
             successCount++;
         } catch (e) {
@@ -17902,7 +17903,8 @@ function eiSendWall() {
             text: text, 
             rot: (Math.random() * 6 - 3).toFixed(1),
             authorId: 'user',
-            authorName: settings.userName || 'ME'
+            authorName: settings.userName || 'ME',
+            time: new Date().toLocaleDateString()
         });
         DB.set('eiWallData', eiWallData);
         input.value = '';
@@ -17932,7 +17934,8 @@ async function generateAiWallPost() {
             text: text, 
             rot: (Math.random() * 6 - 3).toFixed(1),
             authorId: role.id,
-            authorName: role.realName
+            authorName: role.realName,
+            time: new Date().toLocaleDateString()
         });
         DB.set('eiWallData', eiWallData);
         if (document.getElementById('ei-page-wall').classList.contains('active')) {
@@ -17948,26 +17951,32 @@ function renderEiWall() {
         return;
     }
     grid.innerHTML = eiWallData.map((item, i) => {
-        const touchHandlers = `onmousedown="eiTouchStart(event, ${i}, this, 'wall')" onmouseup="eiTouchEnd()" onmouseleave="eiTouchEnd()" ontouchstart="eiTouchStart(event, ${i}, this, 'wall')" ontouchend="eiTouchEnd()" ontouchcancel="eiTouchEnd()"`;
-        const authorHtml = item.authorName ? `<div style="text-align:right; font-size:8px; color:var(--text-secondary); margin-top:8px; opacity:0.6;">- ${item.authorName}</div>` : '';
+        const authorName = item.authorName || '匿名';
+        const timeStr = item.time || '';
         
-        /* 根据文本长度动态计算卡片大小和字体 */
-        const textLen = item.text.length;
-        let cardStyle = `transform: rotate(${item.rot}deg); opacity: ${1 - i*0.05 > 0.5 ? 1 - i*0.05 : 0.5}; cursor: pointer; height: auto; max-height: none; display: inline-block; width: fit-content; max-width: 90%;`;
-        if (textLen <= 10) {
-            cardStyle += ` padding: 20px 30px; font-size: 20px; min-height: 60px; font-weight: bold;`;
-        } else if (textLen <= 30) {
-            cardStyle += ` padding: 15px 20px; font-size: 16px; min-height: 80px;`;
-        } else {
-            cardStyle += ` padding: 12px 15px; font-size: 13px; min-height: 100px;`;
-        }
-
+        /* 采用与记忆抽屉完全一致的卡片结构 */
         return `
-        <div class="ei-card" style="${cardStyle}" ${touchHandlers}>
-            ${item.text}
-            ${authorHtml}
+        <div class="ei-card">
+            <div class="ei-card-meta">
+                <span>📝 留言 - ${authorName}</span>
+                <span>${timeStr}</span>
+            </div>
+            <div style="margin-bottom: 10px; line-height: 1.6;">${item.text}</div>
+            <div style="text-align: right;">
+                <button class="text-btn" style="padding:0; font-size:9px; color:#ff4d4d; display:inline-block;" onclick="eiDeleteWall(${i})">删除</button>
+            </div>
         </div>
-    `}).join('');
+        `;
+    }).join('');
+}
+
+/* 新增：漂流墙卡片直接删除逻辑 */
+function eiDeleteWall(index) {
+    if (confirm('确定要删除这条留言吗？')) {
+        eiWallData.splice(index, 1);
+        DB.set('eiWallData', eiWallData);
+        renderEiWall();
+    }
 }
 
 function renderEiDrawer() {
