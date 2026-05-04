@@ -2489,9 +2489,13 @@ function updateKeepAliveUI(isOn) {
         const fragment = document.createDocumentFragment();
         if (allMsgs.length > chatDisplayLimit) {
             const loadMoreBtn = document.createElement('div');
-            /* 按钮颜色跟随系统提示文字颜色 */
-            loadMoreBtn.style.cssText = 'text-align:center; padding:10px; color:var(--system-text-color, #888888); font-size:10px; cursor:pointer; text-decoration:underline; font-weight:bold;';
+            /* 增加 margin-top 防止被顶栏标题遮挡，并绑定点击事件增加显示条数 */
+            loadMoreBtn.style.cssText = 'text-align:center; padding:10px; margin-top: 40px; margin-bottom: 10px; color:var(--system-text-color, #888888); font-size:10px; cursor:pointer; text-decoration:underline; font-weight:bold;';
             loadMoreBtn.innerText = '加载更多历史记录...';
+            loadMoreBtn.onclick = function() {
+                chatDisplayLimit += 50;
+                renderMessages();
+            };
             fragment.appendChild(loadMoreBtn);
         }
         rows.forEach((row, i) => {
@@ -4951,7 +4955,7 @@ function toInitApp(){
 
             const wallContext = (typeof eiWallData !== 'undefined' && eiWallData.length > 0) ? `\n[情绪岛漂流墙最新留言]\n${eiWallData.slice(0, 5).map(w => `${w.authorName}: ${w.text}`).join('\n')}\n(你可以根据这些留言质问用户，或者对其他人的留言发表看法)` : '';
             const eiLetters = (typeof eiDrawerData !== 'undefined') ? eiDrawerData.filter(d => d.type === 'letter' && d.roleName === getDisplayName(role)).slice(0, 2).map(l => `用户写给你的信: ${l.content}`).join('\n') : '';
-            const eiLetterContext = eiLetters ? `\n[情绪岛记忆抽屉中的信件]\n${eiLetters}` : '';
+            const eiLetterContext = eiLetters ? `\n[情绪岛记忆抽屉中的信件]\n${eiLetters}\n(注意：用户在情绪岛给你写了信，你可以主动提及或回应信中的内容)` : '';
 
             if (!window.musicCreds) window.musicCreds = DB.get('musicCreds', {});
             if (!window.musicCreds[targetRoleId]) {
@@ -6673,6 +6677,7 @@ function updateRoleWbPreview() {
         previewEcgColor(ecgColor);
         $('#role-context-limit').value = isEditing && role.contextLimit ? role.contextLimit : 30;
         $('#role-summary-threshold').value = isEditing && role.summaryThreshold ? role.summaryThreshold : 100;
+        $('#role-ei-context-limit').value = isEditing && role.eiContextLimit ? role.eiContextLimit : 20;
         $('#role-auto-feed').checked = isEditing ? !!role.autoFeed : false;
         $('#role-auto-feed-interval').value = isEditing && role.autoFeedInterval ? role.autoFeedInterval : 60;
         $('#role-can-block').checked = isEditing ? !!role.canBlock : false;
@@ -6805,6 +6810,7 @@ function updateRoleWbPreview() {
             autoMsgInterval: parseInt($('#role-auto-msg-interval').value) || 30, 
             contextLimit: parseInt($('#role-context-limit').value) || 30, 
             summaryThreshold: parseInt($('#role-summary-threshold').value) || 100, 
+            eiContextLimit: parseInt($('#role-ei-context-limit').value) || 20,
             opening: $('#role-opening').value.trim(), 
             localWbs, 
             activeMaskId, 
@@ -6889,6 +6895,7 @@ window.newRoleTempWbs = null;
             autoMsgInterval: parseInt($('#role-auto-msg-interval').value) || 30, 
             contextLimit: parseInt($('#role-context-limit').value) || 30, 
             summaryThreshold: parseInt($('#role-summary-threshold').value) || 100, 
+            eiContextLimit: parseInt($('#role-ei-context-limit').value) || 20,
             opening: $('#role-opening').value.trim(), 
             localWbs, 
             activeMaskId, 
@@ -10863,7 +10870,7 @@ function checkAllAutoMsgRoles() {
         // 注入漂流墙上下文
         const wallContext = eiWallData.length > 0 ? `\n[情绪岛漂流墙最新留言]\n${eiWallData.slice(0, 5).map(w => `${w.authorName}: ${w.text}`).join('\n')}\n(你可以根据这些留言质问用户，或者对其他人的留言发表看法)` : '';
         const eiLetters = (typeof eiDrawerData !== 'undefined') ? eiDrawerData.filter(d => d.type === 'letter' && d.roleName === getDisplayName(role)).slice(0, 2).map(l => `用户写给你的信: ${l.content}`).join('\n') : '';
-        const eiLetterContext = eiLetters ? `\n[情绪岛记忆抽屉中的信件]\n${eiLetters}` : '';
+        const eiLetterContext = eiLetters ? `\n[情绪岛记忆抽屉中的信件]\n${eiLetters}\n(注意：用户在情绪岛给你写了信，你可以主动提及或回应信中的内容)` : '';
         
         let silenceDuration = '';
         let lastUserMsgTime = null;
@@ -17471,8 +17478,9 @@ function eiToggleActionDesc() {
 
 async function openEiChat(mode) {
     eiChatMode = mode;
-    eiChatHistory = [];
     const role = roles.find(r => r.id === eiCurrentRoleId);
+    /* 从数据库读取该角色的情绪岛历史记录，实现上下文记忆 */
+    eiChatHistory = DB.get('eiChats_' + role.id, []);
     
     initEiBonds(role.id);
     if (mode === 'confide') eiBonds[role.id].confide++;
@@ -17552,13 +17560,16 @@ async function openEiChat(mode) {
             const data = await res.json();
             const reply = data.choices[0].message.content.trim();
             eiChatHistory.push({ id: Date.now(), role: 'ai', content: reply, time: new Date().toLocaleTimeString() });
+            DB.set('eiChats_' + role.id, eiChatHistory);
             renderEiChat();
         } catch (e) {
             eiChatHistory.push({ id: Date.now(), role: 'ai', content: mode === 'confide' ? '我在听，慢慢说。' : '（沉默）', time: new Date().toLocaleTimeString() });
+            DB.set('eiChats_' + role.id, eiChatHistory);
             renderEiChat();
         }
     } else {
         eiChatHistory.push({ id: Date.now(), role: 'ai', content: mode === 'confide' ? '我在听，慢慢说。' : '（沉默）', time: new Date().toLocaleTimeString() });
+        DB.set('eiChats_' + role.id, eiChatHistory);
         renderEiChat();
     }
 }
@@ -17672,6 +17683,7 @@ function eiActionEdit() {
                 } else {
                     eiChatHistory[eiTargetMsgIndex].content = newText;
                 }
+                if (eiCurrentRoleId) DB.set('eiChats_' + eiCurrentRoleId, eiChatHistory);
                 renderEiChat();
             }
         } else if (eiTargetType === 'wall') {
@@ -17695,6 +17707,7 @@ function eiActionDel() {
     if (eiTargetMsgIndex > -1 && confirm("确定删除此条记录？")) {
         if (eiTargetType === 'chat') {
             eiChatHistory.splice(eiTargetMsgIndex, 1);
+            if (eiCurrentRoleId) DB.set('eiChats_' + eiCurrentRoleId, eiChatHistory);
             renderEiChat();
         } else if (eiTargetType === 'wall') {
             eiWallData.splice(eiTargetMsgIndex, 1);
@@ -17713,6 +17726,7 @@ async function sendEiMessage() {
     const role = roles.find(r => r.id === eiCurrentRoleId);
     
     eiChatHistory.push({ id: Date.now(), role: 'user', content: text, time: new Date().toLocaleTimeString() });
+    DB.set('eiChats_' + role.id, eiChatHistory);
     input.value = '';
     renderEiChat();
 
@@ -17720,6 +17734,7 @@ async function sendEiMessage() {
     if (!api.url) {
         setTimeout(() => {
             eiChatHistory.push({ id: Date.now(), role: 'ai', content: '(请先配置 API)', time: new Date().toLocaleTimeString() });
+            DB.set('eiChats_' + role.id, eiChatHistory);
             renderEiChat();
         }, 500);
         return;
@@ -17734,8 +17749,13 @@ async function sendEiMessage() {
     const memorySummary = memories[role.id] ? `\n[SHARED MEMORY]\n${memories[role.id]}` : '';
     const recentChats = (chats[role.id] || []).slice(-10).map(m => `${m.role === 'user' ? 'ME' : role.realName}: ${m.content.replace(/<[^>]*>/g, '')}`).join('\n');
     const chatContext = recentChats ? `\n[RECENT CHAT HISTORY]\n${recentChats}` : '';
+    
+    /* 提取情绪岛历史上下文 */
+    const eiLimit = role.eiContextLimit || 20;
+    const eiRecentChats = eiChatHistory.filter(m => !m.isTemp).slice(-eiLimit).map(m => `${m.role === 'user' ? 'ME' : role.realName}: ${m.content}`).join('\n');
+    const eiContext = eiRecentChats ? `\n[情绪岛历史对话]\n${eiRecentChats}` : '';
 
-    let prompt = `你是${role.realName}。${role.persona}\n${globalWbs}\n${localWbs}${memorySummary}${chatContext}\n用户在“情绪岛”空间对你说：“${text}”。\n`;
+    let prompt = `你是${role.realName}。${role.persona}\n${globalWbs}\n${localWbs}${memorySummary}${chatContext}${eiContext}\n用户在“情绪岛”空间对你说：“${text}”。\n`;
     if (eiChatMode === 'confide') {
         prompt += `【倾诉模式】：用户正在向你倾诉。请给予符合你人设的倾听或回应。不要OOC，不要油腻，不要贬低用户，保持极简和克制。`;
     } else {
@@ -17778,6 +17798,7 @@ async function sendEiMessage() {
             eiChatHistory.push({ id: msgId + idx, role: 'ai', content: sentence, time: new Date().toLocaleTimeString(), gift: gift });
         });
         
+        DB.set('eiChats_' + role.id, eiChatHistory);
         renderEiChat();
 
         // 情绪碎片掉落
@@ -17820,6 +17841,9 @@ function eiThrowAway() {
         setTimeout(() => msg.remove(), 800);
     });
     eiChatHistory = eiChatHistory.filter(m => m.role !== 'user');
+    if (eiCurrentRoleId) {
+        DB.set('eiChats_' + eiCurrentRoleId, eiChatHistory);
+    }
 }
 
 function openEiLetter() {
@@ -17920,8 +17944,20 @@ function renderEiWall() {
     grid.innerHTML = eiWallData.map((item, i) => {
         const touchHandlers = `onmousedown="eiTouchStart(event, ${i}, this, 'wall')" onmouseup="eiTouchEnd()" onmouseleave="eiTouchEnd()" ontouchstart="eiTouchStart(event, ${i}, this, 'wall')" ontouchend="eiTouchEnd()" ontouchcancel="eiTouchEnd()"`;
         const authorHtml = item.authorName ? `<div style="text-align:right; font-size:8px; color:var(--text-secondary); margin-top:8px; opacity:0.6;">- ${item.authorName}</div>` : '';
+        
+        /* 根据文本长度动态计算卡片大小和字体 */
+        const textLen = item.text.length;
+        let cardStyle = `transform: rotate(${item.rot}deg); opacity: ${1 - i*0.05 > 0.5 ? 1 - i*0.05 : 0.5}; cursor: pointer; height: auto; max-height: none; display: inline-block; width: fit-content; max-width: 90%;`;
+        if (textLen <= 10) {
+            cardStyle += ` padding: 20px 30px; font-size: 20px; min-height: 60px; font-weight: bold;`;
+        } else if (textLen <= 30) {
+            cardStyle += ` padding: 15px 20px; font-size: 16px; min-height: 80px;`;
+        } else {
+            cardStyle += ` padding: 12px 15px; font-size: 13px; min-height: 100px;`;
+        }
+
         return `
-        <div class="ei-card" style="transform: rotate(${item.rot}deg); opacity: ${1 - i*0.05 > 0.5 ? 1 - i*0.05 : 0.5}; cursor: pointer; height: auto; min-height: 100px; max-height: none;" ${touchHandlers}>
+        <div class="ei-card" style="${cardStyle}" ${touchHandlers}>
             ${item.text}
             ${authorHtml}
         </div>
@@ -18023,6 +18059,29 @@ function openEiStay() {
 function eiExitStay() {
     clearTimeout(eiStayTimer);
     clearInterval(eiStayTextTimer);
+    
+    /* 记录陪伴时间并写入主聊天记录 */
+    if (eiStayStartTime > 0 && eiCurrentRoleId) {
+        const durationMs = Date.now() - eiStayStartTime;
+        if (durationMs > 10000) { // 超过10秒才记录
+            const mins = Math.max(1, Math.floor(durationMs / 60000));
+            const role = roles.find(r => r.id === eiCurrentRoleId);
+            if (role) {
+                if (!chats[role.id]) chats[role.id] = [];
+                const now = new Date();
+                chats[role.id].push({
+                    role: 'system',
+                    content: `[系统提示：用户在情绪岛默默陪伴了你 ${mins} 分钟]`,
+                    time: now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }),
+                    rawTime: now.getTime(),
+                    mode: 'online'
+                });
+                DB.set('chats', chats);
+            }
+        }
+    }
+    eiStayStartTime = 0;
+    
     eiNavTo('space'); // 恢复跳转，死循环已在 eiNavTo 中解决
 }
 
