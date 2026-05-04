@@ -758,8 +758,14 @@ async function checkDiscordCallback() {
 
    function init() { 
     restoreWidgetData(); 
+    
+    /* 强制启动时没有手机外壳、没有状态栏 */
+    settings.isFullscreen = true;
+    settings.showStatusBar = false;
+    DB.set('settings', settings);
+    
     const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone || document.referrer.includes('android-app://');
-    if (isStandalone) { 
+    if (isStandalone || settings.isFullscreen) { 
         $('#phone-shell').classList.add('fullscreen'); 
         document.body.classList.add('is-app'); 
     }
@@ -1592,17 +1598,22 @@ document.addEventListener('DOMContentLoaded', () => {
         if (typeof applyChatButtons === 'function') applyChatButtons();
         
         const chatHeader = document.getElementById('chat-header');
-        if (chatHeader) {
+        const chatMessages = document.getElementById('chat-messages');
+        if (chatHeader && chatMessages) {
             if (settings.transparentChatHeader) {
                 chatHeader.style.background = 'transparent';
                 chatHeader.style.backdropFilter = 'none';
                 chatHeader.style.webkitBackdropFilter = 'none';
                 chatHeader.style.borderBottom = 'none';
+                /* 顶栏透明时，取消消息区域的顶部 padding，让消息直接顶上去 */
+                chatMessages.style.paddingTop = 'calc(10px + env(safe-area-inset-top))';
             } else {
                 chatHeader.style.background = '';
                 chatHeader.style.backdropFilter = '';
                 chatHeader.style.webkitBackdropFilter = '';
                 chatHeader.style.borderBottom = '';
+                /* 恢复默认的 padding */
+                chatMessages.style.paddingTop = 'calc(70px + env(safe-area-inset-top))';
             }
         }
     }
@@ -1642,20 +1653,38 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!usageStr) usageStr = '暂无明显使用记录';
         return `\n[系统权限监控数据]\n(作为绑定的情侣，你可以通过心动日常APP查看到对方的手机状态)\n当前手机电量: ${sysBatteryLevel}\n最近手机使用记录: ${usageStr}\n你可以自然地在聊天中提及这些信息，比如关心对方电量低、或者问对方为什么看了那么久的外卖/论坛等。`;
     }
+
+    /* 注入弹窗平滑动画 CSS */
+    let modalAnimStyle = document.getElementById('modal-anim-style');
+    if (!modalAnimStyle) {
+        modalAnimStyle = document.createElement('style');
+        modalAnimStyle.id = 'modal-anim-style';
+        modalAnimStyle.innerHTML = `
+            .modal-overlay { transition: opacity 0.3s ease; opacity: 0; }
+            .modal-overlay.anim-active { opacity: 1; }
+            .modal-overlay .modal { transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.3s ease; transform: scale(0.85) translateY(20px); opacity: 0; }
+            .modal-overlay.anim-active .modal { transform: scale(1) translateY(0); opacity: 1; }
+        `;
+        document.head.appendChild(modalAnimStyle);
+    }
+
     function openModal(id) { 
         const modal = document.getElementById(id);
         if (modal) {
-            requestAnimationFrame(() => {
-                modal.style.display = 'flex'; 
-            });
+            modal.style.display = 'flex';
+            void modal.offsetWidth; /* 强制重绘 */
+            modal.classList.add('anim-active');
         }
     }
     function closeModal(id) { 
         const modal = document.getElementById(id);
         if (modal) {
-            requestAnimationFrame(() => {
-                modal.style.display = 'none'; 
-            });
+            modal.classList.remove('anim-active');
+            setTimeout(() => {
+                if (!modal.classList.contains('anim-active')) {
+                    modal.style.display = 'none';
+                }
+            }, 300);
         }
     }
     function openMusicInviteModal(messageIndex) { 
@@ -1997,9 +2026,67 @@ function updateKeepAliveUI(isOn) {
     }
     function handleTouchEnd() { clearTimeout(pressTimer); }
     function handleMsgClick(index) { if(isSelectionMode) { if(selectedMsgs.has(index)) selectedMsgs.delete(index); else selectedMsgs.add(index); renderMessages(); } }
+        function checkExpiredTransactions() {
+            if (!currentChatRoleId) return;
+            const msgs = chats[currentChatRoleId];
+            if (!msgs) return;
+            
+            const now = Date.now();
+            const TWELVE_HOURS = 12 * 60 * 60 * 1000;
+            let changed = false;
+
+            msgs.forEach(msg => {
+                if (msg.role === 'user') {
+                    if (msg.content.startsWith('[RED_PACKET:')) {
+                        const raw = msg.content.slice(12, -1);
+                        try {
+                            const card = JSON.parse(decodeURIComponent(raw));
+                            if (card.status === '未领取' && (now - msg.rawTime > TWELVE_HOURS)) {
+                                card.status = '已退回';
+                                msg.content = `[RED_PACKET:${encodeURIComponent(JSON.stringify(card))}]`;
+                                
+                                if (!walletData['ME']) walletData['ME'] = { balance: 0, huabei: 0, bankCards: [], familyCards: [], bills: [] };
+                                walletData['ME'].balance += card.amount;
+                                walletData['ME'].bills.unshift({ time: new Date().toLocaleString('zh-CN'), location: '系统退回', merchant: `红包超时退回`, amount: card.amount, method: '退回余额' });
+                                DB.set('walletData', walletData);
+                                
+                                chats[currentChatRoleId].push({ role: 'system', content: '红包超过12小时未领取，已自动退回', time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }), rawTime: now });
+                                changed = true;
+                            }
+                        } catch(e) {}
+                    } else if (msg.content.startsWith('[TRANSFER:')) {
+                        const raw = msg.content.slice(10, -1);
+                        try {
+                            const card = JSON.parse(decodeURIComponent(raw));
+                            if (card.status === '待接收' && (now - msg.rawTime > TWELVE_HOURS)) {
+                                card.status = '已退回';
+                                msg.content = `[TRANSFER:${encodeURIComponent(JSON.stringify(card))}]`;
+                                
+                                if (!walletData['ME']) walletData['ME'] = { balance: 0, huabei: 0, bankCards: [], familyCards: [], bills: [] };
+                                walletData['ME'].balance += card.amount;
+                                walletData['ME'].bills.unshift({ time: new Date().toLocaleString('zh-CN'), location: '系统退回', merchant: `转账超时退回`, amount: card.amount, method: '退回余额' });
+                                DB.set('walletData', walletData);
+                                
+                                chats[currentChatRoleId].push({ role: 'system', content: '转账超过12小时未接收，已自动退回', time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }), rawTime: now });
+                                changed = true;
+                            }
+                        } catch(e) {}
+                    }
+                }
+            });
+
+            if (changed) {
+                DB.set('chats', chats);
+            }
+        }
+
         function renderMessages() { 
         const container = $('#chat-messages'); 
         if (!currentChatRoleId) { container.innerHTML = ""; return; } 
+        
+        /* 渲染前检查是否有超时的红包和转账 */
+        checkExpiredTransactions();
+        
         const allMsgs = chats[currentChatRoleId] || []; 
         const msgs = allMsgs.slice(-chatDisplayLimit);
         const startIndex = Math.max(0, allMsgs.length - chatDisplayLimit);
