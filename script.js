@@ -7517,6 +7517,47 @@ window.newRoleTempWbs = null;
     let _moveDragHandler = null;
     let _endDragHandler = null;
 
+    window.fixDesktopAppOrder = function() {
+        if (!confirm("确定要重置桌面图标排序并消除所有空格吗？\n(这会将所有图标紧凑排列)")) return;
+        
+        const SLOTS_PER_PAGE = 24;
+        let allValidApps = [];
+        
+        // 1. 收集当前网格中的所有有效APP
+        if (appGrid) {
+            appGrid.forEach(page => {
+                page.forEach(appId => {
+                    if (appId && DESKTOP_APPS[appId] && !DOCK_APPS.includes(appId)) {
+                        if (!allValidApps.includes(appId)) {
+                            allValidApps.push(appId);
+                        }
+                    }
+                });
+            });
+        }
+        
+        // 2. 补充可能遗漏的APP
+        Object.keys(DESKTOP_APPS).forEach(appId => {
+            if (!DOCK_APPS.includes(appId) && !allValidApps.includes(appId)) {
+                allValidApps.push(appId);
+            }
+        });
+        
+        // 3. 重新生成紧凑的网格
+        appGrid = [];
+        for (let i = 0; i < allValidApps.length; i += SLOTS_PER_PAGE) {
+            let pageApps = allValidApps.slice(i, i + SLOTS_PER_PAGE);
+            while (pageApps.length < SLOTS_PER_PAGE) pageApps.push(null);
+            appGrid.push(pageApps);
+        }
+        
+        if (appGrid.length < 2) appGrid.push(new Array(SLOTS_PER_PAGE).fill(null));
+        
+        DB.set('appGrid', appGrid);
+        renderDesktop();
+        alert("桌面图标已重新排列，空格已消除！");
+    };
+
     function renderDesktop() { 
         const desktopView = $('#view-desktop');
         const dockContainer = $('#desktop-dock');
