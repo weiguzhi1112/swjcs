@@ -5516,8 +5516,9 @@ ${modeRules}
             // 最终清理和分割
             let cleanDisplay = fullReply;
             
-            /* 强力清理AI可能模仿生成的时间戳前缀 (如 [10月24日 12:00])，防止气泡开头掉格式 */
-            cleanDisplay = cleanDisplay.replace(/^\[\d{1,2}月\d{1,2}日\s\d{2}:\d{2}\]\s*/g, '');
+            /* 清理AI模仿生成的时间戳，防止气泡内出现多余的时间显示 */
+            cleanDisplay = cleanDisplay.replace(/\[\d{1,2}月\d{1,2}日\s\d{2}:\d{2}\]\s*/g, '');
+            cleanDisplay = cleanDisplay.replace(/\[\d{4}\/\d{1,2}\/\d{1,2}\s+周.\s+\d{2}:\d{2}\]\s*/g, '');
             
             if (!settings.showCoT) {
                 cleanDisplay = cleanDisplay.replace(/<thought>[\s\S]*?<\/thought>/gi, '').replace(/思考：[\s\S]*?(?=\n\n|$)/gi, '').trim();
@@ -15716,6 +15717,19 @@ function vmapHandleClick(index) {
     
     if (vmapSelectedPinIndex === -1) {
         vmapSelectedPinIndex = index;
+        
+        /* 自动居中到选中的地点 */
+        const loc = virtualLocations[index];
+        if (loc && loc.x && loc.y) {
+            const canvas = document.getElementById('vmap-canvas');
+            if (canvas && canvas.parentElement) {
+                const rect = canvas.parentElement.getBoundingClientRect();
+                vmapPanX = rect.width / 2 - (loc.x / 100) * rect.width * vmapScale;
+                vmapPanY = rect.height / 2 - (loc.y / 100) * rect.height * vmapScale;
+                updateMapTransform();
+            }
+        }
+        
         renderVirtualMap();
         if(distEl) {
             distEl.style.display = 'block';
@@ -16132,6 +16146,13 @@ async function locateCurrentRole() {
                         renderVirtualMap();
                     }
                 }
+                /* 延迟等待地图渲染后，自动选中并居中该地点 */
+                setTimeout(() => {
+                    const targetIdx = virtualLocations.findIndex(l => l.name === loc.name);
+                    if (targetIdx >= 0) {
+                        vmapHandleClick(targetIdx);
+                    }
+                }, 500);
             }
         }
     } catch (e) {
