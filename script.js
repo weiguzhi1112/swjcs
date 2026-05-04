@@ -894,6 +894,8 @@ async function checkDiscordCallback() {
     updateForceFormatUI();
     updateSingleTimestampUI();
     updateCoTDisplayUI();
+    if (window.updateStatusBtnUI) window.updateStatusBtnUI();
+    if (window.updateHeaderMaskUI) window.updateHeaderMaskUI();
     setupKeyboardShortcuts(); 
     setupAudioPlayer();
     hideBootStatus();
@@ -1589,7 +1591,20 @@ document.addEventListener('DOMContentLoaded', () => {
         
         if (typeof applyChatButtons === 'function') applyChatButtons();
         
-        /* 移除了对 chat-header 和 chat-messages 的内联样式硬编码，允许通过美容院的全局 CSS 自由美化 */
+        const chatHeader = document.getElementById('chat-header');
+        if (chatHeader) {
+            if (settings.transparentChatHeader) {
+                chatHeader.style.background = 'transparent';
+                chatHeader.style.backdropFilter = 'none';
+                chatHeader.style.webkitBackdropFilter = 'none';
+                chatHeader.style.borderBottom = 'none';
+            } else {
+                chatHeader.style.background = '';
+                chatHeader.style.backdropFilter = '';
+                chatHeader.style.webkitBackdropFilter = '';
+                chatHeader.style.borderBottom = '';
+            }
+        }
     }
 
     let sysBatteryLevel = '未知';
@@ -7528,6 +7543,58 @@ window.newRoleTempWbs = null;
         } 
     }
 
+    /* 控制心声按钮显示的逻辑 */
+    window.toggleStatusBtnDisplay = function() {
+        settings.hideStatusBtn = !settings.hideStatusBtn;
+        DB.set('settings', settings);
+        updateStatusBtnUI();
+        updateStatusBarButton();
+    };
+    window.updateStatusBtnUI = function() {
+        const isHidden = settings.hideStatusBtn || false;
+        const track = document.getElementById('status-btn-track');
+        const thumb = document.getElementById('status-btn-thumb');
+        const status = document.getElementById('status-btn-display-status');
+        if (!track || !thumb) return;
+        if (!isHidden) {
+            track.style.background = 'var(--text-color)';
+            thumb.style.left = '20px';
+            thumb.style.background = 'var(--bg-color)';
+            if (status) status.innerText = '已开启：显示心声按钮';
+        } else {
+            track.style.background = 'var(--gray-light)';
+            thumb.style.left = '2px';
+            thumb.style.background = 'var(--text-color)';
+            if (status) status.innerText = '已关闭：隐藏心声按钮';
+        }
+    };
+
+    /* 控制聊天顶栏遮罩的逻辑 */
+    window.toggleHeaderMask = function() {
+        settings.transparentChatHeader = !settings.transparentChatHeader;
+        DB.set('settings', settings);
+        updateHeaderMaskUI();
+        applySettings();
+    };
+    window.updateHeaderMaskUI = function() {
+        const isTransparent = settings.transparentChatHeader || false;
+        const track = document.getElementById('header-mask-track');
+        const thumb = document.getElementById('header-mask-thumb');
+        const status = document.getElementById('header-mask-status');
+        if (!track || !thumb) return;
+        if (!isTransparent) {
+            track.style.background = 'var(--text-color)';
+            thumb.style.left = '20px';
+            thumb.style.background = 'var(--bg-color)';
+            if (status) status.innerText = '已开启：顶栏有背景遮挡消息';
+        } else {
+            track.style.background = 'var(--gray-light)';
+            thumb.style.left = '2px';
+            thumb.style.background = 'var(--text-color)';
+            if (status) status.innerText = '已关闭：顶栏透明不遮挡消息';
+        }
+    };
+
     function toggleNotifyInChat() { settings.notifyInChat = !settings.notifyInChat; DB.set('settings', settings); updateNotifyInChatUI(); } function updateNotifyInChatUI() { const isOn = settings.notifyInChat || false; const track = document.getElementById('notify-chat-track'); const thumb = document.getElementById('notify-chat-thumb'); const status = document.getElementById('notify-in-chat-status'); if (!track || !thumb) return; if (isOn) { track.style.background = 'var(--text-color)'; thumb.style.left = '20px'; thumb.style.background = 'var(--bg-color)'; if (status) status.innerText = '已开启：聊天时也会弹出通知'; } else { track.style.background = 'var(--gray-light)'; thumb.style.left = '2px'; thumb.style.background = 'var(--text-color)'; if (status) status.innerText = '已关闭：聊天时不弹出通知'; } } 
     function toggleTimeAwareness() { settings.timeAware = !settings.timeAware; DB.set('settings', settings); renderTimeAwarenessStatus(); }
     function renderTimeAwarenessStatus() {
@@ -12896,6 +12963,14 @@ function saveStatusHistory(roleId, statusEntry) {
 function updateStatusBarButton() {
     const btn = $('#char-status-btn');
     if (!btn || !currentChatRoleId) return;
+    
+    if (settings.hideStatusBtn) {
+        btn.style.display = 'none';
+        return;
+    } else {
+        btn.style.display = 'flex';
+    }
+    
     const config = statusBarData[currentChatRoleId];
     if (config && config.enabled && config.history.length > 0) {
         btn.style.opacity = '1';
