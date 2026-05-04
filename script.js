@@ -410,6 +410,36 @@ cipherState = DB.get('cipherState', {score:0,created:0,solved:0,collection:[], h
         toFavorites = DB.get('toFavorites', { shops: [], items: [] });
         toSearchResults = DB.get('toSearchResults', []);
 
+        /* 核心修复：每次启动时自动清理桌面残留的空白占位符，强制紧凑排列 */
+        if (appGrid) {
+            const SLOTS_PER_PAGE = 24;
+            let allValidApps = [];
+            appGrid.forEach(page => {
+                page.forEach(appId => {
+                    if (appId && DESKTOP_APPS[appId] && !['messages', 'music', 'appearance', 'profile'].includes(appId)) {
+                        allValidApps.push(appId);
+                    }
+                });
+            });
+            
+            Object.keys(DESKTOP_APPS).forEach(appId => {
+                if (!['messages', 'music', 'appearance', 'profile'].includes(appId) && !allValidApps.includes(appId)) {
+                    allValidApps.push(appId);
+                }
+            });
+
+            let newGrid = [];
+            for (let i = 0; i < allValidApps.length; i += SLOTS_PER_PAGE) {
+                let pageApps = allValidApps.slice(i, i + SLOTS_PER_PAGE);
+                while (pageApps.length < SLOTS_PER_PAGE) pageApps.push(null);
+                newGrid.push(pageApps);
+            }
+            if (newGrid.length < 2) newGrid.push(new Array(SLOTS_PER_PAGE).fill(null));
+            
+            appGrid = newGrid;
+            DB.set('appGrid', appGrid);
+        }
+
         injectImageQualityUI();
         init();
         initKeepAlive();
