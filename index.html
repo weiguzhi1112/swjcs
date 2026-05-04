@@ -334,11 +334,14 @@
             <div class="view-header">
                 <button class="text-btn" onclick="closeApp('beauty')">RETURN<span>返回</span></button>
                 <h2 class="title-serif">Aesthetics.<span class="title-sub">美容院</span></h2>
-                <div style="width: 60px;"></div>
+                <div style="display: flex; gap: 10px;">
+                    <button class="text-btn" onclick="exportBeautyPresets()">EXPORT<span>导出</span></button>
+                    <label class="text-btn" style="cursor:pointer;">IMPORT<span>导入</span><input type="file" accept=".json" style="display:none;" onchange="importBeautyPresets(event)"></label>
+                </div>
             </div>
             <div class="view-content">
                 <div class="setting-group">
-                    <label>CHAT INTERFACE CSS / 聊天界面CSS</label>
+                    <label>CHAT INTERFACE CSS / 聊天界面全局CSS</label>
                     <textarea id="beauty-chat-css" placeholder="/* 例如: 修改聊天背景 */
 #chat-view {
   background-image: url('你的图片链接');
@@ -346,24 +349,31 @@
                 </div>
 
                 <div class="setting-group">
-                    <label>CHAT BUBBLE CSS / 聊天气泡CSS</label>
-                    <textarea id="beauty-bubble-css" placeholder="/* 例如: 修改气泡圆角 */
+                    <label style="display:flex; align-items:center; gap:10px;">
+                        <input type="checkbox" id="beauty-enable-bubble-css" onchange="toggleBeautyBubbleCss()" style="width:auto;">
+                        ENABLE CUSTOM BUBBLE <span>开启全局自定义气泡CSS</span>
+                    </label>
+                    <div id="beauty-bubble-css-container" style="display:none; margin-top:10px;">
+                        <textarea id="beauty-bubble-css" placeholder="/* 例如: 修改气泡圆角 */
 .msg-bubble {
   border-radius: 8px !important;
 }" oninput="applyBeautyStyles()"></textarea>
+                    </div>
                 </div>
 
                 <div class="setting-group">
-                    <label>PRESETS / 预设管理</label>
-                    <div id="beauty-presets-list" style="margin-top: 8px; max-height: 150px; overflow-y: auto;">
-                        <!-- 预设列表将由JS生成 -->
-                    </div>
-                    <div style="display: flex; gap: 10px; margin-top: 15px;">
-                        <button class="action-btn" style="flex:1; margin:0;" onclick="promptSaveBeautyPreset()">SAVE<span>保存当前</span></button>
-                        <button class="action-btn primary" style="flex:1; margin:0;" onclick="downloadDefaultCss()">DOWNLOAD<span>下载模板</span></button>
-                    </div>
+                    <label>INTERFACE PRESETS / 界面CSS预设</label>
+                    <div id="beauty-chat-presets-list" style="margin-top: 8px; max-height: 120px; overflow-y: auto; border: 1px solid var(--border-color); padding: 5px;"></div>
+                    <button class="action-btn" style="width:100%; margin-top:10px;" onclick="promptSaveBeautyPreset('chat')">SAVE INTERFACE PRESET<span>保存当前界面CSS为预设</span></button>
                 </div>
 
+                <div class="setting-group">
+                    <label>BUBBLE PRESETS / 气泡CSS预设</label>
+                    <div id="beauty-bubble-presets-list" style="margin-top: 8px; max-height: 120px; overflow-y: auto; border: 1px solid var(--border-color); padding: 5px;"></div>
+                    <button class="action-btn" style="width:100%; margin-top:10px;" onclick="promptSaveBeautyPreset('bubble')">SAVE BUBBLE PRESET<span>保存当前气泡CSS为预设</span></button>
+                </div>
+                
+                <button class="action-btn primary" style="width:100%; margin-top:10px;" onclick="downloadDefaultCss()">DOWNLOAD TEMPLATE<span>下载CSS参考模板</span></button>
             </div>
         </div>
 
@@ -1770,7 +1780,15 @@
     <input type="range" id="role-call-blur" min="0" max="30" value="10" oninput="document.getElementById('val-call-blur').innerText=this.value" style="width: 100%; accent-color: var(--text-color);">
 </div>
 
-<div class="setting-group" style="border:none; padding:0; margin-top: 10px;"><label>CHAT BUBBLE CSS / 聊天气泡专属CSS</label><textarea id="role-bubble-css" placeholder="/* 例如: 修改气泡圆角 */&#10;.msg-bubble { border-radius: 8px !important; }" style="width: 100%; height: 80px; padding: 10px 12px; border: 1px solid var(--border-color); background: transparent; color: var(--text-color); font-family: monospace; font-size: 11px; outline: none; resize: vertical;"></textarea></div>
+<div class="setting-group" style="border:none; padding:0; margin-top: 10px;">
+    <label style="display:flex; align-items:center; gap:10px;">
+        <input type="checkbox" id="role-enable-bubble-css" onchange="document.getElementById('role-bubble-css-container').style.display = this.checked ? 'block' : 'none';" style="width:auto;">
+        ENABLE CUSTOM BUBBLE <span>开启角色专属气泡CSS (覆盖全局)</span>
+    </label>
+    <div id="role-bubble-css-container" style="display:none; margin-top:10px;">
+        <textarea id="role-bubble-css" placeholder="/* 例如: 修改气泡圆角 */&#10;.msg-bubble { border-radius: 8px !important; }" style="width: 100%; height: 80px; padding: 10px 12px; border: 1px solid var(--border-color); background: transparent; color: var(--text-color); font-family: monospace; font-size: 11px; outline: none; resize: vertical;"></textarea>
+    </div>
+</div>
         
         <div class="setting-group" style="border:none; padding:0; margin-top: 10px; display: flex; gap: 10px;">
             <div style="flex: 1; min-width: 0;"><label>AI BUBBLE / AI气泡色</label><input type="color" id="role-ai-bubble-color" value="#333333" style="width: 100%; height: 40px; padding: 0; border: 1px solid var(--border-color); background: transparent; outline: none; cursor: pointer;"></div>
