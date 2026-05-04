@@ -1112,6 +1112,36 @@ function processPendingBgMessages() {
 }
     function renderAll() { renderDesktop(); renderRecent(); renderContacts(); renderWorldbooks(); renderMasks(); renderWeather(); renderAlbums(); renderStickers(); renderMemoryView(); renderTimeAwarenessStatus(); renderAppearanceApp(); renderFeeds(); renderMusicApp(); renderBubbleCountStatus(); renderTranslationStatus(); renderForum(); cipherRenderMenu();}
     function updateTime() { $('#time').innerText = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }); }
+    
+    let magSendPressTimer = null;
+    let magSendLastClick = 0;
+
+    window.handleMagazineSendTouchStart = function(e) {
+        e.preventDefault();
+        magSendPressTimer = setTimeout(() => {
+            if (navigator.vibrate) navigator.vibrate(50);
+            toggleAttachmentPopup(e);
+            magSendPressTimer = null;
+        }, 500);
+    };
+
+    window.handleMagazineSendTouchEnd = function(e) {
+        e.preventDefault();
+        if (magSendPressTimer) {
+            clearTimeout(magSendPressTimer);
+            magSendPressTimer = null;
+            
+            const now = Date.now();
+            if (now - magSendLastClick < 300) {
+                triggerAI();
+                magSendLastClick = 0;
+            } else {
+                sendMessage();
+                magSendLastClick = now;
+            }
+        }
+    };
+
     function setupKeyboardShortcuts() { 
     const chatInput = $('#chat-input');
     if (!chatInput) {
@@ -2002,6 +2032,7 @@ function updateKeepAliveUI(isOn) {
         $('#chat-messages').innerHTML = ''; 
         $('#chat-view').classList.add('active'); 
         $('#main-content-area').classList.add('chat-active'); 
+        $('#chat-view').setAttribute('data-bubble-style', role.bubbleStyle || 'flat');
         
         const accentColor = role.accentColor || (settings.theme === 'dark' ? '#ffffff' : '#000000');
         $('#chat-view').style.setProperty('--role-accent-color', accentColor);
@@ -2011,13 +2042,6 @@ function updateKeepAliveUI(isOn) {
         
         const sendBtnColor = role.sendBtnColor || (settings.theme === 'dark' ? '#ffffff' : '#000000');
         $('#chat-view').style.setProperty('--send-btn-color', sendBtnColor);
-        
-        /* 切换极简杂志风UI类名 */
-        if (role.chatUiStyle === 'magazine') {
-            $('#chat-view').classList.add('magazine-ui');
-        } else {
-            $('#chat-view').classList.remove('magazine-ui');
-        }
         
         const chatInput = $('#chat-input');
         const pText = role.placeholderText && role.placeholderText.trim() !== "" ? role.placeholderText : 'iMessage信息';
@@ -2135,7 +2159,8 @@ function updateKeepAliveUI(isOn) {
         container.innerHTML = msgs.map((m, i) => { 
             const realIndex = startIndex + i;
 
-            const isMagazineBubble = role.bubbleStyle === 'magazine';
+            const isMagazine = role.bubbleStyle === 'magazine';
+
             if (m.role === 'system') {
                 const isJoinMsg = m.content === '对方已加入一起听';
                 const exitBtn = isJoinMsg && listenTogetherSession.isActive
@@ -2143,8 +2168,8 @@ function updateKeepAliveUI(isOn) {
                     : '';
                 const checkboxHtml = isSelectionMode ? `<div class="msg-checkbox ${selectedMsgs.has(realIndex) ? 'checked' : ''}" style="margin-right: 8px; margin-top: 0;"></div>` : '';
                 
-                if (isMagazineBubble) {
-                    return `<div class="msg-row ${isSelectionMode ? 'selection-mode' : ''} magazine-system-row" style="justify-content: center; margin: 15px 0; cursor: pointer;" onclick="handleMsgClick(${realIndex})" onmousedown="handleTouchStart(event, ${realIndex})" onmouseup="handleTouchEnd()" onmouseleave="handleTouchEnd()" ontouchstart="handleTouchStart(event, ${realIndex})" ontouchend="handleTouchEnd()" ontouchcancel="handleTouchEnd()">${checkboxHtml}<div class="magazine-system-text">${m.content}${exitBtn}</div></div>`;
+                if (isMagazine) {
+                    return `<div class="msg-row ${isSelectionMode ? 'selection-mode' : ''}" style="justify-content: center; cursor: pointer;" onclick="handleMsgClick(${realIndex})" onmousedown="handleTouchStart(event, ${realIndex})" onmouseup="handleTouchEnd()" onmouseleave="handleTouchEnd()" ontouchstart="handleTouchStart(event, ${realIndex})" ontouchend="handleTouchEnd()" ontouchcancel="handleTouchEnd()">${checkboxHtml}<div class="mag-msg-system">${m.content}${exitBtn}</div></div>`;
                 } else {
                     return `<div class="msg-row ${isSelectionMode ? 'selection-mode' : ''}" style="justify-content: center; margin: 5px 0; cursor: pointer;" onclick="handleMsgClick(${realIndex})" onmousedown="handleTouchStart(event, ${realIndex})" onmouseup="handleTouchEnd()" onmouseleave="handleTouchEnd()" ontouchstart="handleTouchStart(event, ${realIndex})" ontouchend="handleTouchEnd()" ontouchcancel="handleTouchEnd()">${checkboxHtml}<div style="background: var(--gray-light); color: var(--system-text-color, #888888) !important; font-size: 9px; padding: 4px 10px; border-radius: 10px; text-transform: uppercase; letter-spacing: 1px; text-align: center;">${m.content}${exitBtn}</div></div>`;
                 }
@@ -2161,7 +2186,7 @@ function updateKeepAliveUI(isOn) {
             } else if (settings.avatarDisplay === 'hide_ai' && m.role === 'ai') {
                 showAvatar = false; occupySpace = false;
             }
-            const avatarHTML = (r, src) => `<img class="msg-avatar" src="${src}" ${r === 'ai' ? 'ondblclick="onAiAvatarDblClick()"' : ''} style="visibility: ${showAvatar ? 'visible' : 'hidden'}; display: ${occupySpace ? 'block' : 'none'};">`; 
+            const avatarHTML = (r, src) => `<img class="${isMagazine ? 'mag-avatar' : 'msg-avatar'}" src="${src}" ${r === 'ai' ? 'ondblclick="onAiAvatarDblClick()"' : ''} style="visibility: ${showAvatar ? 'visible' : 'hidden'}; display: ${occupySpace ? 'block' : 'none'};">`; 
             let userAvatarTag = '', aiAvatarTag = ''; 
             if (settings.avatarDisplay !== 'hide_user' && settings.avatarDisplay !== 'hide_all') userAvatarTag = avatarHTML('user', userAvatar); 
             if (settings.avatarDisplay !== 'hide_ai' && settings.avatarDisplay !== 'hide_all') aiAvatarTag = avatarHTML('ai', role.avatar || DEFAULT_AVATAR); 
@@ -2180,36 +2205,10 @@ function updateKeepAliveUI(isOn) {
             contentHtml = contentHtml.replace(/&lt;div class=&quot;bubble-typing-indicator&quot;&gt;&lt;div&gt;&lt;\/div&gt;&lt;div&gt;&lt;\/div&gt;&lt;div&gt;&lt;\/div&gt;&lt;\/div&gt;/g, '<div class="bubble-typing-indicator"><div></div><div></div><div></div></div>');
             const touchHandlers = `onmousedown="handleTouchStart(event, ${realIndex})" onmouseup="handleTouchEnd()" onmouseleave="handleTouchEnd()" ontouchstart="handleTouchStart(event, ${realIndex})" ontouchend="handleTouchEnd()" ontouchcancel="handleTouchEnd()"`;
 
-            const isMagazineBubble = role.bubbleStyle === 'magazine';
-
-            if (m.role === 'ai') {
-                const aiBubbleC = role.aiBubbleColor || '#333333';
-                const aiTextC = role.aiTextColor || '#ffffff';
-                if (isGlass) {
-                    customBubbleStyle = `style="${getGlassStyle(aiTextC)}"`;
-                } else if (isMagazineBubble) {
-                    customBubbleStyle = ''; // 杂志风由 CSS 类接管
-                } else {
-                    customBubbleStyle = `style="background-color: ${aiBubbleC} !important; color: ${aiTextC} !important; border: none !important; --tail-color: ${aiBubbleC} !important;"`;
-                }
-            } else if (m.role === 'user') {
-                const userBubbleC = role.userBubbleColor || '#000000';
-                const userTextC = role.userTextColor || '#ffffff';
-                if (isGlass) {
-                    customBubbleStyle = `style="${getGlassStyle(userTextC)}"`;
-                } else if (isMagazineBubble) {
-                    customBubbleStyle = ''; // 杂志风由 CSS 类接管
-                } else {
-                    customBubbleStyle = `style="background-color: ${userBubbleC} !important; color: ${userTextC} !important; border: none !important; --tail-color: ${userBubbleC} !important;"`;
-                }
-            }
-            const deliveryHtml = m.role === 'user' ? getDeliveryStatusHtml(realIndex) : '';
-            const messageId = m.id ? `id="${m.id}"` : '';
+            let customBubbleStyle = '';
+            const isGlass = role.bubbleStyle === 'glass';
             
-            // 增加杂志风的类名
-            const magClass = isMagazineBubble ? 'magazine-msg-row' : '';
-            
-            return `<div class="msg-row bubble-row ${m.role === 'user' ? 'me' : 'ai'} ${isSelectionMode ? 'selection-mode' : ''} ${magClass}" ${messageId} onclick="handleMsgClick(${realIndex})">${checkboxHtml}${m.role === 'ai' ? aiAvatarTag : ''}<div class="msg-wrapper"><div class="msg-bubble ${m.mode === 'offline' && m.role === 'ai' ? 'offline-mode' : ''}" ${customBubbleStyle} ${touchHandlers}><div class="msg-bubble-content">${quoteHtml}${contentHtml}</div>${heartHtml}</div><div class="msg-status">${displayTime}${deliveryHtml}</div></div>${m.role === 'user' ? userAvatarTag : ''}</div>`;
+            function getGlassStyle(textColor) {
                 const isDarkTheme = document.documentElement.getAttribute('data-theme') === 'dark';
                 const bgColor = isDarkTheme ? `rgba(50, 50, 50, 0.2)` : `rgba(255, 255, 255, 0.02)`;
                 const borderColor = isDarkTheme ? `rgba(255, 255, 255, 0.15)` : `rgba(255, 255, 255, 0.25)`;
@@ -2514,6 +2513,33 @@ function updateKeepAliveUI(isOn) {
             }
             const deliveryHtml = m.role === 'user' ? getDeliveryStatusHtml(realIndex) : '';
             const messageId = m.id ? `id="${m.id}"` : '';
+            
+            if (isMagazine && m.role === 'ai') {
+                return `<div class="msg-row ${isSelectionMode ? 'selection-mode' : ''}" ${messageId} onclick="handleMsgClick(${realIndex})" ${touchHandlers}>
+                    ${checkboxHtml}
+                    <div class="mag-msg-ai">
+                        ${aiAvatarTag}
+                        <div class="mag-msg-content">
+                            <div class="mag-msg-name">${role.realName || 'AI'}</div>
+                            <div class="mag-msg-text">${quoteHtml}${contentHtml}</div>
+                            <div class="mag-timestamp">${displayTime}</div>
+                        </div>
+                    </div>
+                </div>`;
+            }
+            
+            if (isMagazine && m.role === 'user') {
+                return `<div class="msg-row ${isSelectionMode ? 'selection-mode' : ''}" ${messageId} onclick="handleMsgClick(${realIndex})" ${touchHandlers}>
+                    ${checkboxHtml}
+                    <div class="mag-msg-user">
+                        <div>
+                            <div class="mag-msg-user-text">${quoteHtml}${contentHtml}</div>
+                            <div class="mag-timestamp">${displayTime}</div>
+                        </div>
+                    </div>
+                </div>`;
+            }
+
             // 修复：将 m.time 替换为 displayTime
             return `<div class="msg-row bubble-row ${m.role === 'user' ? 'me' : 'ai'} ${isSelectionMode ? 'selection-mode' : ''}" ${messageId} onclick="handleMsgClick(${realIndex})">${checkboxHtml}${m.role === 'ai' ? aiAvatarTag : ''}<div class="msg-wrapper"><div class="msg-bubble ${m.mode === 'offline' && m.role === 'ai' ? 'offline-mode' : ''}" ${customBubbleStyle} ${touchHandlers}><div class="msg-bubble-content">${quoteHtml}${contentHtml}</div>${heartHtml}</div><div class="msg-status">${displayTime}${deliveryHtml}</div></div>${m.role === 'user' ? userAvatarTag : ''}</div>`;
         }).join(''); 
@@ -6731,23 +6757,6 @@ function updateRoleWbPreview() {
 
         $('#role-show-header-avatar').checked = isEditing ? !!role.showHeaderAvatar : false;
         
-        /* 动态插入聊天UI风格选择器（如果不存在的话） */
-        if (!$('#role-chat-ui-style')) {
-            const uiStyleHtml = `
-            <div class="setting-group">
-                <label>CHAT UI STYLE / 聊天界面风格</label>
-                <select id="role-chat-ui-style" style="width:100%; padding:10px; border:1px solid var(--border-color); background:transparent; color:var(--text-color); outline:none; font-family:var(--font-sans); font-size:12px;">
-                    <option value="default">Glass UI (默认玻璃风)</option>
-                    <option value="magazine">Magazine (极简杂志风)</option>
-                </select>
-            </div>`;
-            const headerAvatarGroup = $('#role-show-header-avatar').closest('.setting-group');
-            if (headerAvatarGroup) {
-                headerAvatarGroup.insertAdjacentHTML('afterend', uiStyleHtml);
-            }
-        }
-        $('#role-chat-ui-style').value = isEditing && role.chatUiStyle ? role.chatUiStyle : 'default';
-        
         /* 读取角色专属翻译设置到界面，如果选项不存在则动态添加 */
         if ($('#role-translation-enable')) $('#role-translation-enable').checked = isEditing ? !!role.translationMode : false;
         if ($('#role-translation-source')) {
@@ -6889,7 +6898,6 @@ function updateRoleWbPreview() {
             activeMaskId, 
             boundMapId,
             showHeaderAvatar: $('#role-show-header-avatar').checked,
-            chatUiStyle: $('#role-chat-ui-style') ? $('#role-chat-ui-style').value : 'default',
             /* 保存角色专属翻译设置 */
             translationMode: $('#role-translation-enable') ? $('#role-translation-enable').checked : false,
             translationSourceLang: $('#role-translation-source') ? $('#role-translation-source').value.trim() : '',
@@ -6975,7 +6983,6 @@ window.newRoleTempWbs = null;
             activeMaskId, 
             boundMapId,
             showHeaderAvatar: $('#role-show-header-avatar').checked,
-            chatUiStyle: $('#role-chat-ui-style') ? $('#role-chat-ui-style').value : 'default',
             /* 保存角色专属翻译设置 */
             translationMode: $('#role-translation-enable') ? $('#role-translation-enable').checked : false,
             translationSourceLang: $('#role-translation-source') ? $('#role-translation-source').value.trim() : '',
@@ -18220,220 +18227,3 @@ function exitEmotionIsland() {
     }
     closeApp('emotionisland');
 }
-/* ==================== 极简杂志风 UI 注入与交互逻辑 ==================== */
-document.addEventListener('DOMContentLoaded', () => {
-    /* 注入杂志风 CSS (包含界面与气泡) */
-    const style = document.createElement('style');
-    style.innerHTML = `
-        @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;1,400&family=Noto+Serif+SC:wght@400;600&display=swap');
-        
-        /* 1. 界面美化 (当 CHAT UI STYLE 选为 magazine 时生效) */
-        .magazine-ui {
-            --bg-color: #fdfdfd !important;
-            --text-main: #111111 !important;
-            --text-muted: #888888 !important;
-            --line-color: #e0e0e0 !important;
-            --font-serif: 'Playfair Display', 'Noto Serif SC', serif !important;
-            background-color: var(--bg-color) !important;
-            background-image: none !important;
-        }
-        [data-theme="dark"] .magazine-ui {
-            --bg-color: #111111 !important;
-            --text-main: #fdfdfd !important;
-            --line-color: #333333 !important;
-        }
-        .magazine-ui #chat-header {
-            background: var(--bg-color) !important;
-            border-bottom: 1px solid var(--text-main) !important;
-            backdrop-filter: none !important;
-            -webkit-backdrop-filter: none !important;
-        }
-        .magazine-ui #chat-title {
-            font-family: var(--font-serif) !important;
-            font-size: 24px !important;
-            font-weight: 600 !important;
-            font-style: italic !important;
-            color: var(--text-main) !important;
-        }
-        .magazine-ui #input-area-container {
-            background: var(--bg-color) !important;
-            border-top: 1px solid var(--line-color) !important;
-            padding: 15px 20px !important;
-        }
-        .magazine-ui #chat-input {
-            border: none !important;
-            border-bottom: 1px solid var(--text-main) !important;
-            border-radius: 0 !important;
-            background: transparent !important;
-            font-family: var(--font-serif) !important;
-            color: var(--text-main) !important;
-            padding: 10px 0 !important;
-        }
-        .magazine-ui .standalone-icon-btn {
-            display: none !important;
-        }
-        .magazine-ui .standalone-send-btn {
-            background: none !important;
-            border: none !important;
-            color: var(--text-main) !important;
-            font-family: var(--font-serif) !important;
-            font-weight: 600 !important;
-            letter-spacing: 2px !important;
-            text-transform: uppercase !important;
-            width: auto !important;
-            height: auto !important;
-            padding: 10px !important;
-            box-shadow: none !important;
-            cursor: pointer;
-            user-select: none;
-            -webkit-user-select: none;
-        }
-        .magazine-ui .standalone-send-btn::before {
-            content: 'SEND' !important;
-            display: block !important;
-        }
-        .magazine-ui .standalone-send-btn svg {
-            display: none !important;
-        }
-
-        /* 2. 气泡美化 (当 BUBBLE STYLE 选为 magazine 时生效) */
-        .magazine-msg-row {
-            margin-bottom: 25px !important;
-        }
-        .magazine-msg-row .msg-avatar {
-            border-radius: 0 !important;
-            filter: grayscale(30%) contrast(110%) !important;
-            width: 40px !important;
-            height: 40px !important;
-        }
-        /* AI 气泡 */
-        .magazine-msg-row.ai .msg-bubble {
-            background: transparent !important;
-            border: none !important;
-            border-left: 2px solid var(--text-color) !important;
-            border-radius: 0 !important;
-            padding: 0 0 0 15px !important;
-            box-shadow: none !important;
-            color: var(--text-color) !important;
-            font-family: 'Playfair Display', 'Noto Serif SC', serif !important;
-            font-size: 15px !important;
-            line-height: 1.8 !important;
-            text-align: justify !important;
-        }
-        .magazine-msg-row.ai .msg-bubble::before { display: none !important; } /* 隐藏小尾巴 */
-        
-        /* 用户气泡 */
-        .magazine-msg-row.me .msg-bubble {
-            background-color: var(--text-color) !important;
-            color: var(--bg-color) !important;
-            font-family: var(--font-sans) !important;
-            font-size: 14px !important;
-            line-height: 1.6 !important;
-            padding: 15px 20px !important;
-            border-radius: 2px !important;
-            border: none !important;
-            box-shadow: none !important;
-        }
-        .magazine-msg-row.me .msg-bubble::before { display: none !important; } /* 隐藏小尾巴 */
-
-        /* 时间戳 */
-        .magazine-msg-row .msg-status {
-            font-size: 9px !important;
-            color: var(--text-secondary) !important;
-            letter-spacing: 1px !important;
-            margin-top: 10px !important;
-            font-family: var(--font-sans) !important;
-            text-transform: uppercase !important;
-        }
-        .magazine-msg-row.me .msg-status {
-            text-align: right !important;
-        }
-
-        /* 旁白/动作 */
-        .magazine-system-row .magazine-system-text {
-            text-align: center !important;
-            font-family: 'Playfair Display', 'Noto Serif SC', serif !important;
-            font-size: 12px !important;
-            color: var(--text-secondary) !important;
-            font-style: italic !important;
-            position: relative !important;
-            background: transparent !important;
-            padding: 0 !important;
-            text-transform: none !important;
-            letter-spacing: normal !important;
-        }
-        .magazine-system-row .magazine-system-text::before,
-        .magazine-system-row .magazine-system-text::after {
-            content: '';
-            display: inline-block;
-            width: 30px;
-            height: 1px;
-            background-color: var(--border-color);
-            vertical-align: middle;
-            margin: 0 10px;
-        }
-    `;
-    document.head.appendChild(style);
-
-    /* 绑定 Send 按钮的长按、双击与单击事件 */
-    const sendBtn = document.querySelector('.standalone-send-btn');
-    if (sendBtn) {
-        let pressTimer;
-        let lastClickTime = 0;
-        let isLongPress = false;
-        let clickTimeout;
-        
-        const handleTouchStart = (e) => {
-            isLongPress = false;
-            pressTimer = setTimeout(() => {
-                isLongPress = true;
-                if (navigator.vibrate) navigator.vibrate(50);
-                
-                const chatView = document.getElementById('chat-view');
-                // 如果是杂志模式，长按弹出附件菜单
-                if (chatView && chatView.classList.contains('magazine-ui')) {
-                    const popup = document.getElementById('attachment-popup');
-                    if (popup) {
-                        popup.style.display = popup.style.display === 'none' || popup.style.display === '' ? 'flex' : 'none';
-                    }
-                }
-            }, 500); // 500ms 触发长按
-        };
-        
-        const handleTouchEnd = (e) => {
-            clearTimeout(pressTimer);
-        };
-        
-        const handleClick = (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            
-            if (isLongPress) {
-                return; // 如果触发了长按，则不执行点击逻辑
-            }
-            
-            const currentTime = new Date().getTime();
-            const timeDiff = currentTime - lastClickTime;
-            lastClickTime = currentTime;
-            
-            if (timeDiff < 300) {
-                // 双击：获取AI回复
-                clearTimeout(clickTimeout);
-                triggerAI();
-            } else {
-                // 单击：延迟执行发送，等待判断是否为双击
-                clickTimeout = setTimeout(() => {
-                    sendMessage();
-                }, 300);
-            }
-        };
-
-        sendBtn.addEventListener('mousedown', handleTouchStart);
-        sendBtn.addEventListener('touchstart', handleTouchStart, {passive: true});
-        sendBtn.addEventListener('mouseup', handleTouchEnd);
-        sendBtn.addEventListener('mouseleave', handleTouchEnd);
-        sendBtn.addEventListener('touchend', handleTouchEnd);
-        sendBtn.addEventListener('touchcancel', handleTouchEnd);
-        sendBtn.addEventListener('click', handleClick);
-    }
-});
