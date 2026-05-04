@@ -995,6 +995,32 @@ if (chatViewEl) {
         startAllAutoMsgTimers();
         processPendingBgMessages();
         
+        /* 计算离开时间并插入系统提示 */
+        if (currentChatRoleId) {
+            let leaveTimes = DB.get('leaveTimes', {});
+            let leaveTime = leaveTimes[currentChatRoleId];
+            if (leaveTime) {
+                let diff = Date.now() - leaveTime;
+                if (diff > 60000) { /* 超过1分钟才提示 */
+                    let mins = Math.floor(diff / 60000);
+                    let timeStr = mins < 60 ? `${mins}分钟` : `${Math.floor(mins/60)}小时${mins%60}分钟`;
+                    const now = new Date();
+                    if (!chats[currentChatRoleId]) chats[currentChatRoleId] = [];
+                    chats[currentChatRoleId].push({
+                        role: 'system',
+                        content: `[系统提示：你离开了 ${timeStr}]`,
+                        time: now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }),
+                        rawTime: now.getTime(),
+                        mode: currentChatMode
+                    });
+                    DB.set('chats', chats);
+                    renderMessages();
+                }
+                delete leaveTimes[currentChatRoleId];
+                DB.set('leaveTimes', leaveTimes);
+            }
+        }
+
         window.isAiResponding = window.isAiResponding || {};
         if (!currentChatRoleId || !window.isAiResponding[currentChatRoleId]) {
             if (typeof hideGlobalTyping === 'function') hideGlobalTyping();
@@ -1601,17 +1627,25 @@ document.addEventListener('DOMContentLoaded', () => {
         const chatMessages = document.getElementById('chat-messages');
         if (chatHeader && chatMessages) {
             if (settings.transparentChatHeader) {
+                /* 开启透明时，将顶栏脱离文档流，让消息列表直接顶到屏幕最上方 */
+                chatHeader.style.position = 'absolute';
+                chatHeader.style.top = '0';
+                chatHeader.style.left = '0';
+                chatHeader.style.right = '0';
+                chatHeader.style.zIndex = '100';
                 chatHeader.style.background = 'transparent';
                 chatHeader.style.backdropFilter = 'none';
                 chatHeader.style.webkitBackdropFilter = 'none';
                 chatHeader.style.borderBottom = 'none';
-                chatMessages.style.paddingTop = 'calc(10px + env(safe-area-inset-top))';
+                chatMessages.style.paddingTop = 'calc(70px + env(safe-area-inset-top))';
             } else {
+                /* 关闭透明时，恢复默认布局 */
+                chatHeader.style.position = 'relative';
                 chatHeader.style.background = '';
                 chatHeader.style.backdropFilter = '';
                 chatHeader.style.webkitBackdropFilter = '';
                 chatHeader.style.borderBottom = '';
-                chatMessages.style.paddingTop = 'calc(70px + env(safe-area-inset-top))';
+                chatMessages.style.paddingTop = '10px';
             }
         }
     }
@@ -4942,8 +4976,12 @@ function toInitApp(){
             }
 
             let translationRule = '';
-            if (settings.translationMode) {
-                translationRule = `\n8. 【双语翻译模式】你必须将你的回复翻译成${settings.translationTargetLang}。格式要求：先输出${settings.translationSourceLang}原文，然后换行，输出 "===TRANSLATION==="，再换行，输出${settings.translationTargetLang}翻译。`;
+            /* 优先读取角色专属的翻译设置，如果没有则使用全局设置 */
+            const useTrans = role.translationMode !== undefined ? role.translationMode : settings.translationMode;
+            if (useTrans) {
+                const srcLang = role.translationSourceLang || settings.translationSourceLang || '日语';
+                const tgtLang = role.translationTargetLang || settings.translationTargetLang || '中文';
+                translationRule = `\n8. 【双语翻译模式】你必须将你的回复翻译成${tgtLang}。格式要求：先输出${srcLang}原文，然后换行，输出 "===TRANSLATION==="，再换行，输出${tgtLang}翻译。`;
             }
 
             const availableStickers = stickers.filter(g => {
@@ -6645,6 +6683,12 @@ function updateRoleWbPreview() {
         $('#role-opening').value = isEditing ? (role.opening || '') : '';
 
         $('#role-show-header-avatar').checked = isEditing ? !!role.showHeaderAvatar : false;
+        
+        /* 读取角色专属翻译设置到界面 */
+        if ($('#role-translation-enable')) $('#role-translation-enable').checked = isEditing ? !!role.translationMode : false;
+        if ($('#role-translation-source')) $('#role-translation-source').value = isEditing && role.translationSourceLang ? role.translationSourceLang : '';
+        if ($('#role-translation-target')) $('#role-translation-target').value = isEditing && role.translationTargetLang ? role.translationTargetLang : '';
+
         if ($('#role-default-chat-mode')) $('#role-default-chat-mode').value = isEditing ? (role.defaultChatMode || 'online') : 'online';
         if ($('#role-auto-switch-mode')) $('#role-auto-switch-mode').checked = isEditing ? !!role.autoSwitchMode : false;
         if ($('#role-hide-mode-switcher')) $('#role-hide-mode-switcher').checked = isEditing ? !!role.hideModeSwitcher : false;  
@@ -6766,6 +6810,10 @@ function updateRoleWbPreview() {
             activeMaskId, 
             boundMapId,
             showHeaderAvatar: $('#role-show-header-avatar').checked,
+            /* 保存角色专属翻译设置 */
+            translationMode: $('#role-translation-enable') ? $('#role-translation-enable').checked : false,
+            translationSourceLang: $('#role-translation-source') ? $('#role-translation-source').value.trim() : '',
+            translationTargetLang: $('#role-translation-target') ? $('#role-translation-target').value.trim() : '',
         };
         const idx = roles.findIndex(x => x.id === id); 
         if(idx > -1) roles[idx] = roleData; 
@@ -6846,6 +6894,10 @@ window.newRoleTempWbs = null;
             activeMaskId, 
             boundMapId,
             showHeaderAvatar: $('#role-show-header-avatar').checked,
+            /* 保存角色专属翻译设置 */
+            translationMode: $('#role-translation-enable') ? $('#role-translation-enable').checked : false,
+            translationSourceLang: $('#role-translation-source') ? $('#role-translation-source').value.trim() : '',
+            translationTargetLang: $('#role-translation-target') ? $('#role-translation-target').value.trim() : '',
         };
         const idx = roles.findIndex(x => x.id === id); 
         if(idx > -1) roles[idx] = roleData; 

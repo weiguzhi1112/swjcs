@@ -1748,6 +1748,14 @@
         
         <!-- 新增：顶部头像和聊天模式设置 -->
         <div class="setting-group" style="border:none; padding:2; margin-top:4px;"><label style="display:flex; align-items:center; gap:10px;"><input type="checkbox" id="role-show-header-avatar" style="width:auto;"> SHOW HEADER AVATAR <span>在聊天顶部显示头像</span></label></div>
+        
+        <div class="setting-group" style="border:none; padding:0; margin-top: 10px; background: var(--gray-light); padding: 10px; border-radius: 8px;">
+            <label style="display:flex; align-items:center; gap:10px; margin-bottom:10px;"><input type="checkbox" id="role-translation-enable" style="width:auto;"> 开启角色专属双语翻译</label>
+            <div style="display: flex; gap: 10px;">
+                <input type="text" list="lang-options" id="role-translation-source" placeholder="原文 (如: 英语)" style="flex: 1; padding: 8px; border: 1px solid var(--border-color); background: var(--bg-color); color: var(--text-color); font-size: 11px; outline: none;">
+                <input type="text" list="lang-options" id="role-translation-target" placeholder="目标 (如: 东北话)" style="flex: 1; padding: 8px; border: 1px solid var(--border-color); background: var(--bg-color); color: var(--text-color); font-size: 11px; outline: none;">
+            </div>
+        </div>
         <!-- 结束 -->
 
         <div class="setting-group" style="border:none; padding:2; margin-top:4px;"><label style="display:flex; align-items:center; gap:10px;"><input type="checkbox" id="role-auto-feed" style="width:auto;"> ALLOW AUTONOMOUS FEED <span>允许自主发布动态</span></label></div>
@@ -2125,7 +2133,13 @@
         </div>
     </div>
 </div>
-<div class="modal-overlay" id="modal-translation"><div class="modal"><h3>Bilingual <span>双语翻译</span></h3><div class="setting-group" style="border:none; padding:0;"><label style="display:flex; align-items:center; gap:10px; margin-bottom:15px;"><input type="checkbox" id="translation-mode-enable" style="width:auto;"> 启用双语翻译模式</label><label>原文语言</label><select id="translation-source-lang" style="width:100%; margin-top:5px; margin-bottom:15px; padding:10px; border:1px solid var(--border-color); background:transparent; color:var(--text-color); outline:none; font-family:var(--font-sans); font-size:11px;"><option>日语</option><option>英语</option><option>韩语</option><option>法语</option><option>德语</option><option>西班牙语</option></select><label>翻译目标语言</label><select id="translation-target-lang" style="width:100%; margin-top:5px; padding:10px; border:1px solid var(--border-color); background:transparent; color:var(--text-color); outline:none; font-family:var(--font-sans); font-size:11px;"><option>中文</option><option>英语</option><option>日语</option><option>韩语</option></select></div><div class="modal-btns"><button class="btn-cancel" onclick="closeModal('modal-translation')">CANCEL<span>取消</span></button><button class="btn-confirm" onclick="saveTranslationSettings()">SAVE<span>保存</span></button></div></div></div><audio id="music-audio-player"></audio>
+<datalist id="lang-options">
+    <option value="中文"></option><option value="英语"></option><option value="日语"></option><option value="韩语"></option>
+    <option value="法语"></option><option value="德语"></option><option value="西班牙语"></option><option value="俄语"></option>
+    <option value="粤语"></option><option value="四川话"></option><option value="东北话"></option><option value="上海话"></option>
+    <option value="文言文"></option><option value="台湾腔"></option><option value="北京话"></option>
+</datalist>
+<div class="modal-overlay" id="modal-translation"><div class="modal"><h3>Bilingual <span>双语翻译</span></h3><div class="setting-group" style="border:none; padding:0;"><label style="display:flex; align-items:center; gap:10px; margin-bottom:15px;"><input type="checkbox" id="translation-mode-enable" style="width:auto;"> 启用双语翻译模式</label><label>原文语言 (可自定义输入)</label><input type="text" list="lang-options" id="translation-source-lang" placeholder="例如: 日语" style="width:100%; margin-top:5px; margin-bottom:15px; padding:10px; border:1px solid var(--border-color); background:transparent; color:var(--text-color); outline:none; font-family:var(--font-sans); font-size:11px;"><label>翻译目标语言 (可自定义输入)</label><input type="text" list="lang-options" id="translation-target-lang" placeholder="例如: 粤语" style="width:100%; margin-top:5px; padding:10px; border:1px solid var(--border-color); background:transparent; color:var(--text-color); outline:none; font-family:var(--font-sans); font-size:11px;"></div><div class="modal-btns"><button class="btn-cancel" onclick="closeModal('modal-translation')">CANCEL<span>取消</span></button><button class="btn-confirm" onclick="saveTranslationSettings()">SAVE<span>保存</span></button></div></div></div><audio id="music-audio-player"></audio>
 <audio id="notification-sound-player" style="display: none;"></audio>
 
 <div class="modal-overlay" id="modal-forum-post">
