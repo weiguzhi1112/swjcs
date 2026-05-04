@@ -2152,7 +2152,8 @@ function updateKeepAliveUI(isOn) {
             let userAvatarTag = '', aiAvatarTag = ''; 
             if (settings.avatarDisplay !== 'hide_user' && settings.avatarDisplay !== 'hide_all') userAvatarTag = avatarHTML('user', userAvatar); 
             if (settings.avatarDisplay !== 'hide_ai' && settings.avatarDisplay !== 'hide_all') aiAvatarTag = avatarHTML('ai', role.avatar || DEFAULT_AVATAR); 
-            const quoteHtml = m.quote ? `<div class="quote-block">${m.quote}</div>` : '';
+            /* 优化：对引用的内容进行转义，防止 HTML 标签破坏气泡格式 */
+            const quoteHtml = m.quote ? `<div class="quote-block">${escapeHTML(m.quote)}</div>` : '';
             const checkboxHtml = isSelectionMode ? `<div class="msg-checkbox ${selectedMsgs.has(realIndex) ? 'checked' : ''}"></div>` : '';
             const heartHtml = settings.showHeart ? `<div class="bubble-heart" style="display:flex; align-items:center; justify-content:center;"><svg width="8" height="8" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="1"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg></div>` : '';
             
@@ -3298,7 +3299,8 @@ ${promptText}
         closeModal('modal-quick-fix');
         renderMessages();
     }
-    function quoteMessage() { if(contextMenuTargetIndex > -1) { const msg = chats[currentChatRoleId][contextMenuTargetIndex]; quotedMsgText = msg.content; $('#quote-preview-text').innerText = quotedMsgText; $('#quote-preview-bar').style.display = 'flex'; } closeContextMenu(); }
+    /* 优化：提取纯文本用于引用，防止卡片或图片代码导致预览框和气泡掉格式 */
+    function quoteMessage() { if(contextMenuTargetIndex > -1) { const msg = chats[currentChatRoleId][contextMenuTargetIndex]; let cleanQuote = msg.content.replace(/<[^>]*>/g, '').replace(/\[.*?\]/g, '').trim(); if (!cleanQuote) cleanQuote = "特殊消息"; if (cleanQuote.length > 50) cleanQuote = cleanQuote.substring(0, 50) + '...'; quotedMsgText = cleanQuote; $('#quote-preview-text').innerText = quotedMsgText; $('#quote-preview-bar').style.display = 'flex'; } closeContextMenu(); }
     function cancelQuote() { quotedMsgText = null; $('#quote-preview-bar').style.display = 'none'; }
     function enterSelectionMode() { isSelectionMode = true; selectedMsgs.clear(); if(contextMenuTargetIndex > -1) selectedMsgs.add(contextMenuTargetIndex); $('#selection-action-bar').style.display = 'flex'; $('#input-area-container').style.display = 'none'; closeContextMenu(); renderMessages(); }
     function cancelSelectionMode() { isSelectionMode = false; selectedMsgs.clear(); $('#selection-action-bar').style.display = 'none'; $('#input-area-container').style.display = 'flex'; renderMessages(); }
@@ -6689,10 +6691,24 @@ function updateRoleWbPreview() {
 
         $('#role-show-header-avatar').checked = isEditing ? !!role.showHeaderAvatar : false;
         
-        /* 读取角色专属翻译设置到界面 */
+        /* 读取角色专属翻译设置到界面，如果选项不存在则动态添加 */
         if ($('#role-translation-enable')) $('#role-translation-enable').checked = isEditing ? !!role.translationMode : false;
-        if ($('#role-translation-source')) $('#role-translation-source').value = isEditing && role.translationSourceLang ? role.translationSourceLang : '';
-        if ($('#role-translation-target')) $('#role-translation-target').value = isEditing && role.translationTargetLang ? role.translationTargetLang : '';
+        if ($('#role-translation-source')) {
+            const srcVal = isEditing && role.translationSourceLang ? role.translationSourceLang : '';
+            const srcSel = $('#role-translation-source');
+            if (srcVal && !Array.from(srcSel.options).some(opt => opt.value === srcVal)) {
+                srcSel.add(new Option(srcVal, srcVal), srcSel.options[1]);
+            }
+            srcSel.value = srcVal;
+        }
+        if ($('#role-translation-target')) {
+            const tgtVal = isEditing && role.translationTargetLang ? role.translationTargetLang : '';
+            const tgtSel = $('#role-translation-target');
+            if (tgtVal && !Array.from(tgtSel.options).some(opt => opt.value === tgtVal)) {
+                tgtSel.add(new Option(tgtVal, tgtVal), tgtSel.options[1]);
+            }
+            tgtSel.value = tgtVal;
+        }
 
         if ($('#role-default-chat-mode')) $('#role-default-chat-mode').value = isEditing ? (role.defaultChatMode || 'online') : 'online';
         if ($('#role-auto-switch-mode')) $('#role-auto-switch-mode').checked = isEditing ? !!role.autoSwitchMode : false;
@@ -7152,8 +7168,11 @@ window.newRoleTempWbs = null;
     function openWorldbookModal(id = null) { 
         editingWbId = id; 
         
+        /* 动态加载已有的分组到 select 中 */
         const groups = [...new Set(worldbooks.map(w => w.group).filter(Boolean))];
-        $('#wb-group-list').innerHTML = groups.map(g => `<option value="${g}">`).join('');
+        const groupSelect = $('#wb-group');
+        groupSelect.innerHTML = '<option value="">无分组</option><option value="custom">新分组...</option>' + 
+            groups.map(g => `<option value="${g}">${g}</option>`).join('');
 
         if (id) { 
             const w = worldbooks.find(x => x.id === id); 
@@ -11758,8 +11777,22 @@ async function checkCalendarNotifications() {
     }
     function openTranslationModal() {
     $('#translation-mode-enable').checked = settings.translationMode || false;
-    $('#translation-source-lang').value = settings.translationSourceLang || '日语';
-    $('#translation-target-lang').value = settings.translationTargetLang || '中文';
+    
+    /* 动态加载全局翻译设置，如果选项不存在则动态添加 */
+    const srcVal = settings.translationSourceLang || '日语';
+    const srcSel = $('#translation-source-lang');
+    if (srcVal && !Array.from(srcSel.options).some(opt => opt.value === srcVal)) {
+        srcSel.add(new Option(srcVal, srcVal), srcSel.options[1]);
+    }
+    srcSel.value = srcVal;
+
+    const tgtVal = settings.translationTargetLang || '中文';
+    const tgtSel = $('#translation-target-lang');
+    if (tgtVal && !Array.from(tgtSel.options).some(opt => opt.value === tgtVal)) {
+        tgtSel.add(new Option(tgtVal, tgtVal), tgtSel.options[1]);
+    }
+    tgtSel.value = tgtVal;
+
     openModal('modal-translation');
 }
 
@@ -13190,45 +13223,40 @@ function renderMagazineStatus() {
     /* 优先显示角色备注，其次是网名，最后是默认名称 */
     const displayName = role.remark ? role.remark : ((d.netName && d.netName !== '未知') ? d.netName : getDisplayName(role));
     
+    /* 优化：固定卡片高度为 65vh，内部心声区域可滚动，并将英文替换为中文 */
     return `
     <div style="min-width:100%; width:100%; height:100%; padding:0 20px; box-sizing:border-box; display:flex; flex-direction:column; justify-content:center;">
-        <div style="background:var(--bg-color); border:1px solid var(--border-color); padding:30px; display:flex; flex-direction:column; max-height:80vh; overflow-y:auto; box-shadow:0 20px 40px rgba(0,0,0,0.15);"
-             onmousedown="handleMagazineTouchStart(event, ${i})" 
-             onmouseup="handleMagazineTouchEnd()" 
-             onmouseleave="handleMagazineTouchEnd()" 
-             ontouchstart="handleMagazineTouchStart(event, ${i})" 
-             ontouchend="handleMagazineTouchEnd()" 
-             ontouchcancel="handleMagazineTouchEnd()">
+        <div style="background:var(--bg-color); border:1px solid var(--border-color); padding:30px; display:flex; flex-direction:column; height:65vh; box-shadow:0 20px 40px rgba(0,0,0,0.15);">
             
-            <div style="text-align:center; font-family:var(--font-sans); font-size:9px; letter-spacing:4px; color:var(--text-secondary); text-transform:uppercase; margin-bottom:25px;">Inner Voice</div>
+            <div style="text-align:center; font-family:var(--font-sans); font-size:10px; letter-spacing:4px; color:var(--text-secondary); margin-bottom:20px; flex-shrink:0;">内心独白</div>
             
-            <div style="display:flex; gap:20px; margin-bottom:25px;">
+            <div style="display:flex; gap:20px; margin-bottom:20px; flex-shrink:0;">
                 <img src="${avatar}" style="width:90px; height:120px; object-fit:cover; filter:grayscale(20%) contrast(110%); border:1px solid var(--border-color);">
                 <div style="display:flex; flex-direction:column; justify-content:center;">
                     <div style="font-family:var(--font-serif); font-size:20px; color:var(--text-color); line-height:1.1; margin-bottom:8px;">${displayName}</div>
-                        <div style="font-family:var(--font-sans); font-size:9px; color:var(--text-secondary); letter-spacing:1px;">FAVORABILITY: ${d.favorability || '未知'}</div>
-                        <div style="font-family:var(--font-sans); font-size:8px; color:var(--text-secondary); margin-top:4px;">${entry.time}</div>
+                        <div style="font-family:var(--font-sans); font-size:10px; color:var(--text-secondary); letter-spacing:1px;">好感度: ${d.favorability || '未知'}</div>
+                        <div style="font-family:var(--font-sans); font-size:9px; color:var(--text-secondary); margin-top:4px;">${entry.time}</div>
                     </div>
                 </div>
                 
-                <div style="border-top:1px solid var(--text-color); padding-top:15px; margin-bottom:20px; display:grid; grid-template-columns:1fr 1fr; gap:15px;">
+                <div style="border-top:1px solid var(--text-color); padding-top:15px; margin-bottom:15px; display:grid; grid-template-columns:1fr 1fr; gap:15px; flex-shrink:0;">
                     <div>
-                        <div style="font-size:8px; color:var(--text-secondary); letter-spacing:1px; text-transform:uppercase; margin-bottom:4px;">Tag</div>
+                        <div style="font-size:9px; color:var(--text-secondary); letter-spacing:1px; margin-bottom:4px;">标签</div>
                         <div style="font-size:12px; color:var(--text-color);">${d.tag || '未知'}</div>
                     </div>
                     <div>
-                        <div style="font-size:8px; color:var(--text-secondary); letter-spacing:1px; text-transform:uppercase; margin-bottom:4px;">Clothing</div>
+                        <div style="font-size:9px; color:var(--text-secondary); letter-spacing:1px; margin-bottom:4px;">穿着</div>
                         <div style="font-size:12px; color:var(--text-color);">${d.clothing || '未知'}</div>
                     </div>
                     <div style="grid-column:span 2;">
-                        <div style="font-size:8px; color:var(--text-secondary); letter-spacing:1px; text-transform:uppercase; margin-bottom:4px;">Action</div>
+                        <div style="font-size:9px; color:var(--text-secondary); letter-spacing:1px; margin-bottom:4px;">动作</div>
                         <div style="font-size:12px; color:var(--text-color);">${d.action || '未知'}</div>
                     </div>
                 </div>
                 
-                <div style="flex:1;">
-                    <div style="font-size:8px; color:var(--text-secondary); letter-spacing:1px; text-transform:uppercase; margin-bottom:10px;">Monologue</div>
-                    <div style="font-family:var(--font-serif); font-size:16px; line-height:1.6; color:var(--text-color); font-style:italic;">"${d.thought || '...'}"</div>
+                <div style="flex:1; display:flex; flex-direction:column; min-height:0;">
+                    <div style="font-size:9px; color:var(--text-secondary); letter-spacing:1px; margin-bottom:10px; flex-shrink:0;">心声</div>
+                    <div style="font-family:var(--font-serif); font-size:16px; line-height:1.6; color:var(--text-color); font-style:italic; overflow-y:auto; flex:1; padding-right:5px;">"${d.thought || '...'}"</div>
                 </div>
             </div>
         </div>
@@ -13395,29 +13423,6 @@ function closeStatusPanel() {
     $('#char-status-overlay').style.display = 'none';
 }
 
-/* 新增：心声卡片长按删除逻辑 */
-let magazinePressTimer = null;
-window.handleMagazineTouchStart = function(e, index) {
-    magazinePressTimer = setTimeout(() => {
-        if (navigator.vibrate) navigator.vibrate(50);
-        if (confirm("确定要删除这条心声记录吗？")) {
-            const config = statusBarData[currentChatRoleId];
-            if (config && config.history) {
-                config.history.splice(index, 1);
-                DB.set('statusBarData', statusBarData);
-                if (config.history.length === 0) {
-                    closeStatusPanel();
-                } else {
-                    magazineCurrentIndex = Math.max(0, magazineCurrentIndex - 1);
-                    renderMagazineStatus();
-                }
-            }
-        }
-    }, 600);
-};
-window.handleMagazineTouchEnd = function() {
-    clearTimeout(magazinePressTimer);
-};
 function selectAllStatus() {
     if (!currentChatRoleId) return;
     const config = statusBarData[currentChatRoleId];
@@ -17764,7 +17769,7 @@ async function sendEiMessage() {
     
     prompt += `\n【强制输出要求】：
 1. 你的回复必须像短信一样，分成多条发送。
-2. 必须输出 5 句话以上！每句话必须有深度，不能特别简短敷衍。
+2. 必须输出 2 到 5 句话（行）以上！每句话必须有深度，不能特别简短敷衍。
 3. 每句话独占一行（按回车换行），系统会自动切分为多个气泡。`;
 
     if (eiActionEnabled) {
@@ -17778,7 +17783,8 @@ async function sendEiMessage() {
         const res = await fetch(endpoint, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${api.key}` },
-            body: JSON.stringify({ model: api.model, messages: [{ role: 'user', content: prompt }], max_tokens: 600, temperature: 0.85 })
+            /* 优化：调大 max_tokens 防止回复被截断 */
+            body: JSON.stringify({ model: api.model, messages: [{ role: 'user', content: prompt }], max_tokens: 1500, temperature: 0.85 })
         });
         const data = await res.json();
         const reply = data.choices[0].message.content.trim();
@@ -18093,24 +18099,23 @@ async function saveEiMemory() {
     if (!api.url) return;
 
     const chatText = eiChatHistory.map(m => `${m.role === 'user' ? '我' : role.realName}: ${m.content}`).join('\n');
-    const prompt = `你是${role.realName}。你刚刚和用户在“情绪岛”进行了一次深度的倾诉与安慰。\n对话记录：\n${chatText}\n请以你的第一人称视角，用一句话总结这次情绪交流的感受（不超过50字）。`;
+    /* 优化：放宽字数限制，要求详细记录 */
+    const prompt = `你是${role.realName}。你刚刚和用户在“情绪岛”进行了一次深度的倾诉与安慰。\n对话记录：\n${chatText}\n请以你的第一人称视角，详细记录这次情绪交流的感受和重要信息（字数不限，保留细节）。`;
 
     try {
         const endpoint = getChatEndpoint(api.url);
         const res = await fetch(endpoint, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${api.key}` },
-            body: JSON.stringify({ model: api.model, messages: [{ role: 'user', content: prompt }], max_tokens: 100, temperature: 0.8 })
+            /* 优化：调大 max_tokens 防止截断 */
+            body: JSON.stringify({ model: api.model, messages: [{ role: 'user', content: prompt }], max_tokens: 800, temperature: 0.8 })
         });
         const data = await res.json();
         const summary = data.choices[0].message.content.trim();
         
         initRoleMemory(role.id);
-        // 传统记忆优化：每次 push 新对象，而不是拼接字符串
-        if (!memories[role.id] || typeof memories[role.id] === 'string') memories[role.id] = [];
-        memories[role.id].push({ content: `[情绪岛记忆] ${summary}`, time: new Date().toLocaleString('zh-CN') });
-        DB.set('memories', memories);
         
+        /* 优化：只保存到情景记忆，不再重复保存到传统记忆 */
         advancedMemories[role.id].episodicMemories.push({ content: `[情绪岛记忆] ${summary}`, time: new Date().toLocaleString(), auto: true });
         DB.set('advancedMemories', advancedMemories);
         

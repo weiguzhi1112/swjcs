@@ -1752,8 +1752,12 @@
         <div class="setting-group" style="border:none; padding:0; margin-top: 10px; background: var(--gray-light); padding: 10px; border-radius: 8px;">
             <label style="display:flex; align-items:center; gap:10px; margin-bottom:10px;"><input type="checkbox" id="role-translation-enable" style="width:auto;"> 开启角色专属双语翻译</label>
             <div style="display: flex; gap: 10px;">
-                <input type="text" list="lang-options" id="role-translation-source" placeholder="原文 (如: 英语)" style="flex: 1; padding: 8px; border: 1px solid var(--border-color); background: var(--bg-color); color: var(--text-color); font-size: 11px; outline: none;">
-                <input type="text" list="lang-options" id="role-translation-target" placeholder="目标 (如: 东北话)" style="flex: 1; padding: 8px; border: 1px solid var(--border-color); background: var(--bg-color); color: var(--text-color); font-size: 11px; outline: none;">
+                <select id="role-translation-source" onchange="if(this.value==='custom'){let v=prompt('请输入自定义语言:');if(v){let opt=document.createElement('option');opt.value=v;opt.text=v;this.add(opt,this.options[1]);this.value=v;}else{this.value='';}}" style="flex: 1; padding: 8px; border: 1px solid var(--border-color); background: var(--bg-color); color: var(--text-color); font-size: 11px; outline: none;">
+                    <option value="">原文(默认)</option><option value="custom">➕ 自定义...</option><option value="日语">日语</option><option value="英语">英语</option><option value="韩语">韩语</option><option value="法语">法语</option><option value="德语">德语</option><option value="俄语">俄语</option>
+                </select>
+                <select id="role-translation-target" onchange="if(this.value==='custom'){let v=prompt('请输入自定义语言:');if(v){let opt=document.createElement('option');opt.value=v;opt.text=v;this.add(opt,this.options[1]);this.value=v;}else{this.value='';}}" style="flex: 1; padding: 8px; border: 1px solid var(--border-color); background: var(--bg-color); color: var(--text-color); font-size: 11px; outline: none;">
+                    <option value="">目标(默认)</option><option value="custom">➕ 自定义...</option><option value="中文">中文</option><option value="英语">英语</option><option value="粤语">粤语</option><option value="四川话">四川话</option><option value="东北话">东北话</option><option value="台湾腔">台湾腔</option><option value="文言文">文言文</option>
+                </select>
             </div>
         </div>
         <!-- 结束 -->
@@ -1930,8 +1934,10 @@
         <h3 id="wb-modal-title">Lore <span>世界书设定</span></h3>
         <div style="display:flex; gap:10px; margin-bottom:10px;">
             <input type="text" id="wb-title" placeholder="设定标题 (例如: 魔法设定)" style="flex:1; margin-bottom:0;">
-            <input type="text" id="wb-group" placeholder="分组名称 (可选)" list="wb-group-list" style="width:100px; margin-bottom:0; padding:10px; border:1px solid var(--border-color); background:transparent; color:var(--text-color); outline:none; font-size:11px;">
-            <datalist id="wb-group-list"></datalist>
+            <select id="wb-group" onchange="if(this.value==='custom'){let v=prompt('请输入新分组名称:');if(v){let opt=document.createElement('option');opt.value=v;opt.text=v;this.add(opt,this.options[1]);this.value=v;}else{this.value='';}}" style="width:100px; margin-bottom:0; padding:10px; border:1px solid var(--border-color); background:transparent; color:var(--text-color); outline:none; font-size:11px;">
+                <option value="">无分组</option>
+                <option value="custom">新分组...</option>
+            </select>
         </div>
         <div style="display:flex; gap:10px; margin-bottom:10px;">
             <input type="text" id="wb-keyword" placeholder="触发关键词 (逗号分隔)" style="flex:1; margin-bottom:0;">
@@ -2137,13 +2143,8 @@
         </div>
     </div>
 </div>
-<datalist id="lang-options">
-    <option value="中文"></option><option value="英语"></option><option value="日语"></option><option value="韩语"></option>
-    <option value="法语"></option><option value="德语"></option><option value="西班牙语"></option><option value="俄语"></option>
-    <option value="粤语"></option><option value="四川话"></option><option value="东北话"></option><option value="上海话"></option>
-    <option value="文言文"></option><option value="台湾腔"></option><option value="北京话"></option>
-</datalist>
-<div class="modal-overlay" id="modal-translation"><div class="modal"><h3>Bilingual <span>双语翻译</span></h3><div class="setting-group" style="border:none; padding:0;"><label style="display:flex; align-items:center; gap:10px; margin-bottom:15px;"><input type="checkbox" id="translation-mode-enable" style="width:auto;"> 启用双语翻译模式</label><label>原文语言 (可自定义输入)</label><input type="text" list="lang-options" id="translation-source-lang" placeholder="例如: 日语" style="width:100%; margin-top:5px; margin-bottom:15px; padding:10px; border:1px solid var(--border-color); background:transparent; color:var(--text-color); outline:none; font-family:var(--font-sans); font-size:11px;"><label>翻译目标语言 (可自定义输入)</label><input type="text" list="lang-options" id="translation-target-lang" placeholder="例如: 粤语" style="width:100%; margin-top:5px; padding:10px; border:1px solid var(--border-color); background:transparent; color:var(--text-color); outline:none; font-family:var(--font-sans); font-size:11px;"></div><div class="modal-btns"><button class="btn-cancel" onclick="closeModal('modal-translation')">CANCEL<span>取消</span></button><button class="btn-confirm" onclick="saveTranslationSettings()">SAVE<span>保存</span></button></div></div></div><audio id="music-audio-player"></audio>
+<div class="modal-overlay" id="modal-translation"><div class="modal"><h3>Bilingual <span>双语翻译</span></h3><div class="setting-group" style="border:none; padding:0;"><label style="display:flex; align-items:center; gap:10px; margin-bottom:15px;"><input type="checkbox" id="translation-mode-enable" style="width:auto;"> 启用双语翻译模式</label><label>原文语言</label><select id="translation-source-lang" onchange="if(this.value==='custom'){let v=prompt('请输入自定义语言:');if(v){let opt=document.createElement('option');opt.value=v;opt.text=v;this.add(opt,this.options[1]);this.value=v;}else{this.value='日语';}}" style="width:100%; margin-top:5px; margin-bottom:15px; padding:10px; border:1px solid var(--border-color); background:transparent; color:var(--text-color); outline:none; font-family:var(--font-sans); font-size:11px;"><option value="custom">➕ 自定义输入...</option><option value="日语">日语</option><option value="英语">英语</option><option value="韩语">韩语</option><option value="法语">法语</option><option value="德语">德语</option><option value="西班牙语">西班牙语</option><option value="俄语">俄语</option><option value="粤语">粤语</option><option value="文言文">文言文</option></select><label>翻译目标语言</label><select id="translation-target-lang" onchange="if(this.value==='custom'){let v=prompt('请输入自定义语言:');if(v){let opt=document.createElement('option');opt.value=v;opt.text=v;this.add(opt,this.options[1]);this.value=v;}else{this.value='中文';}}" style="width:100%; margin-top:5px; padding:10px; border:1px solid var(--border-color); background:transparent; color:var(--text-color); outline:none; font-family:var(--font-sans); font-size:11px;"><option value="custom">自定义输入...</option><option value="中文">中文</option><option value="英语">英语</option><option value="日语">日语</option><option value="韩语">韩语</option><option value="粤语">粤语</option><option value="四川话">四川话</option><option value="东北话">东北话</option><option value="台湾腔">台湾腔</option><option value="北京话">北京话</option></select></div><div class="modal-btns"><button class="btn-cancel" onclick="closeModal('modal-translation')">CANCEL<span>取消</span></button><button class="btn-confirm" onclick="saveTranslationSettings()">SAVE<span>保存</span></button></div></div></div>
+<audio id="music-audio-player"></audio>
 <audio id="notification-sound-player" style="display: none;"></audio>
 
 <div class="modal-overlay" id="modal-forum-post">
