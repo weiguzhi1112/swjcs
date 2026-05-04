@@ -1475,9 +1475,8 @@
                     <!-- 融合输入框容器 -->
                     <div class="input-wrapper-fusion">
                         <textarea id="chat-input" placeholder="iMessage信息" oninput="checkStickerSuggestions()"></textarea>
-                        <!-- 嵌入式发送按钮：单击发送，双击AI回复 -->
-                        <button class="standalone-send-btn" onclick="if(this.lastClick &amp;&amp; Date.now() - this.lastClick &lt; 300) { triggerAI(); } else { sendMessage(); } this.lastClick = Date.now();">
-                        </button>
+                        <!-- 嵌入式发送按钮：事件由 script.js 接管 -->
+                        <button class="standalone-send-btn"></button>
                     </div>
                 </div>
                         <div id="attachment-popup">
@@ -1825,6 +1824,7 @@
             <select id="role-bubble-style" style="width: 100%; padding: 10px 12px; border: 1px solid var(--border-color); background: transparent; color: var(--text-color); font-family: var(--font-sans); font-size: 11px; outline: none;">
                 <option value="flat">扁平纯色 (Flat)</option>
                 <option value="glass">玻璃拟态 (Glassmorphism)</option>
+                <option value="magazine">Magazine (极简杂志风)</option>
             </select>
         </div>
 

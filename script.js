@@ -2135,13 +2135,19 @@ function updateKeepAliveUI(isOn) {
         container.innerHTML = msgs.map((m, i) => { 
             const realIndex = startIndex + i;
 
+            const isMagazineBubble = role.bubbleStyle === 'magazine';
             if (m.role === 'system') {
                 const isJoinMsg = m.content === '对方已加入一起听';
                 const exitBtn = isJoinMsg && listenTogetherSession.isActive
                     ? `<div style="margin-top: 6px;"><button onclick="endListenTogetherSession(true)" style="background: var(--text-color); color: var(--bg-color); border: none; font-size: 8px; padding: 4px 10px; letter-spacing: 1px; cursor: pointer; text-transform: uppercase;">退出一起听</button></div>`
                     : '';
                 const checkboxHtml = isSelectionMode ? `<div class="msg-checkbox ${selectedMsgs.has(realIndex) ? 'checked' : ''}" style="margin-right: 8px; margin-top: 0;"></div>` : '';
-                return `<div class="msg-row ${isSelectionMode ? 'selection-mode' : ''}" style="justify-content: center; margin: 5px 0; cursor: pointer;" onclick="handleMsgClick(${realIndex})" onmousedown="handleTouchStart(event, ${realIndex})" onmouseup="handleTouchEnd()" onmouseleave="handleTouchEnd()" ontouchstart="handleTouchStart(event, ${realIndex})" ontouchend="handleTouchEnd()" ontouchcancel="handleTouchEnd()">${checkboxHtml}<div style="background: var(--gray-light); color: var(--system-text-color, #888888) !important; font-size: 9px; padding: 4px 10px; border-radius: 10px; text-transform: uppercase; letter-spacing: 1px; text-align: center;">${m.content}${exitBtn}</div></div>`;
+                
+                if (isMagazineBubble) {
+                    return `<div class="msg-row ${isSelectionMode ? 'selection-mode' : ''} magazine-system-row" style="justify-content: center; margin: 15px 0; cursor: pointer;" onclick="handleMsgClick(${realIndex})" onmousedown="handleTouchStart(event, ${realIndex})" onmouseup="handleTouchEnd()" onmouseleave="handleTouchEnd()" ontouchstart="handleTouchStart(event, ${realIndex})" ontouchend="handleTouchEnd()" ontouchcancel="handleTouchEnd()">${checkboxHtml}<div class="magazine-system-text">${m.content}${exitBtn}</div></div>`;
+                } else {
+                    return `<div class="msg-row ${isSelectionMode ? 'selection-mode' : ''}" style="justify-content: center; margin: 5px 0; cursor: pointer;" onclick="handleMsgClick(${realIndex})" onmousedown="handleTouchStart(event, ${realIndex})" onmouseup="handleTouchEnd()" onmouseleave="handleTouchEnd()" ontouchstart="handleTouchStart(event, ${realIndex})" ontouchend="handleTouchEnd()" ontouchcancel="handleTouchEnd()">${checkboxHtml}<div style="background: var(--gray-light); color: var(--system-text-color, #888888) !important; font-size: 9px; padding: 4px 10px; border-radius: 10px; text-transform: uppercase; letter-spacing: 1px; text-align: center;">${m.content}${exitBtn}</div></div>`;
+                }
             }
             let showAvatar = true; 
             let occupySpace = true;
@@ -2174,10 +2180,36 @@ function updateKeepAliveUI(isOn) {
             contentHtml = contentHtml.replace(/&lt;div class=&quot;bubble-typing-indicator&quot;&gt;&lt;div&gt;&lt;\/div&gt;&lt;div&gt;&lt;\/div&gt;&lt;div&gt;&lt;\/div&gt;&lt;\/div&gt;/g, '<div class="bubble-typing-indicator"><div></div><div></div><div></div></div>');
             const touchHandlers = `onmousedown="handleTouchStart(event, ${realIndex})" onmouseup="handleTouchEnd()" onmouseleave="handleTouchEnd()" ontouchstart="handleTouchStart(event, ${realIndex})" ontouchend="handleTouchEnd()" ontouchcancel="handleTouchEnd()"`;
 
-            let customBubbleStyle = '';
-            const isGlass = role.bubbleStyle === 'glass';
+            const isMagazineBubble = role.bubbleStyle === 'magazine';
+
+            if (m.role === 'ai') {
+                const aiBubbleC = role.aiBubbleColor || '#333333';
+                const aiTextC = role.aiTextColor || '#ffffff';
+                if (isGlass) {
+                    customBubbleStyle = `style="${getGlassStyle(aiTextC)}"`;
+                } else if (isMagazineBubble) {
+                    customBubbleStyle = ''; // 杂志风由 CSS 类接管
+                } else {
+                    customBubbleStyle = `style="background-color: ${aiBubbleC} !important; color: ${aiTextC} !important; border: none !important; --tail-color: ${aiBubbleC} !important;"`;
+                }
+            } else if (m.role === 'user') {
+                const userBubbleC = role.userBubbleColor || '#000000';
+                const userTextC = role.userTextColor || '#ffffff';
+                if (isGlass) {
+                    customBubbleStyle = `style="${getGlassStyle(userTextC)}"`;
+                } else if (isMagazineBubble) {
+                    customBubbleStyle = ''; // 杂志风由 CSS 类接管
+                } else {
+                    customBubbleStyle = `style="background-color: ${userBubbleC} !important; color: ${userTextC} !important; border: none !important; --tail-color: ${userBubbleC} !important;"`;
+                }
+            }
+            const deliveryHtml = m.role === 'user' ? getDeliveryStatusHtml(realIndex) : '';
+            const messageId = m.id ? `id="${m.id}"` : '';
             
-            function getGlassStyle(textColor) {
+            // 增加杂志风的类名
+            const magClass = isMagazineBubble ? 'magazine-msg-row' : '';
+            
+            return `<div class="msg-row bubble-row ${m.role === 'user' ? 'me' : 'ai'} ${isSelectionMode ? 'selection-mode' : ''} ${magClass}" ${messageId} onclick="handleMsgClick(${realIndex})">${checkboxHtml}${m.role === 'ai' ? aiAvatarTag : ''}<div class="msg-wrapper"><div class="msg-bubble ${m.mode === 'offline' && m.role === 'ai' ? 'offline-mode' : ''}" ${customBubbleStyle} ${touchHandlers}><div class="msg-bubble-content">${quoteHtml}${contentHtml}</div>${heartHtml}</div><div class="msg-status">${displayTime}${deliveryHtml}</div></div>${m.role === 'user' ? userAvatarTag : ''}</div>`;
                 const isDarkTheme = document.documentElement.getAttribute('data-theme') === 'dark';
                 const bgColor = isDarkTheme ? `rgba(50, 50, 50, 0.2)` : `rgba(255, 255, 255, 0.02)`;
                 const borderColor = isDarkTheme ? `rgba(255, 255, 255, 0.15)` : `rgba(255, 255, 255, 0.25)`;
@@ -18188,14 +18220,14 @@ function exitEmotionIsland() {
     }
     closeApp('emotionisland');
 }
-
 /* ==================== 极简杂志风 UI 注入与交互逻辑 ==================== */
 document.addEventListener('DOMContentLoaded', () => {
-    /* 注入杂志风 CSS */
+    /* 注入杂志风 CSS (包含界面与气泡) */
     const style = document.createElement('style');
     style.innerHTML = `
         @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;1,400&family=Noto+Serif+SC:wght@400;600&display=swap');
         
+        /* 1. 界面美化 (当 CHAT UI STYLE 选为 magazine 时生效) */
         .magazine-ui {
             --bg-color: #fdfdfd !important;
             --text-main: #111111 !important;
@@ -18223,48 +18255,6 @@ document.addEventListener('DOMContentLoaded', () => {
             font-style: italic !important;
             color: var(--text-main) !important;
         }
-        .magazine-ui .msg-row.ai .msg-bubble {
-            background: transparent !important;
-            border: none !important;
-            border-left: 2px solid var(--text-main) !important;
-            border-radius: 0 !important;
-            padding: 0 0 0 15px !important;
-            box-shadow: none !important;
-            color: var(--text-main) !important;
-            font-family: var(--font-serif) !important;
-            font-size: 15px !important;
-            line-height: 1.8 !important;
-        }
-        .magazine-ui .msg-row.me .msg-bubble {
-            background: var(--text-main) !important;
-            color: var(--bg-color) !important;
-            border-radius: 2px !important;
-            border: none !important;
-            box-shadow: none !important;
-            font-family: var(--font-sans) !important;
-        }
-        .magazine-ui .msg-avatar {
-            border-radius: 0 !important;
-            filter: grayscale(30%) contrast(110%) !important;
-        }
-        .magazine-ui .msg-row[style*="justify-content: center"] > div {
-            background: transparent !important;
-            color: var(--text-muted) !important;
-            font-family: var(--font-serif) !important;
-            font-style: italic !important;
-            font-size: 12px !important;
-            text-transform: none !important;
-        }
-        .magazine-ui .msg-row[style*="justify-content: center"] > div::before,
-        .magazine-ui .msg-row[style*="justify-content: center"] > div::after {
-            content: '';
-            display: inline-block;
-            width: 30px;
-            height: 1px;
-            background-color: var(--line-color);
-            vertical-align: middle;
-            margin: 0 10px;
-        }
         .magazine-ui #input-area-container {
             background: var(--bg-color) !important;
             border-top: 1px solid var(--line-color) !important;
@@ -18286,7 +18276,7 @@ document.addEventListener('DOMContentLoaded', () => {
             background: none !important;
             border: none !important;
             color: var(--text-main) !important;
-            font-family: var(--font-sans) !important;
+            font-family: var(--font-serif) !important;
             font-weight: 600 !important;
             letter-spacing: 2px !important;
             text-transform: uppercase !important;
@@ -18294,6 +18284,9 @@ document.addEventListener('DOMContentLoaded', () => {
             height: auto !important;
             padding: 10px !important;
             box-shadow: none !important;
+            cursor: pointer;
+            user-select: none;
+            -webkit-user-select: none;
         }
         .magazine-ui .standalone-send-btn::before {
             content: 'SEND' !important;
@@ -18302,29 +18295,109 @@ document.addEventListener('DOMContentLoaded', () => {
         .magazine-ui .standalone-send-btn svg {
             display: none !important;
         }
+
+        /* 2. 气泡美化 (当 BUBBLE STYLE 选为 magazine 时生效) */
+        .magazine-msg-row {
+            margin-bottom: 25px !important;
+        }
+        .magazine-msg-row .msg-avatar {
+            border-radius: 0 !important;
+            filter: grayscale(30%) contrast(110%) !important;
+            width: 40px !important;
+            height: 40px !important;
+        }
+        /* AI 气泡 */
+        .magazine-msg-row.ai .msg-bubble {
+            background: transparent !important;
+            border: none !important;
+            border-left: 2px solid var(--text-color) !important;
+            border-radius: 0 !important;
+            padding: 0 0 0 15px !important;
+            box-shadow: none !important;
+            color: var(--text-color) !important;
+            font-family: 'Playfair Display', 'Noto Serif SC', serif !important;
+            font-size: 15px !important;
+            line-height: 1.8 !important;
+            text-align: justify !important;
+        }
+        .magazine-msg-row.ai .msg-bubble::before { display: none !important; } /* 隐藏小尾巴 */
+        
+        /* 用户气泡 */
+        .magazine-msg-row.me .msg-bubble {
+            background-color: var(--text-color) !important;
+            color: var(--bg-color) !important;
+            font-family: var(--font-sans) !important;
+            font-size: 14px !important;
+            line-height: 1.6 !important;
+            padding: 15px 20px !important;
+            border-radius: 2px !important;
+            border: none !important;
+            box-shadow: none !important;
+        }
+        .magazine-msg-row.me .msg-bubble::before { display: none !important; } /* 隐藏小尾巴 */
+
+        /* 时间戳 */
+        .magazine-msg-row .msg-status {
+            font-size: 9px !important;
+            color: var(--text-secondary) !important;
+            letter-spacing: 1px !important;
+            margin-top: 10px !important;
+            font-family: var(--font-sans) !important;
+            text-transform: uppercase !important;
+        }
+        .magazine-msg-row.me .msg-status {
+            text-align: right !important;
+        }
+
+        /* 旁白/动作 */
+        .magazine-system-row .magazine-system-text {
+            text-align: center !important;
+            font-family: 'Playfair Display', 'Noto Serif SC', serif !important;
+            font-size: 12px !important;
+            color: var(--text-secondary) !important;
+            font-style: italic !important;
+            position: relative !important;
+            background: transparent !important;
+            padding: 0 !important;
+            text-transform: none !important;
+            letter-spacing: normal !important;
+        }
+        .magazine-system-row .magazine-system-text::before,
+        .magazine-system-row .magazine-system-text::after {
+            content: '';
+            display: inline-block;
+            width: 30px;
+            height: 1px;
+            background-color: var(--border-color);
+            vertical-align: middle;
+            margin: 0 10px;
+        }
     `;
     document.head.appendChild(style);
 
-    /* 绑定 Send 按钮的长按与双击事件 */
+    /* 绑定 Send 按钮的长按、双击与单击事件 */
     const sendBtn = document.querySelector('.standalone-send-btn');
     if (sendBtn) {
         let pressTimer;
         let lastClickTime = 0;
         let isLongPress = false;
+        let clickTimeout;
         
         const handleTouchStart = (e) => {
-            const chatView = document.getElementById('chat-view');
-            if (!chatView || !chatView.classList.contains('magazine-ui')) return;
-            
             isLongPress = false;
             pressTimer = setTimeout(() => {
                 isLongPress = true;
                 if (navigator.vibrate) navigator.vibrate(50);
-                const popup = document.getElementById('attachment-popup');
-                if (popup) {
-                    popup.style.display = popup.style.display === 'none' || popup.style.display === '' ? 'flex' : 'none';
+                
+                const chatView = document.getElementById('chat-view');
+                // 如果是杂志模式，长按弹出附件菜单
+                if (chatView && chatView.classList.contains('magazine-ui')) {
+                    const popup = document.getElementById('attachment-popup');
+                    if (popup) {
+                        popup.style.display = popup.style.display === 'none' || popup.style.display === '' ? 'flex' : 'none';
+                    }
                 }
-            }, 600);
+            }, 500); // 500ms 触发长按
         };
         
         const handleTouchEnd = (e) => {
@@ -18332,22 +18405,27 @@ document.addEventListener('DOMContentLoaded', () => {
         };
         
         const handleClick = (e) => {
-            const chatView = document.getElementById('chat-view');
-            if (!chatView || !chatView.classList.contains('magazine-ui')) return;
+            e.preventDefault();
+            e.stopPropagation();
             
             if (isLongPress) {
-                e.preventDefault();
-                e.stopPropagation();
-                return;
+                return; // 如果触发了长按，则不执行点击逻辑
             }
             
             const currentTime = new Date().getTime();
-            if (currentTime - lastClickTime < 300) {
-                e.preventDefault();
-                e.stopPropagation();
-                triggerAI();
-            }
+            const timeDiff = currentTime - lastClickTime;
             lastClickTime = currentTime;
+            
+            if (timeDiff < 300) {
+                // 双击：获取AI回复
+                clearTimeout(clickTimeout);
+                triggerAI();
+            } else {
+                // 单击：延迟执行发送，等待判断是否为双击
+                clickTimeout = setTimeout(() => {
+                    sendMessage();
+                }, 300);
+            }
         };
 
         sendBtn.addEventListener('mousedown', handleTouchStart);
