@@ -1605,16 +1605,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 chatHeader.style.backdropFilter = 'none';
                 chatHeader.style.webkitBackdropFilter = 'none';
                 chatHeader.style.borderBottom = 'none';
-                /* 顶栏透明时，取消消息区域的顶部 padding，让消息直接顶上去 */
-                chatMessages.style.paddingTop = 'calc(10px + env(safe-area-inset-top))';
             } else {
                 chatHeader.style.background = '';
                 chatHeader.style.backdropFilter = '';
                 chatHeader.style.webkitBackdropFilter = '';
                 chatHeader.style.borderBottom = '';
-                /* 恢复默认的 padding */
-                chatMessages.style.paddingTop = 'calc(70px + env(safe-area-inset-top))';
             }
+            /* 核心修复：无论顶栏是否透明，都必须保留 paddingTop。
+               这样初始状态下最上面的消息才不会被返回按钮挡住；
+               而在向上滑动时，因为顶栏背景透明了，消息自然就会从按钮下方透过去显示。 */
+            chatMessages.style.paddingTop = 'calc(70px + env(safe-area-inset-top))';
         }
     }
 
@@ -6490,12 +6490,30 @@ function openRoleWbSelectModal() {
     tempSelectedWbs = role && role.localWbs ? [...role.localWbs] : (window.newRoleTempWbs || []);
     
     const container = $('#role-wb-checkboxes');
-    container.innerHTML = worldbooks.filter(w => !w.isGlobal).map(w => `
-        <label style="display:flex; align-items:center; gap:10px; padding:8px 0; font-size:12px; border-bottom:1px solid var(--border-color); color: var(--text-color); text-transform: none; letter-spacing: normal;">
-            <input type="checkbox" value="${w.id}" ${tempSelectedWbs.includes(w.id) ? 'checked' : ''} onchange="toggleTempRoleWb('${w.id}')" style="width:auto;">
-            ${w.title || w.keyword || '未命名设定'}
-        </label>
-    `).join('') || '<div style="text-align:center; color:var(--text-secondary); font-size:10px;">暂无非全局世界书</div>';
+    const localWbs = worldbooks.filter(w => !w.isGlobal);
+    
+    if (localWbs.length === 0) {
+        container.innerHTML = '<div style="text-align:center; color:var(--text-secondary); font-size:10px;">暂无非全局世界书</div>';
+    } else {
+        const grouped = {};
+        localWbs.forEach(w => {
+            const g = w.group || '未分组';
+            if (!grouped[g]) grouped[g] = [];
+            grouped[g].push(w);
+        });
+        
+        let html = '';
+        for (const g in grouped) {
+            html += `<div style="font-size: 10px; font-weight: bold; color: var(--text-secondary); margin: 10px 0 5px 0; background: var(--bg-color); padding: 4px 8px; border-radius: 4px;">${g}</div>`;
+            html += grouped[g].map(w => `
+                <label style="display:flex; align-items:center; gap:10px; padding:8px 0; font-size:12px; border-bottom:1px solid var(--border-color); color: var(--text-color); text-transform: none; letter-spacing: normal;">
+                    <input type="checkbox" value="${w.id}" ${tempSelectedWbs.includes(w.id) ? 'checked' : ''} onchange="toggleTempRoleWb('${w.id}')" style="width:auto;">
+                    ${w.title || w.keyword || '未命名设定'}
+                </label>
+            `).join('');
+        }
+        container.innerHTML = html;
+    }
     
     openModal('modal-role-wb-select');
 }
@@ -7052,14 +7070,39 @@ window.newRoleTempWbs = null;
     function renderApiPresets() { const list = $('#api-presets-list'); list.innerHTML = apiPresets.map(p => `<div class="list-item" style="padding:10px 0;"><div class="item-name" style="font-size:12px; font-family:var(--font-sans);">${p.name}</div><div class="item-actions"><button class="btn-edit" onclick="loadApiPreset('${p.id}')">LOAD</button><button class="btn-delete" onclick="deleteApiPreset('${p.id}')">DEL</button></div></div>`).join(''); }
     function loadApiPreset(presetId) { const preset = apiPresets.find(p => p.id === presetId); if (!preset) return; $('#api-url').value = preset.url; $('#api-key').value = preset.key; $('#api-model').value = preset.model; $('#api-tokens').value = preset.maxTokens; $('#api-temp').value = preset.temperature; $('#val-temp').innerText = preset.temperature; $('#api-topp').value = preset.topP; $('#val-topp').innerText = preset.topP; }
     function deleteApiPreset(presetId) { if (!confirm('删除预设？')) return; apiPresets = apiPresets.filter(p => p.id !== presetId); DB.set('apiPresets', apiPresets); renderApiPresets(); }
-        function renderWorldbooks() { $('#worldbook-list').innerHTML = worldbooks.map(w => `<div class="list-item" onclick="openWorldbookModal('${w.id}')"><div class="item-info"><div class="item-name">${w.isGlobal?'[GLOBAL] ':'[LOCAL] '}${w.title || w.keyword}</div><div class="item-desc">${w.content}</div></div><div class="item-actions"><button class="btn-edit">CONFIG</button></div></div>`).join(''); }
+    function renderWorldbooks() { 
+        const list = $('#worldbook-list');
+        if (worldbooks.length === 0) {
+            list.innerHTML = '<div style="text-align:center; color:var(--text-secondary); padding: 40px; font-size:10px; letter-spacing:2px;">VOID.</div>';
+            return;
+        }
+        
+        const grouped = {};
+        worldbooks.forEach(w => {
+            const g = w.group || '未分组';
+            if (!grouped[g]) grouped[g] = [];
+            grouped[g].push(w);
+        });
+        
+        let html = '';
+        for (const g in grouped) {
+            html += `<div style="font-size: 10px; font-weight: bold; color: var(--text-secondary); margin: 15px 0 5px 0; text-transform: uppercase; letter-spacing: 1px;">${g}</div>`;
+            html += grouped[g].map(w => `<div class="list-item" onclick="openWorldbookModal('${w.id}')"><div class="item-info"><div class="item-name">${w.isGlobal?'[GLOBAL] ':'[LOCAL] '}${w.title || w.keyword}</div><div class="item-desc">${w.content}</div></div><div class="item-actions"><button class="btn-edit">CONFIG</button></div></div>`).join('');
+        }
+        list.innerHTML = html;
+    }
     
     function openWorldbookModal(id = null) { 
         editingWbId = id; 
+        
+        const groups = [...new Set(worldbooks.map(w => w.group).filter(Boolean))];
+        $('#wb-group-list').innerHTML = groups.map(g => `<option value="${g}">`).join('');
+
         if (id) { 
             const w = worldbooks.find(x => x.id === id); 
             $('#wb-modal-title').innerHTML = 'CONFIG LORE <span>编辑设定</span>'; 
             $('#wb-title').value = w.title || '';
+            $('#wb-group').value = w.group || '';
             $('#wb-keyword').value = w.keyword || ''; 
             $('#wb-content').value = w.content || ''; 
             $('#wb-position').value = w.position || 'middle';
@@ -7068,6 +7111,7 @@ window.newRoleTempWbs = null;
         } else { 
             $('#wb-modal-title').innerHTML = 'NEW LORE <span>新增设定</span>'; 
             $('#wb-title').value = '';
+            $('#wb-group').value = '';
             $('#wb-keyword').value = ''; 
             $('#wb-content').value = ''; 
             $('#wb-position').value = 'middle';
@@ -7079,6 +7123,7 @@ window.newRoleTempWbs = null;
     
     function saveWorldbook() { 
         const title = $('#wb-title').value.trim();
+        const group = $('#wb-group').value.trim();
         const keyword = $('#wb-keyword').value.trim();
         const content = $('#wb-content').value.trim();
         const position = $('#wb-position').value;
@@ -7095,9 +7140,9 @@ window.newRoleTempWbs = null;
         
         if (editingWbId) { 
             const idx = worldbooks.findIndex(x => x.id === editingWbId); 
-            worldbooks[idx] = { ...worldbooks[idx], title, keyword, content: finalContent, position, isGlobal }; 
+            worldbooks[idx] = { ...worldbooks[idx], title, keyword, content: finalContent, position, isGlobal, group }; 
         } else { 
-            worldbooks.push({ id: Date.now().toString(36) + Math.random().toString(36).substring(2, 8), title, keyword, content: finalContent, position, isGlobal }); 
+            worldbooks.push({ id: Date.now().toString(36) + Math.random().toString(36).substring(2, 8), title, keyword, content: finalContent, position, isGlobal, group }); 
         } 
         DB.set('worldbooks', worldbooks); 
         closeModal('modal-worldbook'); 

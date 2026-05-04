@@ -1916,7 +1916,11 @@
 <div class="modal-overlay" id="modal-worldbook">
     <div class="modal">
         <h3 id="wb-modal-title">Lore <span>世界书设定</span></h3>
-        <input type="text" id="wb-title" placeholder="设定标题 (例如: 魔法设定)" style="margin-bottom:10px;">
+        <div style="display:flex; gap:10px; margin-bottom:10px;">
+            <input type="text" id="wb-title" placeholder="设定标题 (例如: 魔法设定)" style="flex:1; margin-bottom:0;">
+            <input type="text" id="wb-group" placeholder="分组名称 (可选)" list="wb-group-list" style="width:100px; margin-bottom:0; padding:10px; border:1px solid var(--border-color); background:transparent; color:var(--text-color); outline:none; font-size:11px;">
+            <datalist id="wb-group-list"></datalist>
+        </div>
         <div style="display:flex; gap:10px; margin-bottom:10px;">
             <input type="text" id="wb-keyword" placeholder="触发关键词 (逗号分隔)" style="flex:1; margin-bottom:0;">
             <select id="wb-position" style="width:90px; margin-bottom:0; padding:10px; border:1px solid var(--border-color); background:transparent; color:var(--text-color); outline:none; font-size:11px;">
