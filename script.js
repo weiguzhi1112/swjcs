@@ -7523,43 +7523,37 @@ window.newRoleTempWbs = null;
         
         const SLOTS_PER_PAGE = 24;
         
-        if (!appGrid) {
-            appGrid = [new Array(SLOTS_PER_PAGE).fill(null)];
-            let flatApps = appOrder.filter(id => !DOCK_APPS.includes(id) && DESKTOP_APPS[id]);
-            flatApps.forEach((appId, index) => {
-                let page = Math.floor(index / SLOTS_PER_PAGE);
-                let slot = index % SLOTS_PER_PAGE;
-                if (!appGrid[page]) appGrid[page] = new Array(SLOTS_PER_PAGE).fill(null);
-                appGrid[page][slot] = appId;
+        /* 核心修复：自动压缩桌面网格，消除所有空白占位符，实现类似 iOS 的自动排列 */
+        let allValidApps = [];
+        if (appGrid) {
+            appGrid.forEach(page => {
+                page.forEach(appId => {
+                    if (appId && DESKTOP_APPS[appId] && !DOCK_APPS.includes(appId)) {
+                        if (!allValidApps.includes(appId)) {
+                            allValidApps.push(appId);
+                        }
+                    }
+                });
             });
+        } else {
+            allValidApps = appOrder.filter(id => !DOCK_APPS.includes(id) && DESKTOP_APPS[id]);
         }
 
-        let existingAppsInGrid = [];
-        appGrid.forEach(page => {
-            page.forEach(appId => {
-                if (appId) existingAppsInGrid.push(appId);
-            });
-        });
-
+        /* 补充可能遗漏的新APP */
         Object.keys(DESKTOP_APPS).forEach(appId => {
-            if (!DOCK_APPS.includes(appId) && !existingAppsInGrid.includes(appId)) {
-                let placed = false;
-                for (let p = 0; p < appGrid.length; p++) {
-                    let emptySlot = appGrid[p].indexOf(null);
-                    if (emptySlot !== -1) {
-                        appGrid[p][emptySlot] = appId;
-                        placed = true;
-                        break;
-                    }
-                }
-                if (!placed) {
-                    let newPage = new Array(SLOTS_PER_PAGE).fill(null);
-                    newPage[0] = appId;
-                    appGrid.push(newPage);
-                }
+            if (!DOCK_APPS.includes(appId) && !allValidApps.includes(appId)) {
+                allValidApps.push(appId);
             }
         });
 
+        /* 重新生成紧凑的 appGrid */
+        appGrid = [];
+        for (let i = 0; i < allValidApps.length; i += SLOTS_PER_PAGE) {
+            let pageApps = allValidApps.slice(i, i + SLOTS_PER_PAGE);
+            while (pageApps.length < SLOTS_PER_PAGE) pageApps.push(null);
+            appGrid.push(pageApps);
+        }
+        
         if (appGrid.length < 2) appGrid.push(new Array(SLOTS_PER_PAGE).fill(null));
         DB.set('appGrid', appGrid);
 
