@@ -672,7 +672,8 @@ cipherState = DB.get('cipherState', {score:0,created:0,solved:0,collection:[], h
     const didSpan = document.getElementById('display-device-id');
     if (didSpan) didSpan.textContent = _did;
 
-    let splashTimeout1, splashTimeout2;
+    /* 将 let 改为 var，利用变量提升特性，防止在初始化前访问导致报错崩溃 */
+    var splashTimeout1, splashTimeout2;
 
     // 直接跳过激活验证，播放开机动画进入桌面
     DB.set('activated', true);
