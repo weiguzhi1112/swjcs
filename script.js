@@ -2799,7 +2799,7 @@ ${promptText}
             const res = await fetch(endpoint, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${api.key}` },
-                body: JSON.stringify({ model: api.model, messages: [{ role: 'user', content: systemPrompt }], max_tokens: 8000, temperature: 0.85 }),
+                body: JSON.stringify({ model: api.model, messages: [{ role: 'user', content: systemPrompt }], max_tokens: 8192, temperature: 0.85 }),
                 signal: controller.signal
             });
             clearTimeout(timeoutId);
@@ -5093,7 +5093,7 @@ ${modeRules}
                 messages: apiMessages,
                 temperature: tempVal,
                 top_p: topPVal,
-                max_tokens: 4096, // 修复截断问题：强制指定最大输出长度
+                max_tokens: 8192,  // 修复截断问题：强制指定最大输出长度
                 stream: isStreamEnabled
             };
             
@@ -8962,7 +8962,7 @@ ${extraLorePrompt}
                 body: JSON.stringify({
                     model: api.model,
                     messages: [{ role: 'user', content: worldbookPrompt }],
-                    max_tokens: 2500,
+                    max_tokens: 8192,
                     temperature: 0.9
                 })
             });
@@ -9886,7 +9886,7 @@ ${knowUser ? `注意：你清楚地知道回复你的人就是 ${userName}，请
             const response = await fetch(endpoint, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiConfig.key}` },
-                body: JSON.stringify({ model: apiConfig.model, messages: [{ role: 'user', content: prompt }], max_tokens: 1500, temperature: 0.85 })
+                body: JSON.stringify({ model: apiConfig.model, messages: [{ role: 'user', content: prompt }], max_tokens: 8192, temperature: 0.85 })
             });
             const data = await response.json();
             const result = JSON.parse(extractJSON(data.choices[0].message.content));
@@ -10908,7 +10908,7 @@ function checkAllAutoMsgRoles() {
                 body: JSON.stringify({
                     model: apiConfig.model || 'gpt-4o',
                     messages: apiMessages,
-                    max_tokens: 4096, // 毒瘤修复 4：强制限制输出长度，防止传入 128000 导致 400
+                    max_tokens: 8192,  // 毒瘤修复 4：强制限制输出长度，防止传入 128000 导致 400
                     temperature: tempVal
                 })
             });
@@ -14021,7 +14021,7 @@ function onAiAvatarDblClick() {
             const response = await fetch(endpoint, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${api.key}` },
-                body: JSON.stringify({ model: api.model, messages: [{ role: 'user', content: prompt }], max_tokens: 1500, temperature: 0.85 })
+                body: JSON.stringify({ model: api.model, messages: [{ role: 'user', content: prompt }], max_tokens: 8192, temperature: 0.85 })
             });
             const data = await response.json();
             const result = JSON.parse(extractJSON(data.choices[0].message.content));
@@ -17687,7 +17687,7 @@ async function sendEiMessage() {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${api.key}` },
             /* 优化：调大 max_tokens 防止回复被截断 */
-            body: JSON.stringify({ model: api.model, messages: [{ role: 'user', content: prompt }], max_tokens: 1500, temperature: 0.85 })
+            body: JSON.stringify({ model: api.model, messages: [{ role: 'user', content: prompt }], max_tokens: 8192, temperature: 0.85 })
         });
         const data = await res.json();
         const reply = data.choices[0].message.content.trim();
