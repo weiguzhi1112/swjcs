@@ -673,19 +673,8 @@ cipherState = DB.get('cipherState', {score:0,created:0,solved:0,collection:[], h
     if (didSpan) didSpan.textContent = _did;
 
     // 直接跳过激活验证，播放开机动画进入桌面
-    checkDiscordCallback().then(discordLoggedIn => {
-        if (discordLoggedIn) {
-            return;
-        }
-        // 强制设置为已激活并进入系统
-        DB.set('activated', true);
-        playAutoLoginAnimation();
-    }).catch(err => {
-        console.error("Login check failed:", err);
-        // 即使报错也强制进入系统
-        DB.set('activated', true);
-        playAutoLoginAnimation();
-    });
+    DB.set('activated', true);
+    playAutoLoginAnimation();
 
     let splashTimeout1, splashTimeout2;
 
