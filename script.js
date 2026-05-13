@@ -672,11 +672,11 @@ cipherState = DB.get('cipherState', {score:0,created:0,solved:0,collection:[], h
     const didSpan = document.getElementById('display-device-id');
     if (didSpan) didSpan.textContent = _did;
 
+    let splashTimeout1, splashTimeout2;
+
     // 直接跳过激活验证，播放开机动画进入桌面
     DB.set('activated', true);
     playAutoLoginAnimation();
-
-    let splashTimeout1, splashTimeout2;
 
     function playAutoLoginAnimation() {
         const overlay = document.getElementById('auto-login-overlay');
