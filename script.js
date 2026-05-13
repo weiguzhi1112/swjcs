@@ -486,108 +486,6 @@ cipherState = DB.get('cipherState', {score:0,created:0,solved:0,collection:[], h
         alert('图片压缩清晰度已保存！后续上传的图片将应用此设置。');
     };
 
-const DISCORD_CONFIG = {
-    clientId: '1487795780818309292',          
-    guildId: '1488113054003626126',            
-    redirectUri: 'https://weiguzhi1112.github.io/suowuji/', 
-    scope: 'identify guilds'
-};
-
-function getDiscordAuthUrl() {
-    const params = new URLSearchParams({
-        client_id: DISCORD_CONFIG.clientId,
-        redirect_uri: DISCORD_CONFIG.redirectUri,
-        response_type: 'token',  
-        scope: DISCORD_CONFIG.scope,
-        prompt: 'consent'
-    });
-    return `https://discord.com/api/oauth2/authorize?${params.toString()}`;
-}
-
-window.loginWithDiscord = function() {
-    const authUrl = getDiscordAuthUrl();
-    window.location.href = authUrl;
-}
-
-async function checkDiscordCallback() {
-    const hash = window.location.hash;
-    if (!hash || !hash.includes('access_token')) return false;
-
-    const params = new URLSearchParams(hash.substring(1));
-    const accessToken = params.get('access_token');
-    const tokenType = params.get('token_type');
-
-    if (!accessToken) return false;
-
-    try {
-        history.replaceState(null, '', window.location.pathname + window.location.search);
-    } catch(e) {
-        console.warn("history.replaceState blocked", e);
-    }
-
-    const statusEl = document.getElementById('discord-status');
-    if (statusEl) statusEl.textContent = 'VERIFYING DISCORD IDENTITY...';
-
-    try {
-        const userRes = await fetch('https://discord.com/api/users/@me', {
-            headers: { 'Authorization': `${tokenType} ${accessToken}` }
-        });
-        if (!userRes.ok) throw new Error('Failed to fetch user info');
-        const user = await userRes.json();
-
-        const guildsRes = await fetch('https://discord.com/api/users/@me/guilds', {
-            headers: { 'Authorization': `${tokenType} ${accessToken}` }
-        });
-        if (!guildsRes.ok) throw new Error('Failed to fetch guilds');
-        const guilds = await guildsRes.json();
-
-        const isMember = guilds.some(g => g.id === DISCORD_CONFIG.guildId);
-
-        if (isMember) {
-            DB.set('activated', true);
-            DB.set('discord_user', {
-                id: user.id,
-                username: user.username,
-                globalName: user.global_name,
-                avatar: user.avatar 
-                    ? `https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png` 
-                    : null
-            });
-
-            const discordUser = DB.get('discord_user', null);
-            if (discordUser) {
-                if (!settings.userName || settings.userName === 'ME') {
-                    settings.userName = discordUser.globalName || discordUser.username;
-                }
-                if (!settings.userAvatar && discordUser.avatar) {
-                    settings.userAvatar = discordUser.avatar;
-                }
-                DB.set('settings', settings);
-            }
-
-            if (statusEl) statusEl.textContent = `WELCOME, ${user.global_name || user.username}!`;
-            
-            setTimeout(() => showDesktop(), 800);
-            return true;
-        } else {
-            if (statusEl) {
-                statusEl.style.color = '#ff4d4d';
-                statusEl.textContent = 'ACCESS DENIED: NOT A SERVER MEMBER';
-            }
-            const errorEl = document.getElementById('login-error');
-            if (errorEl) errorEl.textContent = '你不是指定 Discord 服务器的成员，请先加入社区。';
-            return false;
-        }
-    } catch (err) {
-        console.error('Discord auth error:', err);
-        if (statusEl) {
-            statusEl.style.color = '#ff4d4d';
-            statusEl.textContent = 'DISCORD AUTH FAILED: ' + err.message;
-        }
-        return false;
-    }
-}
-
     let currentChatRoleId = null;
     let currentChatMode = 'online';
     let chatDisplayLimit = 50;
@@ -774,26 +672,19 @@ async function checkDiscordCallback() {
     const didSpan = document.getElementById('display-device-id');
     if (didSpan) didSpan.textContent = _did;
 
+    // 直接跳过激活验证，播放开机动画进入桌面
     checkDiscordCallback().then(discordLoggedIn => {
         if (discordLoggedIn) {
             return;
         }
-        if (DB.get('activated', false) && !isBlacklisted(_did)) {
-            playAutoLoginAnimation();
-        } else {
-            DB.set('activated', false);
-            const loginView = $('#view-login');
-            if (loginView) loginView.classList.remove('hidden');
-            const s = document.getElementById('display-device-id');
-            if (s) s.textContent = _did;
-        }
+        // 强制设置为已激活并进入系统
+        DB.set('activated', true);
+        playAutoLoginAnimation();
     }).catch(err => {
         console.error("Login check failed:", err);
-        DB.set('activated', false);
-        const loginView = $('#view-login');
-        if (loginView) loginView.classList.remove('hidden');
-        const s = document.getElementById('display-device-id');
-        if (s) s.textContent = _did;
+        // 即使报错也强制进入系统
+        DB.set('activated', true);
+        playAutoLoginAnimation();
     });
 
     let splashTimeout1, splashTimeout2;
@@ -1112,36 +1003,6 @@ function processPendingBgMessages() {
 }
     function renderAll() { renderDesktop(); renderRecent(); renderContacts(); renderWorldbooks(); renderMasks(); renderWeather(); renderAlbums(); renderStickers(); renderMemoryView(); renderTimeAwarenessStatus(); renderAppearanceApp(); renderFeeds(); renderMusicApp(); renderBubbleCountStatus(); renderTranslationStatus(); renderForum(); cipherRenderMenu();}
     function updateTime() { $('#time').innerText = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }); }
-    
-    let magSendPressTimer = null;
-    let magSendLastClick = 0;
-
-    window.handleMagazineSendTouchStart = function(e) {
-        e.preventDefault();
-        magSendPressTimer = setTimeout(() => {
-            if (navigator.vibrate) navigator.vibrate(50);
-            toggleAttachmentPopup(e);
-            magSendPressTimer = null;
-        }, 500);
-    };
-
-    window.handleMagazineSendTouchEnd = function(e) {
-        e.preventDefault();
-        if (magSendPressTimer) {
-            clearTimeout(magSendPressTimer);
-            magSendPressTimer = null;
-            
-            const now = Date.now();
-            if (now - magSendLastClick < 300) {
-                triggerAI();
-                magSendLastClick = 0;
-            } else {
-                sendMessage();
-                magSendLastClick = now;
-            }
-        }
-    };
-
     function setupKeyboardShortcuts() { 
     const chatInput = $('#chat-input');
     if (!chatInput) {
@@ -2032,7 +1893,6 @@ function updateKeepAliveUI(isOn) {
         $('#chat-messages').innerHTML = ''; 
         $('#chat-view').classList.add('active'); 
         $('#main-content-area').classList.add('chat-active'); 
-        $('#chat-view').setAttribute('data-bubble-style', role.bubbleStyle || 'flat');
         
         const accentColor = role.accentColor || (settings.theme === 'dark' ? '#ffffff' : '#000000');
         $('#chat-view').style.setProperty('--role-accent-color', accentColor);
@@ -2159,20 +2019,13 @@ function updateKeepAliveUI(isOn) {
         container.innerHTML = msgs.map((m, i) => { 
             const realIndex = startIndex + i;
 
-            const isMagazine = role.bubbleStyle === 'magazine';
-
             if (m.role === 'system') {
                 const isJoinMsg = m.content === '对方已加入一起听';
                 const exitBtn = isJoinMsg && listenTogetherSession.isActive
                     ? `<div style="margin-top: 6px;"><button onclick="endListenTogetherSession(true)" style="background: var(--text-color); color: var(--bg-color); border: none; font-size: 8px; padding: 4px 10px; letter-spacing: 1px; cursor: pointer; text-transform: uppercase;">退出一起听</button></div>`
                     : '';
                 const checkboxHtml = isSelectionMode ? `<div class="msg-checkbox ${selectedMsgs.has(realIndex) ? 'checked' : ''}" style="margin-right: 8px; margin-top: 0;"></div>` : '';
-                
-                if (isMagazine) {
-                    return `<div class="msg-row ${isSelectionMode ? 'selection-mode' : ''}" style="justify-content: center; cursor: pointer;" onclick="handleMsgClick(${realIndex})" onmousedown="handleTouchStart(event, ${realIndex})" onmouseup="handleTouchEnd()" onmouseleave="handleTouchEnd()" ontouchstart="handleTouchStart(event, ${realIndex})" ontouchend="handleTouchEnd()" ontouchcancel="handleTouchEnd()">${checkboxHtml}<div class="mag-msg-system">${m.content}${exitBtn}</div></div>`;
-                } else {
-                    return `<div class="msg-row ${isSelectionMode ? 'selection-mode' : ''}" style="justify-content: center; margin: 5px 0; cursor: pointer;" onclick="handleMsgClick(${realIndex})" onmousedown="handleTouchStart(event, ${realIndex})" onmouseup="handleTouchEnd()" onmouseleave="handleTouchEnd()" ontouchstart="handleTouchStart(event, ${realIndex})" ontouchend="handleTouchEnd()" ontouchcancel="handleTouchEnd()">${checkboxHtml}<div style="background: var(--gray-light); color: var(--system-text-color, #888888) !important; font-size: 9px; padding: 4px 10px; border-radius: 10px; text-transform: uppercase; letter-spacing: 1px; text-align: center;">${m.content}${exitBtn}</div></div>`;
-                }
+                return `<div class="msg-row ${isSelectionMode ? 'selection-mode' : ''}" style="justify-content: center; margin: 5px 0; cursor: pointer;" onclick="handleMsgClick(${realIndex})" onmousedown="handleTouchStart(event, ${realIndex})" onmouseup="handleTouchEnd()" onmouseleave="handleTouchEnd()" ontouchstart="handleTouchStart(event, ${realIndex})" ontouchend="handleTouchEnd()" ontouchcancel="handleTouchEnd()">${checkboxHtml}<div style="background: var(--gray-light); color: var(--system-text-color, #888888) !important; font-size: 9px; padding: 4px 10px; border-radius: 10px; text-transform: uppercase; letter-spacing: 1px; text-align: center;">${m.content}${exitBtn}</div></div>`;
             }
             let showAvatar = true; 
             let occupySpace = true;
@@ -2186,7 +2039,7 @@ function updateKeepAliveUI(isOn) {
             } else if (settings.avatarDisplay === 'hide_ai' && m.role === 'ai') {
                 showAvatar = false; occupySpace = false;
             }
-            const avatarHTML = (r, src) => `<img class="${isMagazine ? 'mag-avatar' : 'msg-avatar'}" src="${src}" ${r === 'ai' ? 'ondblclick="onAiAvatarDblClick()"' : ''} style="visibility: ${showAvatar ? 'visible' : 'hidden'}; display: ${occupySpace ? 'block' : 'none'};">`; 
+            const avatarHTML = (r, src) => `<img class="msg-avatar" src="${src}" ${r === 'ai' ? 'ondblclick="onAiAvatarDblClick()"' : ''} style="visibility: ${showAvatar ? 'visible' : 'hidden'}; display: ${occupySpace ? 'block' : 'none'};">`; 
             let userAvatarTag = '', aiAvatarTag = ''; 
             if (settings.avatarDisplay !== 'hide_user' && settings.avatarDisplay !== 'hide_all') userAvatarTag = avatarHTML('user', userAvatar); 
             if (settings.avatarDisplay !== 'hide_ai' && settings.avatarDisplay !== 'hide_all') aiAvatarTag = avatarHTML('ai', role.avatar || DEFAULT_AVATAR); 
@@ -2513,33 +2366,6 @@ function updateKeepAliveUI(isOn) {
             }
             const deliveryHtml = m.role === 'user' ? getDeliveryStatusHtml(realIndex) : '';
             const messageId = m.id ? `id="${m.id}"` : '';
-            
-            if (isMagazine && m.role === 'ai') {
-                return `<div class="msg-row ${isSelectionMode ? 'selection-mode' : ''}" ${messageId} onclick="handleMsgClick(${realIndex})" ${touchHandlers}>
-                    ${checkboxHtml}
-                    <div class="mag-msg-ai">
-                        ${aiAvatarTag}
-                        <div class="mag-msg-content">
-                            <div class="mag-msg-name">${role.realName || 'AI'}</div>
-                            <div class="mag-msg-text">${quoteHtml}${contentHtml}</div>
-                            <div class="mag-timestamp">${displayTime}</div>
-                        </div>
-                    </div>
-                </div>`;
-            }
-            
-            if (isMagazine && m.role === 'user') {
-                return `<div class="msg-row ${isSelectionMode ? 'selection-mode' : ''}" ${messageId} onclick="handleMsgClick(${realIndex})" ${touchHandlers}>
-                    ${checkboxHtml}
-                    <div class="mag-msg-user">
-                        <div>
-                            <div class="mag-msg-user-text">${quoteHtml}${contentHtml}</div>
-                            <div class="mag-timestamp">${displayTime}</div>
-                        </div>
-                    </div>
-                </div>`;
-            }
-
             // 修复：将 m.time 替换为 displayTime
             return `<div class="msg-row bubble-row ${m.role === 'user' ? 'me' : 'ai'} ${isSelectionMode ? 'selection-mode' : ''}" ${messageId} onclick="handleMsgClick(${realIndex})">${checkboxHtml}${m.role === 'ai' ? aiAvatarTag : ''}<div class="msg-wrapper"><div class="msg-bubble ${m.mode === 'offline' && m.role === 'ai' ? 'offline-mode' : ''}" ${customBubbleStyle} ${touchHandlers}><div class="msg-bubble-content">${quoteHtml}${contentHtml}</div>${heartHtml}</div><div class="msg-status">${displayTime}${deliveryHtml}</div></div>${m.role === 'user' ? userAvatarTag : ''}</div>`;
         }).join(''); 
@@ -5278,6 +5104,7 @@ ${modeRules}
                 messages: apiMessages,
                 temperature: tempVal,
                 top_p: topPVal,
+                max_tokens: 4096, // 修复截断问题：强制指定最大输出长度
                 stream: isStreamEnabled
             };
             
