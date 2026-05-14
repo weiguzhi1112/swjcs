@@ -4886,7 +4886,14 @@ function toInitApp(){
                 modeRules = `【线上聊天模式强制规则】\n- 保持简短、自然的网聊风格。\n- 必须严格输出 ${minB} 到 ${maxB} 句话（行）。你必须至少输出 ${minB} 行！少于 ${minB} 行将被视为严重错误！\n- 每句话必须独占一行（按回车换行），系统会根据换行自动切分为多个气泡。\n- 句末绝对不要加句号。\n- 【格式红线】：绝对禁止使用星号、括号包裹动作描写（如 *笑*、(叹气)），只能输出纯文字对话！`;
             } else {
                 const targetLength = settings.memoirMaxLength || 400;
-                modeRules = `【线下叙事模式强制规则】\n- 必须强制输出不少于 ${targetLength} 字的长篇叙事！绝对不允许敷衍了事！\n- 必须严格按照以下三段式结构输出，绝对不能把对话和旁白揉在同一段里：\n第一段：纯粹的环境描写或心理描写（绝对不含任何对话）\n第二段："双引号包裹的对话文本"（必须独占一段）\n第三段：纯粹的环境描写或心理描写（绝对不含任何对话）\n- 【格式红线】：对话必须用双引号 "" 包裹，且必须单独成段！禁止在对话段落中夹杂动作！`;
+                let stylePrompt = '';
+                if (settings.memoirStyleId && settings.memoirStyleId !== 'default') {
+                    const styleObj = memoirStyles.find(s => s.id === settings.memoirStyleId);
+                    if (styleObj && styleObj.prompt) {
+                        stylePrompt = `\n【专属叙事文风要求】：\n${styleObj.prompt}`;
+                    }
+                }
+                modeRules = `【线下叙事模式强制规则】\n- 必须强制输出不少于 ${targetLength} 字的长篇叙事！绝对不允许敷衍了事！\n- 必须严格按照以下三段式结构输出，绝对不能把对话和旁白揉在同一段里：\n第一段：纯粹的环境描写或心理描写（绝对不含任何对话）\n第二段："双引号包裹的对话文本"（必须独占一段）\n第三段：纯粹的环境描写或心理描写（绝对不含任何对话）\n- 【格式红线】：对话必须用双引号 "" 包裹，且必须单独成段！禁止在对话段落中夹杂动作！${stylePrompt}`;
             }
 
             let translationRule = '';
@@ -5116,6 +5123,11 @@ ${modeRules}
 
             const endpoint = getChatEndpoint(apiConfig.url);
             const isStreamEnabled = apiConfig.stream !== false;
+            
+            if (apiConfig.enableSearch) {
+                apiMessages[0].content += `\n\n【系统提示：已为你开启联网搜索功能。如果用户询问实时天气、最新新闻资讯或未知信息，请调用你的联网搜索工具获取最新数据后回答。】`;
+            }
+
             const requestBody = {
                 model: apiConfig.model || 'gpt-4o',
                 messages: apiMessages,
@@ -5125,6 +5137,10 @@ ${modeRules}
             };
             if (apiConfig.maxTokens > 0) {
                 requestBody.max_tokens = apiConfig.maxTokens;
+            }
+            if (apiConfig.enableSearch) {
+                requestBody.search = true; // 兼容部分中转API的联网参数
+                requestBody.network = true; // 兼容部分中转API的联网参数
             }
             
             const logBody = JSON.parse(JSON.stringify(requestBody));
@@ -7040,17 +7056,19 @@ window.newRoleTempWbs = null;
     }
 
     function openApiModal() { 
-        apiConfig = DB.get('api', { url: '', key: '', model: 'gpt-4o', maxTokens: 128000, temperature: 0.8, topP: 1.0, stream: true, ttsGroupId: '', ttsApiKey: '', ttsVoiceId: '' }); 
+        apiConfig = DB.get('api', { url: '', key: '', model: 'gpt-4o', maxTokens: 128000, temperature: 0.8, topP: 1.0, stream: true, enableSearch: false, ttsGroupId: '', ttsApiKey: '', ttsVoiceId: '' }); 
         $('#api-url').value = apiConfig.url || ''; $('#api-key').value = apiConfig.key || ''; $('#api-model').value = apiConfig.model || ''; 
         $('#api-tokens').value = apiConfig.maxTokens !== undefined ? apiConfig.maxTokens : 128000; 
         $('#api-temp').value = apiConfig.temperature || 0.8; $('#val-temp').innerText = apiConfig.temperature || 0.8; $('#api-topp').value = apiConfig.topP || 1.0; $('#val-topp').innerText = apiConfig.topP || 1.0; 
         $('#api-stream-enable').checked = apiConfig.stream !== false;
+        if ($('#api-search-enable')) $('#api-search-enable').checked = apiConfig.enableSearch || false;
         $('#tts-group-id').value = apiConfig.ttsGroupId || ''; $('#tts-api-key').value = apiConfig.ttsApiKey || ''; $('#tts-voice-id').value = apiConfig.ttsVoiceId || '';
         renderApiPresets(); openModal('modal-api'); 
     }
     function saveApi() { 
         apiConfig.url = $('#api-url').value.trim(); apiConfig.key = $('#api-key').value.trim(); apiConfig.model = $('#api-model').value.trim(); apiConfig.maxTokens = parseInt($('#api-tokens').value) || 0; apiConfig.temperature = parseFloat($('#api-temp').value); apiConfig.topP = parseFloat($('#api-topp').value); 
         apiConfig.stream = $('#api-stream-enable').checked;
+        if ($('#api-search-enable')) apiConfig.enableSearch = $('#api-search-enable').checked;
         apiConfig.ttsGroupId = $('#tts-group-id').value.trim(); apiConfig.ttsApiKey = $('#tts-api-key').value.trim(); apiConfig.ttsVoiceId = $('#tts-voice-id').value.trim();
         DB.set('api', apiConfig); closeModal('modal-api'); 
     }

@@ -2300,10 +2300,21 @@ body.is-app .to-page { padding-bottom: calc(70px + env(safe-area-inset-bottom)) 
     background: var(--bg-color) !important;
     backdrop-filter: none !important;
     -webkit-backdrop-filter: none !important;
-    border-bottom: 1px solid var(--text-color) !important;
+    border-bottom: 2px solid var(--text-color) !important; /* 整个顶栏下方的粗黑线 */
 }
 
-#chat-view.theme-magazine .chat-title-glass,
+#chat-view.theme-magazine .chat-title-glass {
+    background: transparent !important;
+    border: none !important;
+    border-bottom: 1px solid var(--text-color) !important; /* 备注文字下方的细黑线 */
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    color: var(--text-color) !important;
+    padding-bottom: 2px !important;
+}
+
 #chat-view.theme-magazine .glass-icon-btn {
     background: transparent !important;
     border: none !important;
