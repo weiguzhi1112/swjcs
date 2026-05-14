@@ -2321,12 +2321,17 @@ body.is-app .to-page { padding-bottom: calc(70px + env(safe-area-inset-bottom)) 
     border: none !important;
     box-shadow: none !important;
 }
-/* 修复：底部不透过消息，使用纯色背景遮挡 */
+/* 逻辑：允许极简杂志风更换背景，移除强制背景色 */
+#chat-view.theme-magazine {
+    background-color: transparent;
+}
+
+/* 逻辑：底部不透过消息，使用纯色背景遮挡，并移除黑线(border-top) */
 #chat-view.theme-magazine .input-area-floating {
     background: var(--bg-color) !important;
     padding-top: 15px !important;
     padding-bottom: calc(15px + env(safe-area-inset-bottom)) !important;
-    border-top: 1px solid var(--border-color) !important;
+    border-top: none !important;
     margin: 0 !important;
     left: 0 !important;
     right: 0 !important;
@@ -2355,27 +2360,35 @@ body.is-app .to-page { padding-bottom: calc(70px + env(safe-area-inset-bottom)) 
     box-shadow: none !important;
     backdrop-filter: none !important;
     -webkit-backdrop-filter: none !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
 }
 
-/* 杂志风：附件按钮替换为 ➕ SVG */
-#chat-view.theme-magazine .standalone-icon-btn::after {
+/* 逻辑：隐藏原有的麦克风/加号伪元素图标 */
+#chat-view.theme-magazine .standalone-icon-btn::after,
+#chat-view.theme-magazine .standalone-icon-btn::before,
+#chat-view.theme-magazine .standalone-send-btn::after,
+#chat-view.theme-magazine .standalone-send-btn::before {
     display: none !important;
+    background-image: none !important;
 }
+
+/* 逻辑：显示 ➕ SVG 图标 */
 #chat-view.theme-magazine .standalone-icon-btn .magazine-plus-icon {
     display: block !important;
     color: var(--text-color) !important;
 }
 
-/* 杂志风：发送按钮替换为 SEND 衬线文本 */
-#chat-view.theme-magazine .standalone-send-btn::before {
-    display: none !important;
-}
+/* 逻辑：显示 SEND 衬线文本 */
 #chat-view.theme-magazine .standalone-send-btn {
     width: auto !important;
     padding: 0 10px !important;
+}
+#chat-view.theme-magazine .standalone-send-btn .magazine-send-text {
+    display: inline-block !important;
     color: var(--text-color) !important;
 }
-#chat-view.theme-magazine .standalone-send
 
 /* 玻璃拟态主题 */
 #chat-view.theme-glass #chat-input {
