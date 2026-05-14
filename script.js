@@ -2359,7 +2359,8 @@ function updateKeepAliveUI(isOn) {
                 const aiBubbleC = role.aiBubbleColor || '#333333';
                 const aiTextC = role.aiTextColor || '#ffffff';
                 if (role.bubbleStyle === 'magazine') {
-                    customBubbleStyle = `style="background: transparent !important; border: none !important; box-shadow: none !important; font-family: var(--font-serif) !important; font-size: 18px !important; line-height: 1.6 !important; padding: 0 !important; color: ${aiTextC} !important;"`;
+                    /* 极简杂志风：使用设置的气泡颜色，直角边框，缩小字体 */
+                    customBubbleStyle = `style="background-color: ${aiBubbleC} !important; color: ${aiTextC} !important; border: 1px solid var(--text-color) !important; border-radius: 0 !important; box-shadow: none !important; font-family: var(--font-serif) !important; font-size: 14px !important; line-height: 1.6 !important; padding: var(--bubble-padding) !important;"`;
                 } else if (isGlass) {
                     customBubbleStyle = `style="${getGlassStyle(aiTextC)}"`;
                 } else {
@@ -2369,7 +2370,8 @@ function updateKeepAliveUI(isOn) {
                 const userBubbleC = role.userBubbleColor || '#000000';
                 const userTextC = role.userTextColor || '#ffffff';
                 if (role.bubbleStyle === 'magazine') {
-                    customBubbleStyle = `style="background: transparent !important; border: none !important; box-shadow: none !important; font-family: var(--font-serif) !important; font-size: 18px !important; line-height: 1.6 !important; padding: 0 !important; color: ${userTextC} !important;"`;
+                    /* 极简杂志风：使用设置的气泡颜色，直角边框，缩小字体 */
+                    customBubbleStyle = `style="background-color: ${userBubbleC} !important; color: ${userTextC} !important; border: 1px solid var(--text-color) !important; border-radius: 0 !important; box-shadow: none !important; font-family: var(--font-serif) !important; font-size: 14px !important; line-height: 1.6 !important; padding: var(--bubble-padding) !important;"`;
                 } else if (isGlass) {
                     customBubbleStyle = `style="${getGlassStyle(userTextC)}"`;
                 } else {
