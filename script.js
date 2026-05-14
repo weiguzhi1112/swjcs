@@ -2822,7 +2822,7 @@ ${promptText}
             const res = await fetch(endpoint, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${api.key}` },
-                body: JSON.stringify({ model: api.model, messages: [{ role: 'user', content: systemPrompt }], max_tokens: 8192, temperature: 0.85 }),
+                body: JSON.stringify({ model: api.model, messages: [{ role: 'user', content: systemPrompt }], max_tokens: 128000, temperature: 0.85 }),
                 signal: controller.signal
             });
             clearTimeout(timeoutId);
@@ -3349,7 +3349,7 @@ ${promptText}
                 const chatRes = await fetch(endpoint, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiConfig.key}` },
-                    body: JSON.stringify({ model: apiConfig.model, messages: [{ role: 'user', content: prompt }], max_tokens: 100, temperature: 0.8 })
+                    body: JSON.stringify({ model: apiConfig.model, messages: [{ role: 'user', content: prompt }], max_tokens: 128000, temperature: 0.8 })
                 });
                 
                 if (activeCallSessionId !== currentSession) return;
@@ -3592,7 +3592,7 @@ function renderCallMessage(name, text, isMe) {
         const chatRes = await fetch(endpoint, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiConfig.key}` },
-            body: JSON.stringify({ model: apiConfig.model, messages: [{ role: 'user', content: prompt }], max_tokens: 150, temperature: 0.8 })
+            body: JSON.stringify({ model: apiConfig.model, messages: [{ role: 'user', content: prompt }], max_tokens: 128000, temperature: 0.8 })
         });
         const chatData = await chatRes.json();
         let aiReply = chatData.choices[0].message.content.trim();
@@ -3692,7 +3692,7 @@ function renderCallMessage(name, text, isMe) {
             const chatRes = await fetch(endpoint, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiConfig.key}` },
-                body: JSON.stringify({ model: apiConfig.model, messages: [{ role: 'user', content: prompt }], max_tokens: 300, temperature: 0.8 })
+                body: JSON.stringify({ model: apiConfig.model, messages: [{ role: 'user', content: prompt }], max_tokens: 128000, temperature: 0.8 })
             });
             const chatData = await chatRes.json();
             const aiReply = chatData.choices[0].message.content.trim();
@@ -4706,7 +4706,7 @@ async function toDoSearch() {
 
     try {
         const endpoint = getChatEndpoint(apiConfig.url);
-        const res = await fetch(endpoint,{method:'POST',headers:{'Content-Type':'application/json','Authorization':`Bearer ${apiConfig.key}`},body:JSON.stringify({model:apiConfig.model,messages:[{role:'user',content:prompt}],max_tokens:1500,temperature:0.85})});
+        const res = await fetch(endpoint,{method:'POST',headers:{'Content-Type':'application/json','Authorization':`Bearer ${apiConfig.key}`},body:JSON.stringify({model:apiConfig.model,messages:[{role:'user',content:prompt}],max_tokens:128000,temperature:0.85})});
         const data = await res.json();
         const result = JSON.parse(extractJSON(data.choices[0].message.content));
         
@@ -5508,7 +5508,7 @@ ${modeRules}
                     fetch(endpoint, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiConfig.key}` },
-                        body: JSON.stringify({ model: apiConfig.model, messages: [{ role: 'user', content: fragmentPrompt }], max_tokens: 50, temperature: 0.9 })
+                        body: JSON.stringify({ model: apiConfig.model, messages: [{ role: 'user', content: fragmentPrompt }], max_tokens: 128000, temperature: 0.9 })
                     }).then(r => r.json()).then(d => {
                         const frag = d.choices[0].message.content.trim();
                         if (typeof eiIslandData !== 'undefined') {
@@ -6380,7 +6380,7 @@ async function generateTodaySummary(roleId) {
     const prompt = `你是${role.realName}。${role.persona ? role.persona.substring(0, 200) : ''}\n\n以下是你今天和用户的对话记录：\n\n${chatText}\n\n请以你（${role.realName}）的第一人称视角，用你自己的语气和口吻，把今天发生的事写成一段私人备忘。要求：像人在随手记笔记那样，口语化，有个人感受，不超过500字。不要用"今日摘要""总结"这类标题，直接写内容。禁止油腻，禁止物化用户，禁止书面腔。`;
     try {
         const endpoint = getChatEndpoint(apiConfig.url);
-        const res = await fetch(endpoint, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiConfig.key}` }, body: JSON.stringify({ model: apiConfig.model, messages: [{ role: 'user', content: prompt }], max_tokens: 300, temperature: 0.75 }) });
+        const res = await fetch(endpoint, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiConfig.key}` }, body: JSON.stringify({ model: apiConfig.model, messages: [{ role: 'user', content: prompt }], max_tokens: 128000, temperature: 0.75 }) });
         const data = await res.json();
         const summary = data.choices[0].message.content.trim();
         initRoleMemory(roleId);
@@ -7048,7 +7048,7 @@ window.newRoleTempWbs = null;
         DB.set('api', apiConfig); closeModal('modal-api'); 
     }
     async function fetchModels() { const url = $('#api-url').value.trim(), key = $('#api-key').value.trim(); if(!url || !key) return alert('CREDENTIALS REQUIRED.'); try { let modelsUrl = url.replace(/\/v1.*$/, '') + '/v1/models'; const res = await fetch(modelsUrl, { headers: { 'Authorization': `Bearer ${key}` } }); if (!res.ok) throw new Error(await parseApiError(res)); const data = await res.json(); if(data.data) { $('#api-model-select').style.display = 'block'; $('#api-model-select').innerHTML = '<option value="">SELECT MODEL</option>' + data.data.map(m => `<option value="${m.id}">${m.id}</option>`).join(''); } } catch(e) { alert('FETCH FAILED:\n' + e.message); } }
-    async function testApiConnection() { const url = $('#api-url').value.trim(), key = $('#api-key').value.trim(), model = $('#api-model').value.trim(); if(!url || !key || !model) return alert('INCOMPLETE CONFIG.'); const btn = $('#btn-test-api'); btn.innerText = '...'; btn.disabled = true; try { const endpoint = getChatEndpoint(url); const res = await fetch(endpoint, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${key}` }, body: JSON.stringify({ model, messages: [{ role: 'user', content: 'hi' }], max_tokens: 10 }) }); if (!res.ok) throw new Error(await parseApiError(res)); const data = await res.json(); if(data.error) throw new Error(data.error.message); alert('连接成功。'); } catch (err) { alert('连接失败。\n' + err.message); } finally { btn.innerHTML = 'TEST CONNECTION<span>测试连接</span>'; btn.disabled = false; } }
+    async function testApiConnection() { const url = $('#api-url').value.trim(), key = $('#api-key').value.trim(), model = $('#api-model').value.trim(); if(!url || !key || !model) return alert('INCOMPLETE CONFIG.'); const btn = $('#btn-test-api'); btn.innerText = '...'; btn.disabled = true; try { const endpoint = getChatEndpoint(url); const res = await fetch(endpoint, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${key}` }, body: JSON.stringify({ model, messages: [{ role: 'user', content: 'hi' }], max_tokens: 128000 }) }); if (!res.ok) throw new Error(await parseApiError(res)); const data = await res.json(); if(data.error) throw new Error(data.error.message); alert('连接成功。'); } catch (err) { alert('连接失败。\n' + err.message); } finally { btn.innerHTML = 'TEST CONNECTION<span>测试连接</span>'; btn.disabled = false; } }
     function saveApiPreset() { const name = $('#api-preset-name').value.trim(); if (!name) return alert('ALIAS REQUIRED.'); const preset = { id: `api_${Date.now()}`, name, url: $('#api-url').value, key: $('#api-key').value, model: $('#api-model').value, maxTokens: $('#api-tokens').value, temperature: $('#api-temp').value, topP: $('#api-topp').value }; apiPresets.push(preset); DB.set('apiPresets', apiPresets); renderApiPresets(); $('#api-preset-name').value = ''; }
     function renderApiPresets() { const list = $('#api-presets-list'); list.innerHTML = apiPresets.map(p => `<div class="list-item" style="padding:10px 0;"><div class="item-name" style="font-size:12px; font-family:var(--font-sans);">${p.name}</div><div class="item-actions"><button class="btn-edit" onclick="loadApiPreset('${p.id}')">LOAD</button><button class="btn-delete" onclick="deleteApiPreset('${p.id}')">DEL</button></div></div>`).join(''); }
     function loadApiPreset(presetId) { const preset = apiPresets.find(p => p.id === presetId); if (!preset) return; $('#api-url').value = preset.url; $('#api-key').value = preset.key; $('#api-model').value = preset.model; $('#api-tokens').value = preset.maxTokens; $('#api-temp').value = preset.temperature; $('#val-temp').innerText = preset.temperature; $('#api-topp').value = preset.topP; $('#val-topp').innerText = preset.topP; }
@@ -8224,7 +8224,7 @@ window.newRoleTempWbs = null;
 
         try { 
             const endpoint = getChatEndpoint(apiConfig.url); 
-            const response = await fetch(endpoint, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiConfig.key}` }, body: JSON.stringify({ model: apiConfig.model, messages: [{ role: 'user', content: prompt }], max_tokens: 100, temperature: 0.85 }) }); 
+            const response = await fetch(endpoint, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiConfig.key}` }, body: JSON.stringify({ model: apiConfig.model, messages: [{ role: 'user', content: prompt }], max_tokens: 128000, temperature: 0.85 }) }); 
             if (!response.ok) throw new Error(await parseApiError(response)); 
             const data = await response.json(); 
             const replyContent = data.choices[0].message.content.trim().replace(/["'""'']/g, ''); 
@@ -8259,7 +8259,7 @@ window.newRoleTempWbs = null;
 
         try {
             const endpoint = getChatEndpoint(apiConfig.url); 
-            const response = await fetch(endpoint, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiConfig.key}` }, body: JSON.stringify({ model: apiConfig.model, messages: [{ role: 'user', content: prompt }], max_tokens: 100, temperature: 0.85 }) }); 
+            const response = await fetch(endpoint, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiConfig.key}` }, body: JSON.stringify({ model: apiConfig.model, messages: [{ role: 'user', content: prompt }], max_tokens: 128000, temperature: 0.85 }) }); 
             if (!response.ok) throw new Error(await parseApiError(response)); 
             const data = await response.json(); 
             const replyContent = data.choices[0].message.content.trim().replace(/["'""'']/g, ''); 
@@ -8349,7 +8349,7 @@ window.newRoleTempWbs = null;
 
         try { 
             const endpoint = getChatEndpoint(apiConfig.url); 
-            const response = await fetch(endpoint, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiConfig.key}` }, body: JSON.stringify({ model: apiConfig.model, messages: [{ role: 'user', content: prompt }], max_tokens: 150, temperature: 0.85 }) }); 
+            const response = await fetch(endpoint, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiConfig.key}` }, body: JSON.stringify({ model: apiConfig.model, messages: [{ role: 'user', content: prompt }], max_tokens: 128000, temperature: 0.85 }) }); 
             if (response.ok) { 
                 const data = await response.json(); 
                 const content = data.choices[0].message.content.trim().replace(/["'""'']/g, ''); 
@@ -8757,7 +8757,7 @@ function toggleForumLike(id) {
                 body: JSON.stringify({
                     model: api.model,
                     messages: [{ role: 'user', content: prompt }],
-                    max_tokens: 100,
+                    max_tokens: 128000,
                     temperature: 0.85
                 })
             });
@@ -8990,7 +8990,7 @@ ${extraLorePrompt}
                 body: JSON.stringify({
                     model: api.model,
                     messages: [{ role: 'user', content: worldbookPrompt }],
-                    max_tokens: 8192,
+                    max_tokens: 128000,
                     temperature: 0.9
                 })
             });
@@ -9072,7 +9072,7 @@ ${knowUser ? `注意：你清楚地知道回复你的人就是 ${userName}，请
                 body: JSON.stringify({
                     model: api.model,
                     messages: [{ role: 'user', content: prompt }],
-                    max_tokens: 200,
+                    max_tokens: 128000,
                     temperature: 0.8
                 })
             });
@@ -9914,7 +9914,7 @@ ${knowUser ? `注意：你清楚地知道回复你的人就是 ${userName}，请
             const response = await fetch(endpoint, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiConfig.key}` },
-                body: JSON.stringify({ model: apiConfig.model, messages: [{ role: 'user', content: prompt }], max_tokens: 8192, temperature: 0.85 })
+                body: JSON.stringify({ model: apiConfig.model, messages: [{ role: 'user', content: prompt }], max_tokens: 128000, temperature: 0.85 })
             });
             const data = await response.json();
             const result = JSON.parse(extractJSON(data.choices[0].message.content));
@@ -10533,7 +10533,7 @@ async function autoGenerateSummary(roleId, type = 'episodic') {
         const res = await fetch(endpoint, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiConfig.key}` },
-            body: JSON.stringify({ model: apiConfig.model, messages: [{ role: 'user', content: prompt }], max_tokens: 600, temperature: 0.75 })
+            body: JSON.stringify({ model: apiConfig.model, messages: [{ role: 'user', content: prompt }], max_tokens: 128000, temperature: 0.75 })
         });
         const data = await res.json();
         const resultStr = data.choices[0].message.content.trim();
@@ -10936,7 +10936,7 @@ function checkAllAutoMsgRoles() {
                 body: JSON.stringify({
                     model: apiConfig.model || 'gpt-4o',
                     messages: apiMessages,
-                    max_tokens: 8192,  // 毒瘤修复 4：强制限制输出长度，防止传入 128000 导致 400
+                    max_tokens: 128000,  // 毒瘤修复 4：强制限制输出长度，防止传入 128000 导致 400
                     temperature: tempVal
                 })
             });
@@ -11100,7 +11100,7 @@ async function scheduleBlockedRoleRequest(roleId) {
     const prompt = `你是${role.realName}。${role.persona ? role.persona.substring(0, 300) : ''}${memorySummary}${coreMemStr}${chatContext}\n\n现在发生的情况：你被用户拉黑了，你想发送一条消息申请解除拉黑。\n\n要求：\n- 完全用你自己的语气和性格说话，绝对不能OOC\n- 只输出那一句话，不超过20字，不加任何解释或标点说明\n- 可以是委屈、倔强、想念、困惑、不甘心——完全根据你的人设\n- 禁止说"解除拉黑"这个词，就像真实发消息一样自然\n- 直接输出消息内容，不加引号`;
     try {
         const endpoint = getChatEndpoint(apiConfig.url);
-        const res = await fetch(endpoint, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiConfig.key}` }, body: JSON.stringify({ model: apiConfig.model, messages: [{ role: 'user', content: prompt }], max_tokens: 50, temperature: 0.92 }) });
+        const res = await fetch(endpoint, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiConfig.key}` }, body: JSON.stringify({ model: apiConfig.model, messages: [{ role: 'user', content: prompt }], max_tokens: 128000, temperature: 0.92 }) });
         const data = await res.json();
         const plea = (data.choices && data.choices[0]) ? data.choices[0].message.content.trim().replace(/["'""'']/g, '') : fallbackPleas[Math.floor(Math.random() * fallbackPleas.length)];
         showBlockRequestBanner(roleId, role, plea || fallbackPleas[0]);
@@ -11183,7 +11183,7 @@ async function rejectUnblock(roleId, btn) {
     const prompt = `你是${role.realName}。${role.persona ? role.persona.substring(0,100) : ''}\n你刚刚发送了好友申请，但对方拒绝了你的解除拉黑请求。\n请用你的语气发一条失落、委屈或倔强的消息，不超过25字，不要解释，直接说话。`;
     try {
         const endpoint = getChatEndpoint(apiConfig.url);
-        const res = await fetch(endpoint, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiConfig.key}` }, body: JSON.stringify({ model: apiConfig.model, messages: [{ role: 'user', content: prompt }], max_tokens: 60, temperature: 0.9 }) });
+        const res = await fetch(endpoint, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiConfig.key}` }, body: JSON.stringify({ model: apiConfig.model, messages: [{ role: 'user', content: prompt }], max_tokens: 128000, temperature: 0.9 }) });
         const data = await res.json();
         const msg = data.choices[0].message.content.trim();
         const replyNow = new Date();
@@ -11444,7 +11444,7 @@ async function checkCalendarNotifications() {
         try {
             const endpoint = getChatEndpoint(apiConfig.url);
             if (!endpoint) continue;
-            const res = await fetch(endpoint, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiConfig.key}` }, body: JSON.stringify({ model: apiConfig.model, messages: [{ role: 'user', content: prompt }], max_tokens: 100, temperature: 0.85 }) });
+            const res = await fetch(endpoint, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiConfig.key}` }, body: JSON.stringify({ model: apiConfig.model, messages: [{ role: 'user', content: prompt }], max_tokens: 128000, temperature: 0.85 }) });
             const data = await res.json();
             const msg = data.choices[0].message.content.trim();
             if (!msg) continue;
@@ -11544,7 +11544,7 @@ async function checkCalendarNotifications() {
             const response = await fetch(endpoint, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${api.key}` },
-                body: JSON.stringify({ model: api.model, messages: [{ role: 'user', content: prompt }], max_tokens: 150, temperature: 0.85 })
+                body: JSON.stringify({ model: api.model, messages: [{ role: 'user', content: prompt }], max_tokens: 128000, temperature: 0.85 })
             });
             const data = await response.json();
             const msg = data.choices[0].message.content.trim();
@@ -11813,7 +11813,7 @@ ${extraLorePrompt}
                 body: JSON.stringify({
                     model: apiConfig.model,
                     messages: [{ role: 'user', content: prompt }],
-                    max_tokens: 1000,
+                    max_tokens: 128000,
                     temperature: 0.9
                 })
             });
@@ -11967,7 +11967,7 @@ async function cipherSummarizeMemory(manual = false) {
 
     try {
         const endpoint = getChatEndpoint(apiConfig.url);
-        const res = await fetch(endpoint, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiConfig.key}` }, body: JSON.stringify({ model: apiConfig.model, messages: [{role:'user', content:prompt}], max_tokens: 200, temperature: 0.85 }) });
+        const res = await fetch(endpoint, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiConfig.key}` }, body: JSON.stringify({ model: apiConfig.model, messages: [{role:'user', content:prompt}], max_tokens: 128000, temperature: 0.85 }) });
         const data = await res.json();
         const summary = data.choices[0].message.content.trim();
         
@@ -12001,7 +12001,7 @@ async function reincSummarizeMemory(manual = false) {
 
     try {
         const endpoint = getChatEndpoint(apiConfig.url);
-        const res = await fetch(endpoint, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiConfig.key}` }, body: JSON.stringify({ model: apiConfig.model, messages: [{role:'user', content:prompt}], max_tokens: 200, temperature: 0.85 }) });
+        const res = await fetch(endpoint, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiConfig.key}` }, body: JSON.stringify({ model: apiConfig.model, messages: [{role:'user', content:prompt}], max_tokens: 128000, temperature: 0.85 }) });
         const data = await res.json();
         const summary = data.choices[0].message.content.trim();
         
@@ -12251,7 +12251,7 @@ async function cipherAiGuess(role, cipherText, target) {
         const res = await fetch(endpoint, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${api.key}` },
-            body: JSON.stringify({ model: api.model, messages: [{role:'user', content:prompt}], max_tokens: 120, temperature: 0.85 })
+            body: JSON.stringify({ model: api.model, messages: [{role:'user', content:prompt}], max_tokens: 128000, temperature: 0.85 })
         });
         const data = await res.json();
         const guess = data.choices[0].message.content.trim();
@@ -12610,7 +12610,7 @@ async function reincGenerateAiAnswer(itemName) {
             body: JSON.stringify({
                 model: api.model,
                 messages: [{ role: 'user', content: prompt }],
-                max_tokens: 300,
+                max_tokens: 128000,
                 temperature: 0.85
             })
         });
@@ -12643,7 +12643,7 @@ async function reincAiAskQuestion() {
         const response = await fetch(endpoint, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiConfig.key}` },
-            body: JSON.stringify({ model: apiConfig.model, messages: [{ role: 'user', content: prompt }], max_tokens: 100, temperature: 0.8 })
+            body: JSON.stringify({ model: apiConfig.model, messages: [{ role: 'user', content: prompt }], max_tokens: 128000, temperature: 0.8 })
         });
         const data = await response.json();
         reincPushMsg('ai', data.choices[0].message.content.trim());
@@ -12666,7 +12666,7 @@ async function reincEvaluateUserAnswer(userAnswer) {
         const response = await fetch(endpoint, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiConfig.key}` },
-            body: JSON.stringify({ model: apiConfig.model, messages: [{ role: 'user', content: prompt }], max_tokens: 200, temperature: 0.85 })
+            body: JSON.stringify({ model: apiConfig.model, messages: [{ role: 'user', content: prompt }], max_tokens: 128000, temperature: 0.85 })
         });
         const data = await response.json();
         reincPushMsg('ai', data.choices[0].message.content.trim());
@@ -13930,7 +13930,7 @@ function onAiAvatarDblClick() {
             const response = await fetch(endpoint, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiConfig.key}` },
-                body: JSON.stringify({ model: apiConfig.model, messages: [{ role: 'user', content: systemPrompt }], max_tokens: 150, temperature: 0.85 })
+                body: JSON.stringify({ model: apiConfig.model, messages: [{ role: 'user', content: systemPrompt }], max_tokens: 128000, temperature: 0.85 })
             });
             const data = await response.json();
             const msg = data.choices[0].message.content.trim();
@@ -14049,7 +14049,7 @@ function onAiAvatarDblClick() {
             const response = await fetch(endpoint, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${api.key}` },
-                body: JSON.stringify({ model: api.model, messages: [{ role: 'user', content: prompt }], max_tokens: 8192, temperature: 0.85 })
+                body: JSON.stringify({ model: api.model, messages: [{ role: 'user', content: prompt }], max_tokens: 128000, temperature: 0.85 })
             });
             const data = await response.json();
             const result = JSON.parse(extractJSON(data.choices[0].message.content));
@@ -14966,7 +14966,7 @@ ${typeMap[type].format}
             const response = await fetch(endpoint, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${api.key}` },
-                body: JSON.stringify({ model: api.model, messages: [{ role: 'user', content: prompt }], max_tokens: 800, temperature: 0.85 })
+                body: JSON.stringify({ model: api.model, messages: [{ role: 'user', content: prompt }], max_tokens: 128000, temperature: 0.85 })
             });
             const data = await response.json();
             const result = JSON.parse(extractJSON(data.choices[0].message.content));
@@ -15111,7 +15111,7 @@ ${typeMap[type].format}
             const response = await fetch(endpoint, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${api.key}` },
-                body: JSON.stringify({ model: api.model, messages: [{ role: 'user', content: prompt }], max_tokens: 150, temperature: 0.85 })
+                body: JSON.stringify({ model: api.model, messages: [{ role: 'user', content: prompt }], max_tokens: 128000, temperature: 0.85 })
             });
             const data = await response.json();
             const replyText = data.choices[0].message.content.trim();
@@ -15751,7 +15751,7 @@ async function confirmGenerateVirtualMap() {
         const response = await fetch(endpoint, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${api.key}` },
-            body: JSON.stringify({ model: api.model, messages: [{ role: 'user', content: prompt }], max_tokens: 1000, temperature: 0.85 })
+            body: JSON.stringify({ model: api.model, messages: [{ role: 'user', content: prompt }], max_tokens: 128000, temperature: 0.85 })
         });
         const data = await response.json();
         const result = JSON.parse(extractJSON(data.choices[0].message.content));
@@ -15813,7 +15813,7 @@ async function expandVirtualMap() {
         const response = await fetch(endpoint, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${api.key}` },
-            body: JSON.stringify({ model: api.model, messages: [{ role: 'user', content: prompt }], max_tokens: 1000, temperature: 0.85 })
+            body: JSON.stringify({ model: api.model, messages: [{ role: 'user', content: prompt }], max_tokens: 128000, temperature: 0.85 })
         });
         const data = await response.json();
         const result = JSON.parse(extractJSON(data.choices[0].message.content));
@@ -16016,7 +16016,7 @@ async function locateCurrentRole() {
         const response = await fetch(endpoint, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${api.key}` },
-            body: JSON.stringify({ model: api.model, messages: [{ role: 'user', content: prompt }], max_tokens: 300, temperature: 0.85 })
+            body: JSON.stringify({ model: api.model, messages: [{ role: 'user', content: prompt }], max_tokens: 128000, temperature: 0.85 })
         });
         const data = await response.json();
         const loc = JSON.parse(extractJSON(data.choices[0].message.content));
@@ -16743,7 +16743,7 @@ window.compressMessageToken = async function(index, btn) {
         const res = await fetch(endpoint, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiConfig.key}` },
-            body: JSON.stringify({ model: apiConfig.model, messages: [{ role: 'user', content: prompt }], max_tokens: 500, temperature: 0.5 })
+            body: JSON.stringify({ model: apiConfig.model, messages: [{ role: 'user', content: prompt }], max_tokens: 128000, temperature: 0.5 })
         });
         const data = await res.json();
         const compressed = data.choices[0].message.content.trim();
@@ -16795,7 +16795,7 @@ window.compressAllTokens = async function() {
             const res = await fetch(endpoint, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiConfig.key}` },
-                body: JSON.stringify({ model: apiConfig.model, messages: [{ role: 'user', content: prompt }], max_tokens: 500, temperature: 0.5 })
+                body: JSON.stringify({ model: apiConfig.model, messages: [{ role: 'user', content: prompt }], max_tokens: 128000, temperature: 0.5 })
             });
             const data = await res.json();
             const compressed = data.choices[0].message.content.trim();
@@ -17047,7 +17047,7 @@ async function initiateWillProcess(force = false) {
         const res = await fetch(endpoint, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiConfig.key}` },
-            body: JSON.stringify({ model: apiConfig.model, messages: [{ role: 'user', content: prompt }], max_tokens: 800, temperature: 0.8 })
+            body: JSON.stringify({ model: apiConfig.model, messages: [{ role: 'user', content: prompt }], max_tokens: 128000, temperature: 0.8 })
         });
         const data = await res.json();
         const draft = data.choices[0].message.content.trim();
@@ -17334,7 +17334,7 @@ async function confirmGenerateAiWallPosts() {
             const res = await fetch(endpoint, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiConfig.key}` },
-                body: JSON.stringify({ model: apiConfig.model, messages: [{ role: 'user', content: promptText }], max_tokens: 50, temperature: 0.9 })
+                body: JSON.stringify({ model: apiConfig.model, messages: [{ role: 'user', content: promptText }], max_tokens: 128000, temperature: 0.9 })
             });
             const data = await res.json();
             const text = data.choices[0].message.content.trim();
@@ -17491,7 +17491,7 @@ async function openEiChat(mode) {
             const res = await fetch(endpoint, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${api.key}` },
-                body: JSON.stringify({ model: api.model, messages: [{ role: 'user', content: prompt }], max_tokens: 50, temperature: 0.8 })
+                body: JSON.stringify({ model: api.model, messages: [{ role: 'user', content: prompt }], max_tokens: 128000, temperature: 0.8 })
             });
             const data = await res.json();
             const reply = data.choices[0].message.content.trim();
@@ -17715,7 +17715,7 @@ async function sendEiMessage() {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${api.key}` },
             /* 优化：调大 max_tokens 防止回复被截断 */
-            body: JSON.stringify({ model: api.model, messages: [{ role: 'user', content: prompt }], max_tokens: 8192, temperature: 0.85 })
+            body: JSON.stringify({ model: api.model, messages: [{ role: 'user', content: prompt }], max_tokens: 128000, temperature: 0.85 })
         });
         const data = await res.json();
         const reply = data.choices[0].message.content.trim();
@@ -17746,7 +17746,7 @@ async function sendEiMessage() {
                 fetch(endpoint, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${api.key}` },
-                    body: JSON.stringify({ model: api.model, messages: [{ role: 'user', content: fragmentPrompt }], max_tokens: 50, temperature: 0.9 })
+                    body: JSON.stringify({ model: api.model, messages: [{ role: 'user', content: fragmentPrompt }], max_tokens: 128000, temperature: 0.9 })
                 }).then(r => r.json()).then(d => {
                     const frag = d.choices[0].message.content.trim();
                     eiIslandData.unshift({ char: role.realName, text: frag, time: new Date().toLocaleDateString() });
@@ -17855,7 +17855,7 @@ async function generateAiWallPost() {
         const res = await fetch(endpoint, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiConfig.key}` },
-            body: JSON.stringify({ model: apiConfig.model, messages: [{ role: 'user', content: prompt }], max_tokens: 50, temperature: 0.85 })
+            body: JSON.stringify({ model: apiConfig.model, messages: [{ role: 'user', content: prompt }], max_tokens: 128000, temperature: 0.85 })
         });
         const data = await res.json();
         const text = data.choices[0].message.content.trim();
@@ -18047,7 +18047,7 @@ async function saveEiMemory() {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${api.key}` },
             /* 优化：调大 max_tokens 防止截断 */
-            body: JSON.stringify({ model: api.model, messages: [{ role: 'user', content: prompt }], max_tokens: 800, temperature: 0.8 })
+            body: JSON.stringify({ model: api.model, messages: [{ role: 'user', content: prompt }], max_tokens: 128000, temperature: 0.8 })
         });
         const data = await res.json();
         const summary = data.choices[0].message.content.trim();
