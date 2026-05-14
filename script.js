@@ -2457,7 +2457,10 @@ function updateKeepAliveUI(isOn) {
     function sendMessage() { 
         const input = $('#chat-input'); 
         const text = input.value.trim(); 
-        if(!text || !currentChatRoleId) return; 
+        if(!text || !currentChatRoleId) {
+            if (currentChatRoleId) triggerAI();
+            return; 
+        }
         
         const role = roles.find(r => r.id === currentChatRoleId);
 
@@ -7035,8 +7038,10 @@ window.newRoleTempWbs = null;
     }
 
     function openApiModal() { 
-        apiConfig = DB.get('api', { url: '', key: '', model: 'gpt-4o', maxTokens: 50, temperature: 0.8, topP: 1.0, stream: true, ttsGroupId: '', ttsApiKey: '', ttsVoiceId: '' }); 
-        $('#api-url').value = apiConfig.url || ''; $('#api-key').value = apiConfig.key || ''; $('#api-model').value = apiConfig.model || ''; $('#api-tokens').value = apiConfig.maxTokens || 50; $('#api-temp').value = apiConfig.temperature || 0.8; $('#val-temp').innerText = apiConfig.temperature || 0.8; $('#api-topp').value = apiConfig.topP || 1.0; $('#val-topp').innerText = apiConfig.topP || 1.0; 
+        apiConfig = DB.get('api', { url: '', key: '', model: 'gpt-4o', maxTokens: 128000, temperature: 0.8, topP: 1.0, stream: true, ttsGroupId: '', ttsApiKey: '', ttsVoiceId: '' }); 
+        $('#api-url').value = apiConfig.url || ''; $('#api-key').value = apiConfig.key || ''; $('#api-model').value = apiConfig.model || ''; 
+        $('#api-tokens').value = apiConfig.maxTokens !== undefined ? apiConfig.maxTokens : 128000; 
+        $('#api-temp').value = apiConfig.temperature || 0.8; $('#val-temp').innerText = apiConfig.temperature || 0.8; $('#api-topp').value = apiConfig.topP || 1.0; $('#val-topp').innerText = apiConfig.topP || 1.0; 
         $('#api-stream-enable').checked = apiConfig.stream !== false;
         $('#tts-group-id').value = apiConfig.ttsGroupId || ''; $('#tts-api-key').value = apiConfig.ttsApiKey || ''; $('#tts-voice-id').value = apiConfig.ttsVoiceId || '';
         renderApiPresets(); openModal('modal-api'); 
@@ -17654,6 +17659,58 @@ function eiActionDel() {
     closeEiContextMenu();
 }
 
+function eiActionShare() {
+    if (eiTargetMsgIndex > -1) {
+        let content = '';
+        if (eiTargetType === 'chat') {
+            content = eiChatHistory[eiTargetMsgIndex].content;
+        } else if (eiTargetType === 'wall') {
+            content = eiWallData[eiTargetMsgIndex].text;
+        }
+        navigator.clipboard.writeText(content).then(() => alert('内容已复制到剪贴板'));
+    }
+    closeEiContextMenu();
+}
+
+async function eiManualSummarize() {
+    if (!eiCurrentRoleId || eiChatHistory.length === 0) return alert("暂无聊天记录可总结");
+    const startIdx = prompt(`请输入起始消息序号 (1 - ${eiChatHistory.length}):`, "1");
+    if (!startIdx) return;
+    const endIdx = prompt(`请输入结束消息序号 (${startIdx} - ${eiChatHistory.length}):`, eiChatHistory.length);
+    if (!endIdx) return;
+    
+    const s = parseInt(startIdx) - 1;
+    const e = parseInt(endIdx);
+    if (isNaN(s) || isNaN(e) || s < 0 || e > eiChatHistory.length || s >= e) return alert("序号无效");
+    
+    const msgsToSummarize = eiChatHistory.slice(s, e);
+    const role = roles.find(r => r.id === eiCurrentRoleId);
+    const api = getSubApi('emotionisland');
+    if (!api.url) return alert("请先配置 API");
+
+    const chatText = msgsToSummarize.map(m => `${m.role === 'user' ? '我' : role.realName}: ${m.content}`).join('\n');
+    const promptText = `你是${role.realName}。你刚刚和用户在“情绪岛”进行了一次深度的倾诉与安慰。\n对话记录：\n${chatText}\n请以你的第一人称视角，详细记录这次情绪交流的感受和重要信息（字数不限，保留细节）。`;
+
+    try {
+        const endpoint = getChatEndpoint(api.url);
+        const res = await fetch(endpoint, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${api.key}` },
+            body: JSON.stringify({ model: api.model, messages: [{ role: 'user', content: promptText }], max_tokens: 128000, temperature: 0.8 })
+        });
+        const data = await res.json();
+        const summary = data.choices[0].message.content.trim();
+        
+        initRoleMemory(role.id);
+        advancedMemories[role.id].episodicMemories.push({ content: `[情绪岛记忆] ${summary}`, time: new Date().toLocaleString(), auto: false });
+        DB.set('advancedMemories', advancedMemories);
+        
+        alert("手动总结成功，已保存至情景记忆！");
+    } catch (err) {
+        alert("总结失败: " + err.message);
+    }
+}
+
 async function sendEiMessage() {
     const input = document.getElementById('ei-chat-input');
     const text = input.value.trim();
@@ -17886,7 +17943,7 @@ function renderEiWall() {
         
         /* 采用与记忆抽屉完全一致的卡片结构 */
         return `
-        <div class="ei-card">
+        <div class="ei-card" onmousedown="eiTouchStart(event, ${i}, this, 'wall')" onmouseup="eiTouchEnd()" onmouseleave="eiTouchEnd()" ontouchstart="eiTouchStart(event, ${i}, this, 'wall')" ontouchend="eiTouchEnd()" ontouchcancel="eiTouchEnd()">
             <div class="ei-card-meta">
                 <span>📝 留言 - ${authorName}</span>
                 <span>${timeStr}</span>
