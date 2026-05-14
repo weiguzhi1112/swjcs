@@ -189,7 +189,7 @@ document.addEventListener('touchmove', function(e) {
                 window.idbStore.put(val, key).catch(e => console.warn('IDB Save Error', e));
             }
             /* 修复 LocalStorage 爆满问题：将 settings 移出小缓存名单，完全依赖 IndexedDB */
-            const smallKeys = ['api', 'activated', 'activated_device', 'discord_user', 'appOrder', 'appCustomizations'];
+            const smallKeys = ['api', 'activated', 'activated_device', 'discord_user', 'appOrder', 'appCustomizations', 'settings'];
             if (smallKeys.includes(key)) {
                 try { 
                     const dataStr = JSON.stringify(val);
