@@ -2435,3 +2435,145 @@ body.is-app .to-page { padding-bottom: calc(70px + env(safe-area-inset-bottom)) 
     max-width: 100% !important;
     width: 100% !important;
 }
+/* ==========================================
+   绝对隔离：北欧极简杂志风 (Magazine Style)
+   ========================================== */
+
+/* 1. 整体背景去玻璃化 */
+#chat-view[data-bubble-style="magazine"] {
+    background-color: var(--bg-color) !important;
+    background-image: none !important;
+}
+
+/* 2. 顶栏去玻璃化、去边框、去阴影 */
+#chat-view[data-bubble-style="magazine"] #chat-header {
+    background: transparent !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    border-bottom: none !important;
+    box-shadow: none !important;
+    padding-top: calc(20px + env(safe-area-inset-top)) !important;
+}
+
+/* 3. 顶栏标题杂志化 */
+#chat-view[data-bubble-style="magazine"] #chat-title {
+    font-family: var(--font-serif) !important;
+    font-size: 24px !important;
+    font-weight: 300 !important;
+    letter-spacing: 2px !important;
+}
+#chat-view[data-bubble-style="magazine"] .chat-title-glass {
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+}
+
+/* 4. 隐藏头像，极致留白 */
+#chat-view[data-bubble-style="magazine"] .msg-avatar {
+    display: none !important;
+}
+
+/* 5. 消息列表排版 (错综复杂) */
+#chat-view[data-bubble-style="magazine"] #chat-messages {
+    gap: 35px !important;
+    padding-top: 20px !important;
+}
+#chat-view[data-bubble-style="magazine"] .msg-row.ai { padding-left: 15px !important; padding-right: 60px !important; }
+#chat-view[data-bubble-style="magazine"] .msg-row.ai:nth-child(even) { padding-left: 50px !important; padding-right: 20px !important; }
+#chat-view[data-bubble-style="magazine"] .msg-row.me { padding-right: 15px !important; padding-left: 60px !important; }
+#chat-view[data-bubble-style="magazine"] .msg-row.me:nth-child(odd) { padding-right: 50px !important; padding-left: 20px !important; }
+
+/* 6. 气泡去玻璃化、去背景、去尾巴 */
+#chat-view[data-bubble-style="magazine"] .msg-bubble {
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    color: var(--text-color) !important;
+    font-family: var(--font-serif) !important;
+    font-size: 16px !important;
+    line-height: 1.8 !important;
+    letter-spacing: 0.5px !important;
+    padding: 0 !important;
+    text-align: justify !important;
+    max-width: 100% !important;
+}
+#chat-view[data-bubble-style="magazine"] .msg-bubble::before,
+#chat-view[data-bubble-style="magazine"] .msg-bubble::after {
+    display: none !important;
+}
+
+/* 7. 用户消息加细线缩进，形成对比 */
+#chat-view[data-bubble-style="magazine"] .msg-row.me .msg-bubble {
+    border-left: 1px solid var(--text-color) !important;
+    padding-left: 15px !important;
+    font-family: var(--font-sans) !important;
+    font-size: 13px !important;
+    font-weight: 300 !important;
+    line-height: 1.6 !important;
+    border-radius: 0 !important;
+}
+
+/* 8. 状态/时间戳极简大写化 */
+#chat-view[data-bubble-style="magazine"] .msg-status {
+    font-family: var(--font-sans) !important;
+    font-size: 9px !important;
+    letter-spacing: 2px !important;
+    color: var(--text-secondary) !important;
+    margin-top: 12px !important;
+    text-transform: uppercase !important;
+    justify-content: flex-start !important;
+    padding: 0 !important;
+}
+#chat-view[data-bubble-style="magazine"] .msg-row.me .msg-status {
+    justify-content: flex-end !important;
+}
+
+/* 9. 底部输入区去玻璃化 */
+#chat-view[data-bubble-style="magazine"] .input-area-floating {
+    background: linear-gradient(to top, var(--bg-color) 60%, transparent) !important;
+    padding-top: 30px !important;
+    padding-bottom: calc(15px + env(safe-area-inset-bottom)) !important;
+}
+#chat-view[data-bubble-style="magazine"] #chat-input {
+    background: transparent !important;
+    border: none !important;
+    border-bottom: 1px solid var(--text-color) !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    padding: 10px 0 !important;
+    font-family: var(--font-sans) !important;
+}
+
+/* 10. 底部所有按钮去玻璃化 */
+#chat-view[data-bubble-style="magazine"] .standalone-icon-btn,
+#chat-view[data-bubble-style="magazine"] .standalone-send-btn,
+#chat-view[data-bubble-style="magazine"] .glass-icon-btn {
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+}
+
+/* 保证卡片在杂志风下宽度正常 */
+#chat-view[data-bubble-style="magazine"] .msg-row.card-row .msg-wrapper {
+    max-width: 100% !important;
+    width: 100% !important;
+}
+/* ==========================================
+   全局：取消所有气泡与卡片的点击透明/缩放效果
+   ========================================== */
+.msg-bubble:active, 
+.ticket-card:active, 
+.daifu-card:active, 
+.share-card:active,
+.music-card:active,
+.will-card:active,
+.msg-row.card-row:active {
+    opacity: 1 !important;
+    transform: none !important;
+}

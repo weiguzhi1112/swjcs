@@ -1897,6 +1897,8 @@ function updateKeepAliveUI(isOn) {
         } 
         $('#chat-messages').innerHTML = ''; 
         $('#chat-view').classList.add('active');
+        // 给聊天主容器打上当前气泡风格的标签，用于 CSS 绝对隔离
+        $('#chat-view').setAttribute('data-bubble-style', role.bubbleStyle || 'flat');
         // 独立隔离的杂志风气泡开关
         $('#chat-view').classList.remove('theme-magazine');
         if (role.bubbleStyle === 'magazine') {
