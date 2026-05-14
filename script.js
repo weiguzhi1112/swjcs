@@ -6961,6 +6961,12 @@ window.newRoleTempWbs = null;
     let currentSubApiAppId = null;
 
     function openSubApiModal(appId) {
+        /* 强制将弹窗移动到 body 最外层，防止被其他界面的层级遮挡 */
+        const modal = document.getElementById('modal-sub-api');
+        if (modal && modal.parentNode !== document.body) {
+            document.body.appendChild(modal);
+        }
+        
         currentSubApiAppId = appId;
         const config = subApiConfigs[appId] || { url: '', key: '', model: '' };
         document.getElementById('sub-api-url').value = config.url || '';
@@ -13553,6 +13559,12 @@ function onAiAvatarDblClick() {
         const data = walletData[currentWalletAccount];
         const content = $('#wallet-main-view');
         
+        /* 防止旧数据缺失数组导致报错白屏 */
+        if (!data) return;
+        if (!data.bankCards) data.bankCards = [];
+        if (!data.familyCards) data.familyCards = [];
+        if (!data.bills) data.bills = [];
+        
         if (data.autoRefresh === undefined) data.autoRefresh = true;
         if (data.currentDeposit === undefined) data.currentDeposit = 0;
         if (data.fixedDeposit === undefined) data.fixedDeposit = 0;
@@ -14630,14 +14642,23 @@ function onAiAvatarDblClick() {
 
     function osRenderHome() {
         const role = roles.find(r => r.id === ourSpaceData.partnerId);
-        document.getElementById('os-name-me').innerText = settings.userName || 'ME';
-        document.getElementById('os-avatar-me').src = settings.userAvatar || DEFAULT_AVATAR;
-        document.getElementById('os-name-ta').innerText = role ? getDisplayName(role) : 'TA';
-        document.getElementById('os-avatar-ta').src = role ? (role.avatar || DEFAULT_AVATAR) : DEFAULT_AVATAR;
+        const nameMe = document.getElementById('os-name-me');
+        const avatarMe = document.getElementById('os-avatar-me');
+        const nameTa = document.getElementById('os-name-ta');
+        const avatarTa = document.getElementById('os-avatar-ta');
+        const cityText = document.getElementById('os-city-text-me');
         
-        const city = weatherData.city || '城市';
-        const temp = weatherData.temp || '24';
-        document.getElementById('os-city-text-me').innerText = `${city} ${temp}°C`;
+        /* 防止 DOM 未加载完毕导致报错白屏 */
+        if (nameMe) nameMe.innerText = settings.userName || 'ME';
+        if (avatarMe) avatarMe.src = settings.userAvatar || DEFAULT_AVATAR;
+        if (nameTa) nameTa.innerText = role ? getDisplayName(role) : 'TA';
+        if (avatarTa) avatarTa.src = role ? (role.avatar || DEFAULT_AVATAR) : DEFAULT_AVATAR;
+        
+        if (cityText) {
+            const city = (typeof weatherData !== 'undefined' && weatherData.city) ? weatherData.city : '城市';
+            const temp = (typeof weatherData !== 'undefined' && weatherData.temp) ? weatherData.temp : '24';
+            cityText.innerText = `${city} ${temp}°C`;
+        }
     }
 
     function osSendHeartbeat() {
