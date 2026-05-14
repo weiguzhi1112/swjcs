@@ -1897,6 +1897,11 @@ function updateKeepAliveUI(isOn) {
         } 
         $('#chat-messages').innerHTML = ''; 
         $('#chat-view').classList.add('active');
+        // 独立隔离的杂志风气泡开关
+        $('#chat-view').classList.remove('theme-magazine');
+        if (role.bubbleStyle === 'magazine') {
+            $('#chat-view').classList.add('theme-magazine');
+        }
         // 应用专属主题
         const chatView = $('#chat-view');
         chatView.classList.remove('theme-magazine', 'theme-glass');

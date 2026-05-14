@@ -463,7 +463,7 @@ body {
         .msg-row.me .msg-wrapper { align-items: flex-end; }
         .msg-row.ai .msg-wrapper { align-items: flex-start; }
         .msg-bubble { padding: var(--bubble-padding); font-size: var(--font-size); line-height: 1.5; font-weight: 400; letter-spacing: 0.2px; border-radius: 14px; word-wrap: break-word; cursor: pointer; margin-top: 0; position: relative; }
-        .msg-bubble:active { opacity: 0.7; }
+        
         .msg-row.me .msg-bubble { background-color: var(--text-color); color: var(--bg-color); border: none; border-bottom-right-radius: 4px; margin-right: 4px; }
         .msg-row.ai .msg-bubble { background-color: #333333; color: #ffffff; border: none; border-bottom-left-radius: 4px; margin-left: 4px; }
         .msg-row.me .msg-bubble::before { content: ''; position: absolute; bottom: 0; right: -6px; width: 12px; height: 16px; background: var(--text-color); border-bottom-left-radius: 10px; }
@@ -1263,7 +1263,6 @@ body.is-app .to-page { padding-bottom: calc(70px + env(safe-area-inset-bottom)) 
     cursor: pointer;
     transition: transform 0.2s ease;
 }
-.ticket-card:active { transform: scale(0.98); }
 .tc-main {
     flex: 1;
     padding: 14px 16px;
@@ -2351,27 +2350,88 @@ body.is-app .to-page { padding-bottom: calc(70px + env(safe-area-inset-bottom)) 
 }
 
 /* ==========================================
-   主题 2：玻璃拟态风 (Glassmorphism Theme)
+   绝对隔离：北欧极简杂志风 (Magazine Style)
    ========================================== */
-#chat-view.theme-glass .msg-bubble {
-    background: rgba(255, 255, 255, 0.25) !important;
-    backdrop-filter: blur(15px) saturate(180%) !important;
-    -webkit-backdrop-filter: blur(15px) saturate(180%) !important;
-    border: 1px solid rgba(255, 255, 255, 0.4) !important;
-    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.07) !important;
-    color: #111 !important;
+/* 隐藏头像，极致留白 */
+#chat-view.theme-magazine .msg-avatar {
+    display: none !important;
 }
-[data-theme="dark"] #chat-view.theme-glass .msg-bubble {
-    background: rgba(0, 0, 0, 0.3) !important;
-    border: 1px solid rgba(255, 255, 255, 0.1) !important;
-    color: #fff !important;
+
+/* 增大消息间距 */
+#chat-view.theme-magazine #chat-messages {
+    gap: 35px !important;
+    padding-top: 40px !important;
 }
-#chat-view.theme-glass #chat-input {
-    background: rgba(255, 255, 255, 0.15) !important;
-    backdrop-filter: blur(20px) !important;
-    border: 1px solid rgba(255, 255, 255, 0.3) !important;
+
+/* 错综复杂的排版设计 */
+#chat-view.theme-magazine .msg-row.ai {
+    padding-left: 15px !important;
+    padding-right: 60px !important;
 }
-[data-theme="dark"] #chat-view.theme-glass #chat-input {
-    background: rgba(0, 0, 0, 0.3) !important;
-    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+#chat-view.theme-magazine .msg-row.ai:nth-child(even) {
+    padding-left: 50px !important;
+    padding-right: 20px !important;
+}
+#chat-view.theme-magazine .msg-row.me {
+    padding-right: 15px !important;
+    padding-left: 60px !important;
+}
+#chat-view.theme-magazine .msg-row.me:nth-child(odd) {
+    padding-right: 50px !important;
+    padding-left: 20px !important;
+}
+
+/* 强制重置气泡样式，剥离所有背景、边框和阴影 */
+#chat-view.theme-magazine .msg-bubble {
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    color: var(--text-color) !important;
+    font-family: var(--font-serif) !important;
+    font-size: 16px !important;
+    line-height: 1.8 !important;
+    letter-spacing: 0.5px !important;
+    padding: 0 !important;
+    text-align: justify !important;
+    max-width: 100% !important;
+}
+
+/* 隐藏气泡的小尾巴 */
+#chat-view.theme-magazine .msg-bubble::before,
+#chat-view.theme-magazine .msg-bubble::after {
+    display: none !important;
+}
+
+/* 用户的气泡增加极细边框和缩进，形成对比 */
+#chat-view.theme-magazine .msg-row.me .msg-bubble {
+    border-left: 1px solid var(--text-color) !important;
+    padding-left: 15px !important;
+    font-family: var(--font-sans) !important;
+    font-size: 13px !important;
+    font-weight: 300 !important;
+    line-height: 1.6 !important;
+    border-radius: 0 !important;
+}
+
+/* 状态/时间戳样式调整 */
+#chat-view.theme-magazine .msg-status {
+    font-family: var(--font-sans) !important;
+    font-size: 9px !important;
+    letter-spacing: 2px !important;
+    color: var(--text-secondary) !important;
+    margin-top: 12px !important;
+    text-transform: uppercase !important;
+    justify-content: flex-start !important;
+    padding: 0 !important;
+}
+#chat-view.theme-magazine .msg-row.me .msg-status {
+    justify-content: flex-end !important;
+}
+
+/* 确保卡片类消息在杂志风下依然保持原样，不被透明化 */
+#chat-view.theme-magazine .msg-row.card-row .msg-wrapper {
+    max-width: 100% !important;
+    width: 100% !important;
 }
