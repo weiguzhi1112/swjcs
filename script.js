@@ -1,18 +1,3 @@
-// 【核心破解】全局拦截 API 请求，强制移除所有 max_tokens 限制
-const originalFetch = window.fetch;
-window.fetch = async function() {
-    if (arguments[1] && arguments[1].body && typeof arguments[1].body === 'string') {
-        try {
-            let bodyObj = JSON.parse(arguments[1].body);
-            // 如果是发给 AI 模型的请求，直接删掉 max_tokens 限制
-            if (bodyObj.model && bodyObj.messages && bodyObj.max_tokens !== undefined) {
-                delete bodyObj.max_tokens; 
-                arguments[1].body = JSON.stringify(bodyObj);
-            }
-        } catch(e) {}
-    }
-    return originalFetch.apply(this, arguments);
-};
 function showBootStatus(message) {
     const box = document.getElementById('boot-fallback');
     const status = document.getElementById('boot-status-text');
@@ -189,7 +174,7 @@ document.addEventListener('touchmove', function(e) {
                 window.idbStore.put(val, key).catch(e => console.warn('IDB Save Error', e));
             }
             /* 修复 LocalStorage 爆满问题：将 settings 移出小缓存名单，完全依赖 IndexedDB */
-            const smallKeys = ['api', 'activated', 'activated_device', 'discord_user', 'appOrder', 'appCustomizations', 'settings'];
+            const smallKeys = ['api', 'activated', 'activated_device', 'discord_user', 'appOrder', 'appCustomizations'];
             if (smallKeys.includes(key)) {
                 try { 
                     const dataStr = JSON.stringify(val);
@@ -1896,19 +1881,7 @@ function updateKeepAliveUI(isOn) {
             $('#chat-view').style.backgroundColor = 'var(--bg-color)'; 
         } 
         $('#chat-messages').innerHTML = ''; 
-        $('#chat-view').classList.add('active');
-        // 给聊天主容器打上当前气泡风格的标签，用于 CSS 绝对隔离
-        $('#chat-view').setAttribute('data-bubble-style', role.bubbleStyle || 'flat');
-        // 独立隔离的杂志风气泡开关
-        $('#chat-view').classList.remove('theme-magazine');
-        if (role.bubbleStyle === 'magazine') {
-            $('#chat-view').classList.add('theme-magazine');
-        }
-        // 应用专属主题
-        const chatView = $('#chat-view');
-        chatView.classList.remove('theme-magazine', 'theme-glass');
-        if (role.chatTheme === 'magazine') chatView.classList.add('theme-magazine');
-        else if (role.chatTheme === 'glass') chatView.classList.add('theme-glass');
+        $('#chat-view').classList.add('active'); 
         $('#main-content-area').classList.add('chat-active'); 
         
         const accentColor = role.accentColor || (settings.theme === 'dark' ? '#ffffff' : '#000000');
@@ -1932,6 +1905,24 @@ function updateKeepAliveUI(isOn) {
         
         const inputTextColor = role.inputTextColor || (settings.theme === 'dark' ? '#ffffff' : '#000000');
         chatInput.style.setProperty('color', inputTextColor, 'important'); // 强化优先级
+        
+        if (role.magazineTheme) {
+            $('#chat-view').classList.add('theme-magazine');
+            const attachBtn = document.querySelector('.standalone-icon-btn');
+            const sendBtn = document.querySelector('.standalone-send-btn');
+            if (attachBtn) {
+                attachBtn.innerHTML = `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>`;
+            }
+            if (sendBtn) {
+                sendBtn.innerHTML = `<span style="display:block !important; font-family: var(--font-serif); font-size: 14px; letter-spacing: 2px; color: var(--text-color);">SEND</span>`;
+            }
+        } else {
+            $('#chat-view').classList.remove('theme-magazine');
+            const attachBtn = document.querySelector('.standalone-icon-btn');
+            const sendBtn = document.querySelector('.standalone-send-btn');
+            if (attachBtn) attachBtn.innerHTML = '';
+            if (sendBtn) sendBtn.innerHTML = '<span></span>';
+        }
         
         chatInput.value = chatInput.value; 
 
@@ -2367,7 +2358,9 @@ function updateKeepAliveUI(isOn) {
                     if (m.role === 'ai') {
                 const aiBubbleC = role.aiBubbleColor || '#333333';
                 const aiTextC = role.aiTextColor || '#ffffff';
-                if (isGlass) {
+                if (role.bubbleStyle === 'magazine') {
+                    customBubbleStyle = `style="background: transparent !important; border: none !important; box-shadow: none !important; font-family: var(--font-serif) !important; font-size: 18px !important; line-height: 1.6 !important; padding: 0 !important; color: ${aiTextC} !important;"`;
+                } else if (isGlass) {
                     customBubbleStyle = `style="${getGlassStyle(aiTextC)}"`;
                 } else {
                     customBubbleStyle = `style="background-color: ${aiBubbleC} !important; color: ${aiTextC} !important; border: none !important; --tail-color: ${aiBubbleC} !important;"`;
@@ -2375,7 +2368,9 @@ function updateKeepAliveUI(isOn) {
             } else if (m.role === 'user') {
                 const userBubbleC = role.userBubbleColor || '#000000';
                 const userTextC = role.userTextColor || '#ffffff';
-                if (isGlass) {
+                if (role.bubbleStyle === 'magazine') {
+                    customBubbleStyle = `style="background: transparent !important; border: none !important; box-shadow: none !important; font-family: var(--font-serif) !important; font-size: 18px !important; line-height: 1.6 !important; padding: 0 !important; color: ${userTextC} !important;"`;
+                } else if (isGlass) {
                     customBubbleStyle = `style="${getGlassStyle(userTextC)}"`;
                 } else {
                     customBubbleStyle = `style="background-color: ${userBubbleC} !important; color: ${userTextC} !important; border: none !important; --tail-color: ${userBubbleC} !important;"`;
@@ -5121,9 +5116,11 @@ ${modeRules}
                 messages: apiMessages,
                 temperature: tempVal,
                 top_p: topPVal,
-                max_tokens: 8192,  // 修复截断问题：强制指定最大输出长度
                 stream: isStreamEnabled
             };
+            if (apiConfig.maxTokens > 0) {
+                requestBody.max_tokens = apiConfig.maxTokens;
+            }
             
             const logBody = JSON.parse(JSON.stringify(requestBody));
             if (logBody.messages && logBody.messages.length > 0 && logBody.messages[0].role === 'system') {
@@ -6559,8 +6556,8 @@ function updateRoleWbPreview() {
         $('#role-user-text-color').value = isEditing && role.userTextColor ? role.userTextColor : '#ffffff';
         $('#role-input-text-color').value = isEditing && role.inputTextColor ? role.inputTextColor : (settings.theme === 'dark' ? '#ffffff' : '#000000');
         $('#role-system-text-color').value = isEditing && role.systemTextColor ? role.systemTextColor : '#888888';
-        $('#role-chat-theme').value = isEditing && role.chatTheme ? role.chatTheme : 'default';
         $('#role-bubble-style').value = isEditing && role.bubbleStyle ? role.bubbleStyle : 'flat';
+        $('#role-magazine-theme').checked = isEditing ? !!role.magazineTheme : false;
         $('#role-accent-color').value = isEditing && role.accentColor ? role.accentColor : (settings.theme === 'dark' ? '#ffffff' : '#000000');
         $('#role-attachment-color').value = isEditing && role.attachmentColor ? role.attachmentColor : (settings.theme === 'dark' ? '#ffffff' : '#000000');
         $('#role-send-btn-color').value = isEditing && role.sendBtnColor ? role.sendBtnColor : (settings.theme === 'dark' ? '#ffffff' : '#000000');
@@ -6716,8 +6713,8 @@ function updateRoleWbPreview() {
             userTextColor: $('#role-user-text-color').value,
             inputTextColor: $('#role-input-text-color').value,
             systemTextColor: $('#role-system-text-color').value,
-            chatTheme: $('#role-chat-theme').value,
             bubbleStyle: $('#role-bubble-style').value,
+            magazineTheme: $('#role-magazine-theme').checked,
             accentColor: $('#role-accent-color').value,
             attachmentColor: $('#role-attachment-color').value,
             sendBtnColor: $('#role-send-btn-color').value,
@@ -6802,8 +6799,8 @@ window.newRoleTempWbs = null;
             userTextColor: $('#role-user-text-color').value,
             inputTextColor: $('#role-input-text-color').value,
             systemTextColor: $('#role-system-text-color').value,
-            chatTheme: $('#role-chat-theme').value,
             bubbleStyle: $('#role-bubble-style').value,
+            magazineTheme: $('#role-magazine-theme').checked,
             accentColor: $('#role-accent-color').value,
             attachmentColor: $('#role-attachment-color').value,
             sendBtnColor: $('#role-send-btn-color').value,
@@ -6961,12 +6958,6 @@ window.newRoleTempWbs = null;
     let currentSubApiAppId = null;
 
     function openSubApiModal(appId) {
-        /* 强制将弹窗移动到 body 最外层，防止被其他界面的层级遮挡 */
-        const modal = document.getElementById('modal-sub-api');
-        if (modal && modal.parentNode !== document.body) {
-            document.body.appendChild(modal);
-        }
-        
         currentSubApiAppId = appId;
         const config = subApiConfigs[appId] || { url: '', key: '', model: '' };
         document.getElementById('sub-api-url').value = config.url || '';
@@ -7051,7 +7042,7 @@ window.newRoleTempWbs = null;
         renderApiPresets(); openModal('modal-api'); 
     }
     function saveApi() { 
-        apiConfig.url = $('#api-url').value.trim(); apiConfig.key = $('#api-key').value.trim(); apiConfig.model = $('#api-model').value.trim(); apiConfig.maxTokens = parseInt($('#api-tokens').value) || 50; apiConfig.temperature = parseFloat($('#api-temp').value); apiConfig.topP = parseFloat($('#api-topp').value); 
+        apiConfig.url = $('#api-url').value.trim(); apiConfig.key = $('#api-key').value.trim(); apiConfig.model = $('#api-model').value.trim(); apiConfig.maxTokens = parseInt($('#api-tokens').value) || 0; apiConfig.temperature = parseFloat($('#api-temp').value); apiConfig.topP = parseFloat($('#api-topp').value); 
         apiConfig.stream = $('#api-stream-enable').checked;
         apiConfig.ttsGroupId = $('#tts-group-id').value.trim(); apiConfig.ttsApiKey = $('#tts-api-key').value.trim(); apiConfig.ttsVoiceId = $('#tts-voice-id').value.trim();
         DB.set('api', apiConfig); closeModal('modal-api'); 
@@ -13559,12 +13550,6 @@ function onAiAvatarDblClick() {
         const data = walletData[currentWalletAccount];
         const content = $('#wallet-main-view');
         
-        /* 防止旧数据缺失数组导致报错白屏 */
-        if (!data) return;
-        if (!data.bankCards) data.bankCards = [];
-        if (!data.familyCards) data.familyCards = [];
-        if (!data.bills) data.bills = [];
-        
         if (data.autoRefresh === undefined) data.autoRefresh = true;
         if (data.currentDeposit === undefined) data.currentDeposit = 0;
         if (data.fixedDeposit === undefined) data.fixedDeposit = 0;
@@ -14642,23 +14627,14 @@ function onAiAvatarDblClick() {
 
     function osRenderHome() {
         const role = roles.find(r => r.id === ourSpaceData.partnerId);
-        const nameMe = document.getElementById('os-name-me');
-        const avatarMe = document.getElementById('os-avatar-me');
-        const nameTa = document.getElementById('os-name-ta');
-        const avatarTa = document.getElementById('os-avatar-ta');
-        const cityText = document.getElementById('os-city-text-me');
+        document.getElementById('os-name-me').innerText = settings.userName || 'ME';
+        document.getElementById('os-avatar-me').src = settings.userAvatar || DEFAULT_AVATAR;
+        document.getElementById('os-name-ta').innerText = role ? getDisplayName(role) : 'TA';
+        document.getElementById('os-avatar-ta').src = role ? (role.avatar || DEFAULT_AVATAR) : DEFAULT_AVATAR;
         
-        /* 防止 DOM 未加载完毕导致报错白屏 */
-        if (nameMe) nameMe.innerText = settings.userName || 'ME';
-        if (avatarMe) avatarMe.src = settings.userAvatar || DEFAULT_AVATAR;
-        if (nameTa) nameTa.innerText = role ? getDisplayName(role) : 'TA';
-        if (avatarTa) avatarTa.src = role ? (role.avatar || DEFAULT_AVATAR) : DEFAULT_AVATAR;
-        
-        if (cityText) {
-            const city = (typeof weatherData !== 'undefined' && weatherData.city) ? weatherData.city : '城市';
-            const temp = (typeof weatherData !== 'undefined' && weatherData.temp) ? weatherData.temp : '24';
-            cityText.innerText = `${city} ${temp}°C`;
-        }
+        const city = weatherData.city || '城市';
+        const temp = weatherData.temp || '24';
+        document.getElementById('os-city-text-me').innerText = `${city} ${temp}°C`;
     }
 
     function osSendHeartbeat() {
