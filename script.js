@@ -6795,6 +6795,7 @@ window.newRoleTempWbs = null;
             userTextColor: $('#role-user-text-color').value,
             inputTextColor: $('#role-input-text-color').value,
             systemTextColor: $('#role-system-text-color').value,
+            chatTheme: $('#role-chat-theme').value,
             bubbleStyle: $('#role-bubble-style').value,
             accentColor: $('#role-accent-color').value,
             attachmentColor: $('#role-attachment-color').value,
