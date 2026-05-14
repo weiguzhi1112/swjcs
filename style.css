@@ -2293,3 +2293,85 @@ body.is-app .to-page { padding-bottom: calc(70px + env(safe-area-inset-bottom)) 
 .ei-gift-card:hover { border-color: var(--accent); color: var(--accent); transform: translateY(-1px); }
 .ei-drawer-gift { background: var(--bg); border: 1px solid var(--line); }
 [data-theme="dark"] .ei-drawer-gift { background: #2A2D32; color: var(--accent); border-color: var(--accent); }
+/* ==========================================
+   主题 1：北欧极简杂志风 (Magazine Theme)
+   ========================================== */
+#chat-view.theme-magazine {
+    background-color: var(--bg-color) !important;
+    background-image: none !important;
+}
+#chat-view.theme-magazine #chat-header {
+    border-bottom: none !important; /* 删除黑线 */
+    padding-top: 20px !important;
+    background: transparent !important;
+    backdrop-filter: none !important;
+}
+#chat-view.theme-magazine #chat-title {
+    font-family: var(--font-serif) !important;
+    font-size: 24px !important;
+    font-weight: 300 !important;
+    letter-spacing: 2px !important;
+}
+#chat-view.theme-magazine .msg-avatar {
+    display: none !important; /* 杂志风隐藏头像，极致留白 */
+}
+#chat-view.theme-magazine #chat-messages {
+    gap: 30px !important; /* 增大消息间距 */
+}
+/* 错综复杂的排版 */
+#chat-view.theme-magazine .msg-row.ai { padding-left: 10px; padding-right: 50px; }
+#chat-view.theme-magazine .msg-row.ai:nth-child(even) { padding-left: 40px; padding-right: 20px; }
+#chat-view.theme-magazine .msg-row.me { padding-right: 10px; padding-left: 50px; }
+#chat-view.theme-magazine .msg-row.me:nth-child(odd) { padding-right: 40px; padding-left: 20px; }
+
+#chat-view.theme-magazine .msg-bubble {
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    color: var(--text-color) !important;
+    font-family: var(--font-serif) !important;
+    font-size: 16px !important;
+    line-height: 1.8 !important;
+    padding: 0 !important;
+}
+#chat-view.theme-magazine .msg-row.me .msg-bubble {
+    border-left: 1px solid var(--text-color) !important;
+    padding-left: 15px !important;
+    font-family: var(--font-sans) !important;
+    font-size: 13px !important;
+    font-weight: 300 !important;
+    border-radius: 0 !important;
+}
+#chat-view.theme-magazine #chat-input {
+    background: transparent !important;
+    border: none !important;
+    border-bottom: 1px solid var(--text-color) !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+}
+
+/* ==========================================
+   主题 2：玻璃拟态风 (Glassmorphism Theme)
+   ========================================== */
+#chat-view.theme-glass .msg-bubble {
+    background: rgba(255, 255, 255, 0.25) !important;
+    backdrop-filter: blur(15px) saturate(180%) !important;
+    -webkit-backdrop-filter: blur(15px) saturate(180%) !important;
+    border: 1px solid rgba(255, 255, 255, 0.4) !important;
+    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.07) !important;
+    color: #111 !important;
+}
+[data-theme="dark"] #chat-view.theme-glass .msg-bubble {
+    background: rgba(0, 0, 0, 0.3) !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    color: #fff !important;
+}
+#chat-view.theme-glass #chat-input {
+    background: rgba(255, 255, 255, 0.15) !important;
+    backdrop-filter: blur(20px) !important;
+    border: 1px solid rgba(255, 255, 255, 0.3) !important;
+}
+[data-theme="dark"] #chat-view.theme-glass #chat-input {
+    background: rgba(0, 0, 0, 0.3) !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+}

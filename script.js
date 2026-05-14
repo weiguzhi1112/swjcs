@@ -1,3 +1,18 @@
+// 【核心破解】全局拦截 API 请求，强制移除所有 max_tokens 限制
+const originalFetch = window.fetch;
+window.fetch = async function() {
+    if (arguments[1] && arguments[1].body && typeof arguments[1].body === 'string') {
+        try {
+            let bodyObj = JSON.parse(arguments[1].body);
+            // 如果是发给 AI 模型的请求，直接删掉 max_tokens 限制
+            if (bodyObj.model && bodyObj.messages && bodyObj.max_tokens !== undefined) {
+                delete bodyObj.max_tokens; 
+                arguments[1].body = JSON.stringify(bodyObj);
+            }
+        } catch(e) {}
+    }
+    return originalFetch.apply(this, arguments);
+};
 function showBootStatus(message) {
     const box = document.getElementById('boot-fallback');
     const status = document.getElementById('boot-status-text');
@@ -1881,7 +1896,12 @@ function updateKeepAliveUI(isOn) {
             $('#chat-view').style.backgroundColor = 'var(--bg-color)'; 
         } 
         $('#chat-messages').innerHTML = ''; 
-        $('#chat-view').classList.add('active'); 
+        $('#chat-view').classList.add('active');
+        // 应用专属主题
+        const chatView = $('#chat-view');
+        chatView.classList.remove('theme-magazine', 'theme-glass');
+        if (role.chatTheme === 'magazine') chatView.classList.add('theme-magazine');
+        else if (role.chatTheme === 'glass') chatView.classList.add('theme-glass');
         $('#main-content-area').classList.add('chat-active'); 
         
         const accentColor = role.accentColor || (settings.theme === 'dark' ? '#ffffff' : '#000000');
@@ -6532,6 +6552,7 @@ function updateRoleWbPreview() {
         $('#role-user-text-color').value = isEditing && role.userTextColor ? role.userTextColor : '#ffffff';
         $('#role-input-text-color').value = isEditing && role.inputTextColor ? role.inputTextColor : (settings.theme === 'dark' ? '#ffffff' : '#000000');
         $('#role-system-text-color').value = isEditing && role.systemTextColor ? role.systemTextColor : '#888888';
+        $('#role-chat-theme').value = isEditing && role.chatTheme ? role.chatTheme : 'default';
         $('#role-bubble-style').value = isEditing && role.bubbleStyle ? role.bubbleStyle : 'flat';
         $('#role-accent-color').value = isEditing && role.accentColor ? role.accentColor : (settings.theme === 'dark' ? '#ffffff' : '#000000');
         $('#role-attachment-color').value = isEditing && role.attachmentColor ? role.attachmentColor : (settings.theme === 'dark' ? '#ffffff' : '#000000');
@@ -6688,6 +6709,7 @@ function updateRoleWbPreview() {
             userTextColor: $('#role-user-text-color').value,
             inputTextColor: $('#role-input-text-color').value,
             systemTextColor: $('#role-system-text-color').value,
+            chatTheme: $('#role-chat-theme').value,
             bubbleStyle: $('#role-bubble-style').value,
             accentColor: $('#role-accent-color').value,
             attachmentColor: $('#role-attachment-color').value,
