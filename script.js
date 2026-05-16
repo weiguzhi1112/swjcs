@@ -1909,8 +1909,9 @@ function updateKeepAliveUI(isOn) {
         
         if (role.magazineTheme) {
             $('#chat-view').classList.add('theme-magazine');
-            const attachBtn = document.querySelector('.standalone-icon-btn');
-            const sendBtn = document.querySelector('.standalone-send-btn');
+            // 加上 #chat-view 限制范围，防止影响前世今生界面
+            const attachBtn = document.querySelector('#chat-view .standalone-icon-btn');
+            const sendBtn = document.querySelector('#chat-view .standalone-send-btn');
             if (attachBtn) {
                 attachBtn.innerHTML = `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>`;
             }
@@ -1919,8 +1920,8 @@ function updateKeepAliveUI(isOn) {
             }
         } else {
             $('#chat-view').classList.remove('theme-magazine');
-            const attachBtn = document.querySelector('.standalone-icon-btn');
-            const sendBtn = document.querySelector('.standalone-send-btn');
+            const attachBtn = document.querySelector('#chat-view .standalone-icon-btn');
+            const sendBtn = document.querySelector('#chat-view .standalone-send-btn');
             if (attachBtn) attachBtn.innerHTML = '';
             if (sendBtn) sendBtn.innerHTML = '<span></span>';
         }
