@@ -4827,14 +4827,19 @@ function toInitApp(){
         }
 
         // 插入初始的打字机占位气泡，并标记为 isStreaming
-        chats[targetRoleId].push({ 
+        let aiMsgObj = { 
             role: 'ai', 
             content: '<div class="bubble-typing-indicator"><div></div><div></div><div></div></div>', 
             time: timeStr, 
             rawTime: now.getTime(), 
             mode: finalChatMode, 
             isStreaming: true 
-        });
+        };
+        if (quotedMsgText) {
+            aiMsgObj.quote = quotedMsgText;
+            cancelQuote();
+        }
+        chats[targetRoleId].push(aiMsgObj);
         if (currentChatRoleId === targetRoleId) renderMessages();
 
         try {
@@ -5240,16 +5245,19 @@ ${modeRules}
                                     if (displayLines.length === 0) displayLines = ['<div class="bubble-typing-indicator"><div></div><div></div><div></div></div>'];
 
                                     // 动态更新 chats 数组，实现一句话一个气泡的弹跳效果
+                                    let currentQuote = chats[targetRoleId].find(m => m.isStreaming)?.quote;
                                     chats[targetRoleId] = chats[targetRoleId].filter(m => !m.isStreaming);
                                     displayLines.forEach((dl, idx) => {
-                                        chats[targetRoleId].push({
+                                        let newMsg = {
                                             role: 'ai',
                                             content: dl,
                                             time: timeStr,
                                             rawTime: now.getTime() + idx,
                                             mode: finalChatMode,
                                             isStreaming: true
-                                        });
+                                        };
+                                        if (idx === 0 && currentQuote) newMsg.quote = currentQuote;
+                                        chats[targetRoleId].push(newMsg);
                                     });
 
                                     if (currentChatRoleId === targetRoleId) {
@@ -5467,6 +5475,7 @@ ${modeRules}
 
             if (finalLines.length === 0) finalLines = ['(沉默)'];
 
+            let currentQuote = chats[targetRoleId].find(m => m.isStreaming)?.quote;
             // 移除所有流式占位符
             chats[targetRoleId] = chats[targetRoleId].filter(m => !m.isStreaming);
 
@@ -5485,14 +5494,16 @@ ${modeRules}
                         }
                     }
                     
-                    chats[targetRoleId].push({
+                    let newMsg = {
                         role: msgRole,
                         content: trimmed,
                         rawContent: (idx === 0 && pIdx === 0) ? rawFullReply : undefined,
                         time: timeStr,
                         rawTime: now.getTime() + msgIndexOffset,
                         mode: finalChatMode
-                    });
+                    };
+                    if (idx === 0 && pIdx === 0 && currentQuote) newMsg.quote = currentQuote;
+                    chats[targetRoleId].push(newMsg);
                     msgIndexOffset++;
                 });
             });

@@ -895,10 +895,10 @@ html, body {
 
 #chat-input {
     background-color: transparent !important;
-    backdrop-filter: blur(10px) saturate(180%) !important;
-    -webkit-backdrop-filter: blur(10px) saturate(180%) !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
     border: 0.5px solid rgba(255, 255, 255, 0.2) !important;
-    box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.4), inset 0 -1px 4px 0 rgba(255, 255, 255, 0.3), 0 2px 6px rgba(0, 0, 0, 0.05) !important;
+    box-shadow: none !important;
     border-radius: 20px !important;
     color: var(--text-color) !important;
     font-size: 14px !important;
@@ -1107,7 +1107,7 @@ html, body {
     padding: 6px 0 !important;
     display: none;
     flex-direction: column !important;
-    background: rgba(255, 255, 255, 0.2) !important;
+    background: rgba(255, 255, 255, 0.85) !important;
     backdrop-filter: blur(35px) saturate(200%) !important;
     -webkit-backdrop-filter: blur(35px) saturate(200%) !important;
     border-radius: 14px !important;
@@ -1117,7 +1117,7 @@ html, body {
     left: 0 !important;
 }
 [data-theme="dark"] #attachment-popup {
-    background: rgba(0, 0, 0, 0.3) !important;
+    background: rgba(30, 30, 30, 0.85) !important;
     border: 0.5px solid rgba(255, 255, 255, 0.1) !important;
 }
 .attach-btn {
@@ -2392,15 +2392,15 @@ body.is-app .to-page { padding-bottom: calc(70px + env(safe-area-inset-bottom)) 
 #chat-view.theme-quote-sms .message-wrapper:has(.quoted-message) .msg-bubble,
 #chat-view.theme-quote-sms .msg-row:has(.quote-block) .msg-bubble {
     position: relative !important;
-    margin-top: 30px !important;
+    margin-top: 35px !important;
 }
 
 #chat-view.theme-quote-sms .msg-row:has(.quote-block) .msg-bubble::before {
     content: '' !important;
     position: absolute !important;
-    width: 16px !important;
-    height: 28px !important;
-    top: -12px !important;
+    width: 20px !important;
+    height: 20px !important;
+    top: -20px !important;
     border-left: 2px solid #d9d9d9 !important;
     border-bottom: 2px solid #d9d9d9 !important;
     border-bottom-left-radius: 8px !important;
@@ -2411,44 +2411,44 @@ body.is-app .to-page { padding-bottom: calc(70px + env(safe-area-inset-bottom)) 
 }
 
 #chat-view.theme-quote-sms .msg-row.me:has(.quote-block) .msg-bubble::before {
-    left: -25px !important;
-    right: auto !important;
-    transform: scaleX(-1) !important;
-}
-
-#chat-view.theme-quote-sms .msg-row.ai:has(.quote-block) .msg-bubble::before {
-    right: -25px !important;
+    right: 20px !important;
     left: auto !important;
     transform: none !important;
 }
 
+#chat-view.theme-quote-sms .msg-row.ai:has(.quote-block) .msg-bubble::before {
+    left: 20px !important;
+    right: auto !important;
+    transform: scaleX(-1) !important;
+}
+
 #chat-view.theme-quote-sms .quote-block {
     position: absolute;
-    top: -28px !important;
+    top: -35px !important;
     z-index: 0;
-    min-width: 100px;
+    min-width: 50px;
     max-width: 180px;
     height: 24px;
     background-color: transparent !important;
     backdrop-filter: none !important;
-    border-radius: 20px;
-    border: none !important;
-    padding: 0 8px;
+    border-radius: 12px;
+    border: 1px solid #d9d9d9 !important;
+    padding: 0 10px;
     margin: 0;
     font-size: 11px;
     color: #555;
-    line-height: 24px;
+    line-height: 22px;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
 }
 
 #chat-view.theme-quote-sms .msg-row.me .quote-block {
+    right: 10px !important;
     left: auto !important;
-    right: 0 !important;
 }
 
 #chat-view.theme-quote-sms .msg-row.ai .quote-block {
-    left: 0 !important;
+    left: 10px !important;
     right: auto !important;
 }
