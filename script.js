@@ -6529,85 +6529,7 @@ function updateRoleWbPreview() {
     const count = wbs.length;
     $('#role-local-wb-preview').innerText = count > 0 ? `已绑定 ${count} 个设定` : '未绑定任何设定';
 }
-        /* 初始化角色详情 Tab 布局逻辑 */
-        function initRoleEditTabs() {
-            const container = document.querySelector('#view-role-edit .view-content');
-            if (!container || container.querySelector('.role-edit-tabs')) return;
-
-            const tabsHeader = document.createElement('div');
-            tabsHeader.className = 'role-edit-tabs';
-            tabsHeader.innerHTML = `
-                <button class="role-tab-btn active" onclick="switchRoleTab('basic')">基础设定</button>
-                <button class="role-tab-btn" onclick="switchRoleTab('appearance')">外观样式</button>
-                <button class="role-tab-btn" onclick="switchRoleTab('advanced')">高级功能</button>
-            `;
-            
-            const tabBasic = document.createElement('div'); tabBasic.id = 'role-tab-basic'; tabBasic.className = 'role-tab-content active';
-            const tabApp = document.createElement('div'); tabApp.id = 'role-tab-appearance'; tabApp.className = 'role-tab-content';
-            const tabAdv = document.createElement('div'); tabAdv.id = 'role-tab-advanced'; tabAdv.className = 'role-tab-content';
-
-            const btnContainer = document.createElement('div');
-            btnContainer.className = 'role-action-buttons';
-            btnContainer.style.cssText = 'display: flex; flex-direction: column; align-items: center; gap: 10px; margin-top: 20px; width: 100%;';
-
-            const children = Array.from(container.children);
-            children.forEach(child => {
-                const html = child.innerHTML;
-                const id = child.id || '';
-                
-                if (child.tagName === 'BUTTON' || id === 'role-chat-actions' || id === 'btn-del-role' || html.includes('saveRole()') || html.includes('exportCurrentChat()') || html.includes('importCurrentChat') || html.includes('clearCurrentChat()')) {
-                    if (child.tagName === 'BUTTON') {
-                        child.style.width = '80%';
-                        child.style.margin = '0 auto';
-                    }
-                    if (id === 'role-chat-actions') {
-                        child.style.width = '80%';
-                        child.style.justifyContent = 'center';
-                    }
-                    btnContainer.appendChild(child);
-                    return;
-                }
-
-                if (html.includes('role-show-header-avatar') || html.includes('role-title-color') || html.includes('role-avatar') || 
-                    html.includes('role-edit-user-bubble') || html.includes('role-chat-bg') || html.includes('role-call-bg') || 
-                    html.includes('role-call-blur') || html.includes('role-enable-bubble-css') || html.includes('role-bubble-css') || 
-                    html.includes('role-ai-bubble-color') || html.includes('role-user-bubble-color') || html.includes('role-ai-text-color') || 
-                    html.includes('role-user-text-color') || html.includes('role-input-text-color') || html.includes('role-system-text-color') || 
-                    html.includes('role-bubble-style') || html.includes('role-quote-style') || html.includes('role-magazine-theme') || 
-                    html.includes('role-accent-color') || html.includes('role-attachment-color') || html.includes('role-send-btn-color') || 
-                    html.includes('role-placeholder-text') || html.includes('role-placeholder-color') || html.includes('role-timestamp-color') || 
-                    html.includes('role-ecg-color')) {
-                    tabApp.appendChild(child);
-                    return;
-                }
-
-                if (html.includes('role-auto-feed') || html.includes('role-auto-feed-interval') || html.includes('role-can-block') || 
-                    html.includes('role-unblock-delay') || html.includes('role-auto-msg') || html.includes('role-auto-mem-save') || 
-                    html.includes('role-auto-msg-interval') || html.includes('role-opening')) {
-                    tabAdv.appendChild(child);
-                    return;
-                }
-
-                tabBasic.appendChild(child);
-            });
-
-            tabAdv.appendChild(btnContainer);
-
-            container.appendChild(tabsHeader);
-            container.appendChild(tabBasic);
-            container.appendChild(tabApp);
-            container.appendChild(tabAdv);
-        }
-
-        window.switchRoleTab = function(tabId) {
-            document.querySelectorAll('.role-tab-btn').forEach(b => b.classList.remove('active'));
-            document.querySelectorAll('.role-tab-content').forEach(c => c.classList.remove('active'));
-            event.target.classList.add('active');
-            document.getElementById('role-tab-' + tabId).classList.add('active');
-        };
-
         function openRoleModal(id = null) { 
-        initRoleEditTabs();
         updateRoleWbPreview();
         const isEditing = id !== null; 
         const role = isEditing ? roles.find(r => r.id === id) : {}; 
@@ -6631,6 +6553,7 @@ function updateRoleWbPreview() {
         $('#role-edit-role-avatar').style.backgroundImage = `url('${roleAvatarUrl}')`;
         $('#role-edit-user-avatar').style.backgroundImage = `url('${userAvatarUrl}')`;
 
+        /* 读取并显示保存的颜文字，如果没有则显示默认值 */
         const userBubbleEl = $('#role-edit-user-bubble');
         if (userBubbleEl) userBubbleEl.innerText = isEditing && role.userBubble ? role.userBubble : '˃ 𖥦 ˂';
         const aiBubbleEl = $('#role-edit-ai-bubble');
@@ -6646,6 +6569,7 @@ function updateRoleWbPreview() {
         $('#role-call-bg').dataset.realValue = callBg;
         $('#role-call-bg').value = callBg.length > 200 ? '已上传本地图片 (重新上传覆盖)' : callBg;
         
+        /* 读取并显示语音通话背景模糊度 */
         const callBlur = isEditing && role.callBlur !== undefined ? role.callBlur : 10;
         if ($('#role-call-blur')) $('#role-call-blur').value = callBlur;
         if ($('#val-call-blur')) $('#val-call-blur').innerText = callBlur;
@@ -6660,13 +6584,11 @@ function updateRoleWbPreview() {
         $('#role-input-text-color').value = isEditing && role.inputTextColor ? role.inputTextColor : (settings.theme === 'dark' ? '#ffffff' : '#000000');
         $('#role-system-text-color').value = isEditing && role.systemTextColor ? role.systemTextColor : '#888888';
         $('#role-bubble-style').value = isEditing && role.bubbleStyle ? role.bubbleStyle : 'flat';
-        
         if (!document.getElementById('role-quote-style')) {
             const quoteHtml = '<div class="setting-group"><label>QUOTE STYLE / 引用样式</label><select id="role-quote-style"><option value="default">默认样式</option><option value="sms">短信样式</option></select></div>';
             $('#role-bubble-style').parentNode.insertAdjacentHTML('afterend', quoteHtml);
         }
         $('#role-quote-style').value = isEditing && role.quoteStyle ? role.quoteStyle : 'default';
-        
         $('#role-magazine-theme').checked = isEditing ? !!role.magazineTheme : false;
         $('#role-accent-color').value = isEditing && role.accentColor ? role.accentColor : (settings.theme === 'dark' ? '#ffffff' : '#000000');
         $('#role-attachment-color').value = isEditing && role.attachmentColor ? role.attachmentColor : (settings.theme === 'dark' ? '#ffffff' : '#000000');
@@ -6709,6 +6631,7 @@ function updateRoleWbPreview() {
 
         $('#role-show-header-avatar').checked = isEditing ? !!role.showHeaderAvatar : false;
         
+        /* 读取角色专属翻译设置到界面，如果选项不存在则动态添加 */
         if ($('#role-translation-enable')) $('#role-translation-enable').checked = isEditing ? !!role.translationMode : false;
         if ($('#role-translation-source')) {
             const srcVal = isEditing && role.translationSourceLang ? role.translationSourceLang : '';
@@ -6743,6 +6666,7 @@ function updateRoleWbPreview() {
         const streakEl = document.getElementById('role-streak-display');
         if (streakEl) streakEl.innerText = streakDays > 0 ? `🔥 已连续对话 ${streakDays} 天` : '尚未开始连续对话';
         
+        /* 调用专门的 Token 统计函数，显示人设、世界书、聊天等详细 Token */
         if (isEditing) {
             window.updateRoleTokenCountUI(id);
         } else {
@@ -6759,6 +6683,7 @@ function updateRoleWbPreview() {
         
         $('#view-role-edit').classList.add('active'); 
 
+        /* 自动保存逻辑：为所有输入框绑定 input 和 change 事件 */
         const roleView = document.getElementById('view-role-edit');
         const inputs = roleView.querySelectorAll('input, textarea, select');
         inputs.forEach(inp => {
@@ -6775,7 +6700,7 @@ function updateRoleWbPreview() {
             b.addEventListener('input', window.silentSaveRole);
         });
     }
-    
+
     /* 静默保存函数：不关闭界面，实时保存数据 */
     window.silentSaveRole = function() {
         const id = $('#role-realname').dataset.id;
