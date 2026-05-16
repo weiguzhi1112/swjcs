@@ -356,9 +356,9 @@ cipherState = DB.get('cipherState', {score:0,created:0,solved:0,collection:[], h
         isForumSelectionMode = false;
         selectedForumPosts = new Set();
         settings = DB.get('settings', { theme: 'light', bgImage: '', fontSize: 13, bubblePadding: 10, showStatusBar: true, userAvatar: '', timeAware: true, memoirStyleId: 'default', memoirMaxLength: 400, avatarDisplay: 'all', activeFontId: null, showHeart: true, userName: 'ME', feedBg: '', notificationSound: '', translationMode: false, translationSourceLang: '日语', translationTargetLang: '中文', imageQuality: 0.8, chatHeaderOpaque: false });
-        advancedMemories = DB.get('advancedMemories', {}); 
+        advancedMemories = DB.get('advancedMemories', {}) || {}; 
         migrateMemoriesToAdvanced();
-        chatStreaks = DB.get('chatStreaks', {}); 
+        chatStreaks = DB.get('chatStreaks', {}) || {}; 
         memorySettings = DB.get('memorySettings', { autoSummarizeCount: 150, autoSummarizeEnabled: false });
         blockList = DB.get('blockList', { blockedByUser: [], blockedByRole: [] });
         walletData = DB.get('walletData', { 'ME': { balance: 0, huabei: 0, funds: 0, stocks: 0, mainBg: '', bankCards: [], familyCards: [], bills: [] } });
@@ -10616,6 +10616,7 @@ function getChatStreak(roleId) {
 }
 
 function initRoleMemory(roleId) {
+    if (!advancedMemories) advancedMemories = {}; // 新增这一行防止 undefined
     if (!advancedMemories[roleId]) {
         advancedMemories[roleId] = {
             coreMemories: [],
