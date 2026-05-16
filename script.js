@@ -6546,23 +6546,57 @@ function updateRoleWbPreview() {
             const tabApp = document.createElement('div'); tabApp.id = 'role-tab-appearance'; tabApp.className = 'role-tab-content';
             const tabAdv = document.createElement('div'); tabAdv.id = 'role-tab-advanced'; tabAdv.className = 'role-tab-content';
 
+            const btnContainer = document.createElement('div');
+            btnContainer.className = 'role-action-buttons';
+            btnContainer.style.cssText = 'display: flex; flex-direction: column; align-items: center; gap: 10px; margin-top: 20px; width: 100%;';
+
             const children = Array.from(container.children);
             children.forEach(child => {
-                if (child.tagName === 'BUTTON' || child.id === 'role-chat-actions') return;
-                const html = child.innerHTML.toLowerCase();
-                if (html.includes('color') || html.includes('bg') || html.includes('css') || html.includes('style') || html.includes('外观') || html.includes('颜色') || html.includes('气泡') || html.includes('背景')) {
-                    tabApp.appendChild(child);
-                } else if (html.includes('limit') || html.includes('auto') || html.includes('tts') || html.includes('translation') || html.includes('高级') || html.includes('自动') || html.includes('限制') || html.includes('拉黑')) {
-                    tabAdv.appendChild(child);
-                } else {
-                    tabBasic.appendChild(child);
+                const html = child.innerHTML;
+                const id = child.id || '';
+                
+                if (child.tagName === 'BUTTON' || id === 'role-chat-actions' || id === 'btn-del-role' || html.includes('saveRole()') || html.includes('exportCurrentChat()') || html.includes('importCurrentChat') || html.includes('clearCurrentChat()')) {
+                    if (child.tagName === 'BUTTON') {
+                        child.style.width = '80%';
+                        child.style.margin = '0 auto';
+                    }
+                    if (id === 'role-chat-actions') {
+                        child.style.width = '80%';
+                        child.style.justifyContent = 'center';
+                    }
+                    btnContainer.appendChild(child);
+                    return;
                 }
+
+                if (html.includes('role-show-header-avatar') || html.includes('role-title-color') || html.includes('role-avatar') || 
+                    html.includes('role-edit-user-bubble') || html.includes('role-chat-bg') || html.includes('role-call-bg') || 
+                    html.includes('role-call-blur') || html.includes('role-enable-bubble-css') || html.includes('role-bubble-css') || 
+                    html.includes('role-ai-bubble-color') || html.includes('role-user-bubble-color') || html.includes('role-ai-text-color') || 
+                    html.includes('role-user-text-color') || html.includes('role-input-text-color') || html.includes('role-system-text-color') || 
+                    html.includes('role-bubble-style') || html.includes('role-quote-style') || html.includes('role-magazine-theme') || 
+                    html.includes('role-accent-color') || html.includes('role-attachment-color') || html.includes('role-send-btn-color') || 
+                    html.includes('role-placeholder-text') || html.includes('role-placeholder-color') || html.includes('role-timestamp-color') || 
+                    html.includes('role-ecg-color')) {
+                    tabApp.appendChild(child);
+                    return;
+                }
+
+                if (html.includes('role-auto-feed') || html.includes('role-auto-feed-interval') || html.includes('role-can-block') || 
+                    html.includes('role-unblock-delay') || html.includes('role-auto-msg') || html.includes('role-auto-mem-save') || 
+                    html.includes('role-auto-msg-interval') || html.includes('role-opening')) {
+                    tabAdv.appendChild(child);
+                    return;
+                }
+
+                tabBasic.appendChild(child);
             });
 
-            container.insertBefore(tabAdv, container.firstChild);
-            container.insertBefore(tabApp, container.firstChild);
-            container.insertBefore(tabBasic, container.firstChild);
-            container.insertBefore(tabsHeader, container.firstChild);
+            tabAdv.appendChild(btnContainer);
+
+            container.appendChild(tabsHeader);
+            container.appendChild(tabBasic);
+            container.appendChild(tabApp);
+            container.appendChild(tabAdv);
         }
 
         window.switchRoleTab = function(tabId) {
@@ -6578,6 +6612,169 @@ function updateRoleWbPreview() {
         const isEditing = id !== null; 
         const role = isEditing ? roles.find(r => r.id === id) : {}; 
         if (isEditing && !role) return; 
+        
+        $('#role-view-title').innerHTML = isEditing ? 'Entity.<span class="title-sub">角色详情</span>' : 'New Entity.<span class="title-sub">新建角色</span>'; 
+        $('#role-realname').dataset.id = isEditing ? id : ''; 
+        $('#role-realname').value = isEditing ? role.realName : ''; 
+        $('#role-remark').value = isEditing ? role.remark : ''; 
+        $('#role-relationship-date').value = isEditing && role.relationshipDate ? role.relationshipDate : '';
+        if ($('#role-timezone')) $('#role-timezone').value = isEditing && role.timezone ? role.timezone : '';
+        if ($('#role-currency')) $('#role-currency').value = isEditing && role.currency ? role.currency : '';
+        const titleColorEl = $('#role-title-color');
+        if (titleColorEl) {
+            titleColorEl.value = isEditing && role.titleColor ? role.titleColor : (settings.theme === 'dark' ? '#ffffff' : '#000000');
+        }
+        
+        const roleAvatarUrl = isEditing && role.avatar ? role.avatar : DEFAULT_AVATAR;
+        const userAvatarUrl = settings.userAvatar || DEFAULT_AVATAR;
+        $('#role-avatar').value = isEditing && role.avatar ? role.avatar : ''; 
+        $('#role-edit-role-avatar').style.backgroundImage = `url('${roleAvatarUrl}')`;
+        $('#role-edit-user-avatar').style.backgroundImage = `url('${userAvatarUrl}')`;
+
+        const userBubbleEl = $('#role-edit-user-bubble');
+        if (userBubbleEl) userBubbleEl.innerText = isEditing && role.userBubble ? role.userBubble : '˃ 𖥦 ˂';
+        const aiBubbleEl = $('#role-edit-ai-bubble');
+        if (aiBubbleEl) aiBubbleEl.innerText = isEditing && role.aiBubble ? role.aiBubble : '⩌⩊⩌';
+
+        $('#role-persona').value = isEditing ? role.persona : ''; 
+        
+        const chatBg = isEditing ? (role.chatBg || '') : '';
+        $('#role-chat-bg').dataset.realValue = chatBg;
+        $('#role-chat-bg').value = chatBg.length > 200 ? '已上传本地图片 (重新上传覆盖)' : chatBg;
+        
+        const callBg = isEditing ? (role.callBg || '') : '';
+        $('#role-call-bg').dataset.realValue = callBg;
+        $('#role-call-bg').value = callBg.length > 200 ? '已上传本地图片 (重新上传覆盖)' : callBg;
+        
+        const callBlur = isEditing && role.callBlur !== undefined ? role.callBlur : 10;
+        if ($('#role-call-blur')) $('#role-call-blur').value = callBlur;
+        if ($('#val-call-blur')) $('#val-call-blur').innerText = callBlur;
+        
+        $('#role-enable-bubble-css').checked = isEditing ? !!role.enableBubbleCss : false;
+        $('#role-bubble-css-container').style.display = $('#role-enable-bubble-css').checked ? 'block' : 'none';
+        $('#role-bubble-css').value = isEditing ? (role.bubbleCss || '') : ''; 
+        $('#role-ai-bubble-color').value = isEditing && role.aiBubbleColor ? role.aiBubbleColor : '#333333';
+        $('#role-user-bubble-color').value = isEditing && role.userBubbleColor ? role.userBubbleColor : '#000000';
+        $('#role-ai-text-color').value = isEditing && role.aiTextColor ? role.aiTextColor : '#ffffff';
+        $('#role-user-text-color').value = isEditing && role.userTextColor ? role.userTextColor : '#ffffff';
+        $('#role-input-text-color').value = isEditing && role.inputTextColor ? role.inputTextColor : (settings.theme === 'dark' ? '#ffffff' : '#000000');
+        $('#role-system-text-color').value = isEditing && role.systemTextColor ? role.systemTextColor : '#888888';
+        $('#role-bubble-style').value = isEditing && role.bubbleStyle ? role.bubbleStyle : 'flat';
+        
+        if (!document.getElementById('role-quote-style')) {
+            const quoteHtml = '<div class="setting-group"><label>QUOTE STYLE / 引用样式</label><select id="role-quote-style"><option value="default">默认样式</option><option value="sms">短信样式</option></select></div>';
+            $('#role-bubble-style').parentNode.insertAdjacentHTML('afterend', quoteHtml);
+        }
+        $('#role-quote-style').value = isEditing && role.quoteStyle ? role.quoteStyle : 'default';
+        
+        $('#role-magazine-theme').checked = isEditing ? !!role.magazineTheme : false;
+        $('#role-accent-color').value = isEditing && role.accentColor ? role.accentColor : (settings.theme === 'dark' ? '#ffffff' : '#000000');
+        $('#role-attachment-color').value = isEditing && role.attachmentColor ? role.attachmentColor : (settings.theme === 'dark' ? '#ffffff' : '#000000');
+        $('#role-send-btn-color').value = isEditing && role.sendBtnColor ? role.sendBtnColor : (settings.theme === 'dark' ? '#ffffff' : '#000000');
+        $('#role-tts-voice-id').value = isEditing && role.ttsVoiceId ? role.ttsVoiceId : '';
+        $('#role-placeholder-text').value = isEditing && role.placeholderText ? role.placeholderText : 'iMessage信息';
+        $('#role-placeholder-color').value = isEditing && role.placeholderColor ? role.placeholderColor : '#bbbbbb';
+        $('#role-timestamp-color').value = isEditing && role.timestampColor ? role.timestampColor : '#888888';
+        $('#role-location-city').value = isEditing && role.locationCity ? role.locationCity : '';
+        $('#role-location-real').value = isEditing && role.locationReal ? role.locationReal : '';
+        
+        const previewEl = document.getElementById('role-weather-preview');
+        if (isEditing && role.weatherInfo) {
+            previewEl.dataset.rawInfo = role.weatherInfo;
+            previewEl.innerHTML = `
+                <div style="white-space:pre-wrap; text-align:left; background:var(--bg-color); padding:10px; border-radius:8px; border:1px solid var(--border-color); cursor:pointer; max-height:38px; overflow:hidden; transition:max-height 0.3s ease;" onclick="this.style.maxHeight = this.style.maxHeight === '38px' ? '200px' : '38px'">
+                    ${role.weatherInfo}
+                </div>
+                <div style="font-size:8px; margin-top:6px; color:var(--text-secondary);">👆 点击卡片展开/折叠详细数据</div>
+            `;
+        } else {
+            previewEl.dataset.rawInfo = '';
+            previewEl.innerText = '未同步实时数据';
+        }
+
+        const ecgColor = isEditing && role.ecgColor ? role.ecgColor : '#ff4d4d';
+        $('#role-ecg-color').value = ecgColor;
+        previewEcgColor(ecgColor);
+        $('#role-context-limit').value = isEditing && role.contextLimit ? role.contextLimit : 30;
+        $('#role-summary-threshold').value = isEditing && role.summaryThreshold ? role.summaryThreshold : 100;
+        $('#role-ei-context-limit').value = isEditing && role.eiContextLimit ? role.eiContextLimit : 20;
+        $('#role-auto-feed').checked = isEditing ? !!role.autoFeed : false;
+        $('#role-auto-feed-interval').value = isEditing && role.autoFeedInterval ? role.autoFeedInterval : 60;
+        $('#role-can-block').checked = isEditing ? !!role.canBlock : false;
+        $('#role-unblock-delay').value = isEditing && role.unblockDelay ? role.unblockDelay : '';
+        $('#role-auto-msg').checked = isEditing ? !!role.autoMsg : false; 
+        $('#role-auto-mem-save').checked = isEditing ? !!role.autoMemSave : false;
+        $('#role-auto-msg-interval').value = isEditing && role.autoMsgInterval ? role.autoMsgInterval : 30;
+        $('#role-opening').value = isEditing ? (role.opening || '') : '';
+
+        $('#role-show-header-avatar').checked = isEditing ? !!role.showHeaderAvatar : false;
+        
+        if ($('#role-translation-enable')) $('#role-translation-enable').checked = isEditing ? !!role.translationMode : false;
+        if ($('#role-translation-source')) {
+            const srcVal = isEditing && role.translationSourceLang ? role.translationSourceLang : '';
+            const srcSel = $('#role-translation-source');
+            if (srcVal && !Array.from(srcSel.options).some(opt => opt.value === srcVal)) {
+                srcSel.add(new Option(srcVal, srcVal), srcSel.options[1]);
+            }
+            srcSel.value = srcVal;
+        }
+        if ($('#role-translation-target')) {
+            const tgtVal = isEditing && role.translationTargetLang ? role.translationTargetLang : '';
+            const tgtSel = $('#role-translation-target');
+            if (tgtVal && !Array.from(tgtSel.options).some(opt => opt.value === tgtVal)) {
+                tgtSel.add(new Option(tgtVal, tgtVal), tgtSel.options[1]);
+            }
+            tgtSel.value = tgtVal;
+        }
+
+        if ($('#role-default-chat-mode')) $('#role-default-chat-mode').value = isEditing ? (role.defaultChatMode || 'online') : 'online';
+        if ($('#role-auto-switch-mode')) $('#role-auto-switch-mode').checked = isEditing ? !!role.autoSwitchMode : false;
+        if ($('#role-hide-mode-switcher')) $('#role-hide-mode-switcher').checked = isEditing ? !!role.hideModeSwitcher : false;  
+        
+        const totalMsgs = isEditing ? (chats[id] || []).length : 0;
+        const advMem = isEditing ? (advancedMemories[id] || {}) : {};
+        const summarizedCount = advMem.lastSummarizedIndex || 0;
+        const progressEl = document.getElementById('role-summary-progress');
+        if (progressEl) progressEl.innerText = `已总结: ${summarizedCount} 条 / 总记录: ${totalMsgs} 条`;
+
+        $('#role-opening-group').style.display = isEditing ? 'none' : 'block';
+
+        const streakDays = isEditing ? getChatStreak(id) : 0;
+        const streakEl = document.getElementById('role-streak-display');
+        if (streakEl) streakEl.innerText = streakDays > 0 ? `🔥 已连续对话 ${streakDays} 天` : '尚未开始连续对话';
+        
+        if (isEditing) {
+            window.updateRoleTokenCountUI(id);
+        } else {
+            const tokenCountEl = document.getElementById('role-token-count');
+            if (tokenCountEl) tokenCountEl.innerHTML = `Token 消耗预估: 暂无数据`;
+        }
+
+        $('#btn-del-role').style.display = isEditing ? 'block' : 'none'; 
+        const chatActions = $('#role-chat-actions');
+        if (chatActions) chatActions.style.display = isEditing ? 'flex' : 'none';
+        $('#role-mask-select').innerHTML = masks.map(m => `<option value="${m.id}" ${isEditing && role.activeMaskId === m.id ? 'selected' : ''}>${m.name}</option>`).join(''); 
+        $('#role-map-preset-select').innerHTML = '<option value="">-- 全局默认地图 --</option>' + vmapPresets.map(p => `<option value="${p.id}" ${isEditing && role.boundMapId === p.id ? 'selected' : ''}>${p.name}</option>`).join('');
+        const localWbIds = isEditing ? (role.localWbs || []) : []; 
+        
+        $('#view-role-edit').classList.add('active'); 
+
+        const roleView = document.getElementById('view-role-edit');
+        const inputs = roleView.querySelectorAll('input, textarea, select');
+        inputs.forEach(inp => {
+            inp.removeEventListener('change', window.silentSaveRole);
+            inp.addEventListener('change', window.silentSaveRole);
+            if(inp.tagName === 'TEXTAREA' || inp.type === 'text' || inp.type === 'number') {
+                inp.removeEventListener('input', window.silentSaveRole);
+                inp.addEventListener('input', window.silentSaveRole);
+            }
+        });
+        const bubbles = roleView.querySelectorAll('.widget-bubble');
+        bubbles.forEach(b => {
+            b.removeEventListener('input', window.silentSaveRole);
+            b.addEventListener('input', window.silentSaveRole);
+        });
+    }
         
         $('#role-view-title').innerHTML = isEditing ? 'Entity.<span class="title-sub">角色详情</span>' : 'New Entity.<span class="title-sub">新建角色</span>'; 
         $('#role-realname').dataset.id = isEditing ? id : ''; 
