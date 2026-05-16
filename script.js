@@ -326,7 +326,6 @@ document.addEventListener('touchmove', function(e) {
         masks = DB.get('masks', [{id: 'default', name: 'Default', content: 'I am an observer.'}]);
         memories = DB.get('memories', {});
         memoirStyles = DB.get('memoirStyles', []);
-        migrateMemoriesToAdvanced();
         weatherData = DB.get('weather', { city: 'VOID', temp: '20', condition: 'CLEAR', quality: 'OPTIMAL', humidity: '50', clothing: 'MINIMAL' });
         albums = DB.get('albums', []);
         stickers = DB.get('stickers', []);
@@ -358,6 +357,7 @@ cipherState = DB.get('cipherState', {score:0,created:0,solved:0,collection:[], h
         selectedForumPosts = new Set();
         settings = DB.get('settings', { theme: 'light', bgImage: '', fontSize: 13, bubblePadding: 10, showStatusBar: true, userAvatar: '', timeAware: true, memoirStyleId: 'default', memoirMaxLength: 400, avatarDisplay: 'all', activeFontId: null, showHeart: true, userName: 'ME', feedBg: '', notificationSound: '', translationMode: false, translationSourceLang: '日语', translationTargetLang: '中文', imageQuality: 0.8, chatHeaderOpaque: false });
         advancedMemories = DB.get('advancedMemories', {}); 
+        migrateMemoriesToAdvanced();
         chatStreaks = DB.get('chatStreaks', {}); 
         memorySettings = DB.get('memorySettings', { autoSummarizeCount: 150, autoSummarizeEnabled: false });
         blockList = DB.get('blockList', { blockedByUser: [], blockedByRole: [] });
