@@ -18269,3 +18269,18 @@ function exitEmotionIsland() {
     }
     closeApp('emotionisland');
 }
+// 修复外卖分类点击报错
+window.toGenerateCategory = function(category) {
+    const searchInput = document.getElementById('to-search-input');
+    if (searchInput) {
+        if (category === '全部') {
+            searchInput.value = '';
+            // 重新渲染默认列表
+            if (typeof toRenderShopList === 'function') toRenderShopList();
+        } else {
+            // 将分类名称填入搜索框并触发搜索
+            searchInput.value = category;
+            if (typeof toDoSearch === 'function') toDoSearch();
+        }
+    }
+};
