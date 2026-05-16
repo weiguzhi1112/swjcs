@@ -6991,7 +6991,7 @@ window.newRoleTempWbs = null;
 
     let currentSubApiAppId = null;
 
-    function openSubApiModal(appId) {
+    window.openSubApiModal = function(appId) {
         currentSubApiAppId = appId;
         const config = subApiConfigs[appId] || { url: '', key: '', model: '' };
         document.getElementById('sub-api-url').value = config.url || '';
@@ -7013,7 +7013,7 @@ window.newRoleTempWbs = null;
         }
         
         openModal('modal-sub-api');
-    }
+    };
 
     window.loadSubApiPreset = function(presetId) {
         const preset = apiPresets.find(p => p.id === presetId);

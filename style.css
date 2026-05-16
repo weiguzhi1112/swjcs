@@ -517,7 +517,7 @@ body {
             position: absolute; 
             bottom: 50px !important; 
             left: 0; 
-            background: rgba(255, 255, 255, 0.15) !important; 
+            background: transparent !important; 
             backdrop-filter: blur(35px) saturate(200%) !important;
             -webkit-backdrop-filter: blur(35px) saturate(200%) !important;
             border: 0.5px solid rgba(255, 255, 255, 0.3) !important;
@@ -532,7 +532,7 @@ body {
         }
         #attachment-popup::-webkit-scrollbar { display: none; }
         [data-theme="dark"] #attachment-popup {
-            background: rgba(0, 0, 0, 0.25) !important;
+            background: transparent !important;
             border: 0.5px solid rgba(255, 255, 255, 0.1) !important;
         }
         /* 附件按钮激活状态 */
@@ -894,7 +894,7 @@ html, body {
 }
 
 #chat-input {
-    background-color: rgba(255, 255, 255, 0.02) !important;
+    background-color: transparent !important;
     backdrop-filter: blur(10px) saturate(180%) !important;
     -webkit-backdrop-filter: blur(10px) saturate(180%) !important;
     border: 0.5px solid rgba(255, 255, 255, 0.2) !important;
@@ -919,7 +919,7 @@ html, body {
 }
 
 [data-theme="dark"] #chat-input {
-    background-color: rgba(50, 50, 50, 0.3) !important;
+    background-color: transparent !important;
     border: 0.5px solid rgba(255, 255, 255, 0.1) !important;
     color: var(--text-color) !important;
 }
@@ -2398,12 +2398,13 @@ body.is-app .to-page { padding-bottom: calc(70px + env(safe-area-inset-bottom)) 
 #chat-view.theme-quote-sms .msg-row:has(.quote-block) .msg-bubble::before {
     content: '' !important;
     position: absolute !important;
-    width: 28px !important;
+    width: 16px !important;
     height: 28px !important;
-    top: -8px !important;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1024 1024' width='128' height='128'%3E%3Cpath d='M896 208a48 48 0 0 1 48 48v448A240 240 0 0 1 704 944H256a48 48 0 0 1 0-96h448A144 144 0 0 0 848 704V256a48 48 0 0 1 48-48z' fill='%23d9d9d9'%3E%3C/path%3E%3C/svg%3E") !important;
-    background-repeat: no-repeat !important;
-    background-size: contain !important;
+    top: -12px !important;
+    border-left: 2px solid #d9d9d9 !important;
+    border-bottom: 2px solid #d9d9d9 !important;
+    border-bottom-left-radius: 8px !important;
+    background: transparent !important;
     pointer-events: none !important;
     z-index: 10 !important;
     display: block !important;
