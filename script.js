@@ -17471,7 +17471,20 @@ async function confirmGenerateAiWallPosts() {
     let successCount = 0;
     for (let i = 0; i < count; i++) {
         const role = roles[Math.floor(Math.random() * roles.length)];
-        const promptText = `你是${role.realName}。${role.persona}\n你现在在一个匿名的“漂流墙”上留言。请写下一段符合你当前心境的留言（吐槽、思念、或者隐晦地提到用户）。\n要求：\n1. 极度口语化，像随手写的便签。\n2. 字数在 50-150 字之间，内容丰富一些，多一些细节和情感表达。\n3. 不要加引号，直接输出内容。`;
+        
+        /* 读取世界观、记忆和上下文 */
+        const globalWbs = worldbooks.filter(w => w.isGlobal).map(w => w.content).join('\n');
+        const localWbs = worldbooks.filter(w => role.localWbs?.includes(w.id)).map(w => w.content).join('\n');
+        let fullMemory = memories[role.id] || '';
+        if (advancedMemories[role.id]) {
+            if (advancedMemories[role.id].coreMemories) fullMemory += '\n' + advancedMemories[role.id].coreMemories.map(m => m.content).join('\n');
+            if (advancedMemories[role.id].episodicMemories) fullMemory += '\n' + advancedMemories[role.id].episodicMemories.slice(-5).map(m => m.content).join('\n');
+        }
+        const memorySummary = fullMemory ? `\n[全部记忆]\n${fullMemory}` : '';
+        const recentChats = (chats[role.id] || []).slice(-30).map(m => `${m.role === 'user' ? 'ME' : role.realName}: ${m.content.replace(/<[^>]*>/g, '')}`).join('\n');
+        const chatContext = recentChats ? `\n[最近的聊天记录]\n${recentChats}` : '';
+
+        const promptText = `你是${role.realName}。${role.persona}\n[世界观设定]\n${globalWbs}\n${localWbs}${memorySummary}${chatContext}\n你现在在一个匿名的“情绪岛漂流墙”上留言。请结合你们的记忆和最近的聊天，写下一段符合你当前心境的留言（吐槽、思念、或者隐晦地提到用户）。\n要求：\n1. 极度口语化，像随手写的便签。\n2. 字数在 50-150 字之间，内容丰富一些，多一些细节和情感表达。\n3. 不要加引号，直接输出内容。`;
         
         try {
             const endpoint = getChatEndpoint(apiConfig.url);
@@ -17490,6 +17503,12 @@ async function confirmGenerateAiWallPosts() {
                 authorName: role.realName,
                 time: new Date().toLocaleDateString()
             });
+            
+            /* 将写下的留言保存到角色的记忆中 */
+            initRoleMemory(role.id);
+            advancedMemories[role.id].episodicMemories.push({ content: `[情绪岛漂流墙留言] 我在漂流墙上写下了一段话："${text}"`, time: new Date().toLocaleString(), auto: true });
+            DB.set('advancedMemories', advancedMemories);
+            
             successCount++;
         } catch (e) {
             console.error("生成漂流墙留言失败", e);
@@ -18044,7 +18063,20 @@ async function generateAiWallPost() {
     if (Math.random() > 0.3) return;
     
     const role = roles[Math.floor(Math.random() * roles.length)];
-    const prompt = `你是${role.realName}。${role.persona}\n你现在在一个匿名的“漂流墙”上留言。请写下一段符合你当前心境的留言（吐槽、思念、或者隐晦地提到用户）。\n要求：\n1. 极度口语化，像随手写的便签。\n2. 字数在 50-150 字之间，内容丰富一些，多一些细节和情感表达。\n3. 不要加引号，直接输出内容。`;
+    
+    /* 读取世界观、记忆和上下文 */
+    const globalWbs = worldbooks.filter(w => w.isGlobal).map(w => w.content).join('\n');
+    const localWbs = worldbooks.filter(w => role.localWbs?.includes(w.id)).map(w => w.content).join('\n');
+    let fullMemory = memories[role.id] || '';
+    if (advancedMemories[role.id]) {
+        if (advancedMemories[role.id].coreMemories) fullMemory += '\n' + advancedMemories[role.id].coreMemories.map(m => m.content).join('\n');
+        if (advancedMemories[role.id].episodicMemories) fullMemory += '\n' + advancedMemories[role.id].episodicMemories.slice(-5).map(m => m.content).join('\n');
+    }
+    const memorySummary = fullMemory ? `\n[全部记忆]\n${fullMemory}` : '';
+    const recentChats = (chats[role.id] || []).slice(-30).map(m => `${m.role === 'user' ? 'ME' : role.realName}: ${m.content.replace(/<[^>]*>/g, '')}`).join('\n');
+    const chatContext = recentChats ? `\n[最近的聊天记录]\n${recentChats}` : '';
+
+    const prompt = `你是${role.realName}。${role.persona}\n[世界观设定]\n${globalWbs}\n${localWbs}${memorySummary}${chatContext}\n你现在在一个匿名的“情绪岛漂流墙”上留言。请结合你们的记忆和最近的聊天，写下一段符合你当前心境的留言（吐槽、思念、或者隐晦地提到用户）。\n要求：\n1. 极度口语化，像随手写的便签。\n2. 字数在 50-150 字之间，内容丰富一些，多一些细节和情感表达。\n3. 不要加引号，直接输出内容。`;
     
     try {
         const endpoint = getChatEndpoint(apiConfig.url);
@@ -18064,6 +18096,12 @@ async function generateAiWallPost() {
             time: new Date().toLocaleDateString()
         });
         DB.set('eiWallData', eiWallData);
+        
+        /* 将写下的留言保存到角色的记忆中 */
+        initRoleMemory(role.id);
+        advancedMemories[role.id].episodicMemories.push({ content: `[情绪岛漂流墙留言] 我在漂流墙上写下了一段话："${text}"`, time: new Date().toLocaleString(), auto: true });
+        DB.set('advancedMemories', advancedMemories);
+        
         if (document.getElementById('ei-page-wall').classList.contains('active')) {
             renderEiWall();
         }
