@@ -2295,18 +2295,17 @@ body.is-app .to-page { padding-bottom: calc(70px + env(safe-area-inset-bottom)) 
 [data-theme="dark"] .ei-drawer-gift { background: #2A2D32; color: var(--accent); border-color: var(--accent); }
 
 /* 极简杂志风主题样式 */
-/* 顶栏黑白极简风格，去除玻璃拟态 */
+/* 顶栏高透高斯模糊，去除黑线 */
 #chat-view.theme-magazine #chat-header {
-    background: var(--bg-color) !important;
-    backdrop-filter: none !important;
-    -webkit-backdrop-filter: none !important;
-    border-bottom: 2px solid var(--text-color) !important; /* 整个顶栏下方的粗黑线 */
+    background: var(--glass-bg) !important;
+    backdrop-filter: blur(25px) saturate(180%) !important;
+    -webkit-backdrop-filter: blur(25px) saturate(180%) !important;
+    border-bottom: none !important; 
 }
 
 #chat-view.theme-magazine .chat-title-glass {
     background: transparent !important;
     border: none !important;
-    border-bottom: 1px solid var(--text-color) !important; /* 备注文字下方的细黑线 */
     border-radius: 0 !important;
     box-shadow: none !important;
     backdrop-filter: none !important;
@@ -2324,22 +2323,22 @@ body.is-app .to-page { padding-bottom: calc(70px + env(safe-area-inset-bottom)) 
     color: var(--text-color) !important;
 }
 
+/* 底栏高透高斯模糊，去除黑线 */
 #chat-view.theme-magazine .input-area-floating {
-    background: var(--bg-color) !important;
-    border-top: 1px solid var(--border-color) !important;
+    background: var(--glass-bg) !important;
+    border-top: none !important;
     padding: 15px 20px 30px 20px !important;
     bottom: 0 !important;
     left: 0 !important;
     right: 0 !important;
     border-radius: 0 !important;
-    backdrop-filter: none !important;
-    -webkit-backdrop-filter: none !important;
+    backdrop-filter: blur(25px) saturate(180%) !important;
+    -webkit-backdrop-filter: blur(25px) saturate(180%) !important;
 }
 
 #chat-view.theme-magazine #chat-input {
     background: transparent !important;
     border: none !important;
-    border-bottom: 1px solid var(--text-color) !important;
     border-radius: 0 !important;
     box-shadow: none !important;
     font-family: var(--font-serif) !important;
@@ -2377,11 +2376,75 @@ body.is-app .to-page { padding-bottom: calc(70px + env(safe-area-inset-bottom)) 
     display: block !important;
 }
 
-/* 移除多余的侧边线，配合实色气泡 */
 #chat-view.theme-magazine .msg-row.ai .msg-wrapper {
     padding-left: 5px;
 }
 
 #chat-view.theme-magazine .msg-row.me .msg-wrapper {
     padding-right: 5px;
+}
+
+/* 短信引用样式 */
+#chat-view.theme-quote-sms .message-wrapper:has(.quoted-message) .msg-bubble,
+#chat-view.theme-quote-sms .msg-row:has(.quote-block) .msg-bubble {
+    position: relative !important;
+    margin-top: 30px !important;
+}
+
+#chat-view.theme-quote-sms .msg-row:has(.quote-block) .msg-bubble::before {
+    content: '' !important;
+    position: absolute !important;
+    width: 28px !important;
+    height: 28px !important;
+    top: -8px !important;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1024 1024' width='128' height='128'%3E%3Cpath d='M896 208a48 48 0 0 1 48 48v448A240 240 0 0 1 704 944H256a48 48 0 0 1 0-96h448A144 144 0 0 0 848 704V256a48 48 0 0 1 48-48z' fill='%23d9d9d9'%3E%3C/path%3E%3C/svg%3E") !important;
+    background-repeat: no-repeat !important;
+    background-size: contain !important;
+    pointer-events: none !important;
+    z-index: 10 !important;
+    display: block !important;
+}
+
+#chat-view.theme-quote-sms .msg-row.me:has(.quote-block) .msg-bubble::before {
+    left: -25px !important;
+    right: auto !important;
+    transform: scaleX(-1) !important;
+}
+
+#chat-view.theme-quote-sms .msg-row.ai:has(.quote-block) .msg-bubble::before {
+    right: -25px !important;
+    left: auto !important;
+    transform: none !important;
+}
+
+#chat-view.theme-quote-sms .quote-block {
+    position: absolute;
+    top: -28px !important;
+    z-index: 0;
+    min-width: 100px;
+    max-width: 180px;
+    height: 24px;
+    background-color: transparent !important;
+    backdrop-filter: none !important;
+    border-radius: 20px;
+    border: 1px solid #e0e0e0 !important;
+    padding: 0 8px;
+    margin: 0;
+    font-size: 11px;
+    color: #555;
+    line-height: 24px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    border-left: 1px solid #e0e0e0 !important;
+}
+
+#chat-view.theme-quote-sms .msg-row.me .quote-block {
+    left: auto !important;
+    right: 0 !important;
+}
+
+#chat-view.theme-quote-sms .msg-row.ai .quote-block {
+    left: 0 !important;
+    right: auto !important;
 }

@@ -1924,6 +1924,12 @@ function updateKeepAliveUI(isOn) {
             if (sendBtn) sendBtn.innerHTML = '<span></span>';
         }
         
+        if (role.quoteStyle === 'sms') {
+            $('#chat-view').classList.add('theme-quote-sms');
+        } else {
+            $('#chat-view').classList.remove('theme-quote-sms');
+        }
+        
         chatInput.value = chatInput.value; 
 
         switchChatMode(role.lastChatMode || role.defaultChatMode || 'online'); 
@@ -6578,6 +6584,11 @@ function updateRoleWbPreview() {
         $('#role-input-text-color').value = isEditing && role.inputTextColor ? role.inputTextColor : (settings.theme === 'dark' ? '#ffffff' : '#000000');
         $('#role-system-text-color').value = isEditing && role.systemTextColor ? role.systemTextColor : '#888888';
         $('#role-bubble-style').value = isEditing && role.bubbleStyle ? role.bubbleStyle : 'flat';
+        if (!document.getElementById('role-quote-style')) {
+            const quoteHtml = '<div class="setting-group"><label>QUOTE STYLE / 引用样式</label><select id="role-quote-style"><option value="default">默认样式</option><option value="sms">短信样式</option></select></div>';
+            $('#role-bubble-style').parentNode.insertAdjacentHTML('afterend', quoteHtml);
+        }
+        $('#role-quote-style').value = isEditing && role.quoteStyle ? role.quoteStyle : 'default';
         $('#role-magazine-theme').checked = isEditing ? !!role.magazineTheme : false;
         $('#role-accent-color').value = isEditing && role.accentColor ? role.accentColor : (settings.theme === 'dark' ? '#ffffff' : '#000000');
         $('#role-attachment-color').value = isEditing && role.attachmentColor ? role.attachmentColor : (settings.theme === 'dark' ? '#ffffff' : '#000000');
@@ -6735,6 +6746,7 @@ function updateRoleWbPreview() {
             inputTextColor: $('#role-input-text-color').value,
             systemTextColor: $('#role-system-text-color').value,
             bubbleStyle: $('#role-bubble-style').value,
+            quoteStyle: $('#role-quote-style') ? $('#role-quote-style').value : 'default',
             magazineTheme: $('#role-magazine-theme').checked,
             accentColor: $('#role-accent-color').value,
             attachmentColor: $('#role-attachment-color').value,
@@ -6821,6 +6833,7 @@ window.newRoleTempWbs = null;
             inputTextColor: $('#role-input-text-color').value,
             systemTextColor: $('#role-system-text-color').value,
             bubbleStyle: $('#role-bubble-style').value,
+            quoteStyle: $('#role-quote-style') ? $('#role-quote-style').value : 'default',
             magazineTheme: $('#role-magazine-theme').checked,
             accentColor: $('#role-accent-color').value,
             attachmentColor: $('#role-attachment-color').value,
@@ -8215,6 +8228,20 @@ window.newRoleTempWbs = null;
         feed.comments = feed.comments || []; 
         feed.comments.push({ role: 'user', author: myName, replyTo: replyTo, content: text, time: new Date().getTime() }); 
         DB.set('feeds', feeds); 
+        
+        /* 将用户的评论同步到聊天记录中 */
+        if (feed.roleId !== 'user') {
+            if (!chats[feed.roleId]) chats[feed.roleId] = [];
+            chats[feed.roleId].push({
+                role: 'system',
+                content: `[动态互动] 用户在你的动态评论区对你说："${text}"`,
+                time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }),
+                rawTime: Date.now(),
+                mode: 'online'
+            });
+            DB.set('chats', chats);
+        }
+
         openCommentFeedId = null; 
         feed.isReplying = true; 
         renderFeeds(); 
@@ -8256,6 +8283,17 @@ window.newRoleTempWbs = null;
             
             feed.comments.push({ role: 'ai', author: getDisplayName(role), replyTo: userName, content: replyContent, time: new Date().getTime() }); 
             DB.set('feeds', feeds); 
+            
+            /* 将AI的回复也同步到聊天记录中 */
+            chats[role.id].push({
+                role: 'system',
+                content: `[动态互动] 你在动态评论区回复了用户："${replyContent}"`,
+                time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }),
+                rawTime: Date.now(),
+                mode: 'online'
+            });
+            DB.set('chats', chats);
+
         } catch (e) { 
             console.error("Feed reply error:", e); 
         } finally { 
