@@ -6529,7 +6529,51 @@ function updateRoleWbPreview() {
     const count = wbs.length;
     $('#role-local-wb-preview').innerText = count > 0 ? `已绑定 ${count} 个设定` : '未绑定任何设定';
 }
+        /* 初始化角色详情 Tab 布局逻辑 */
+        function initRoleEditTabs() {
+            const container = document.querySelector('#view-role-edit .view-content');
+            if (!container || container.querySelector('.role-edit-tabs')) return;
+
+            const tabsHeader = document.createElement('div');
+            tabsHeader.className = 'role-edit-tabs';
+            tabsHeader.innerHTML = `
+                <button class="role-tab-btn active" onclick="switchRoleTab('basic')">基础设定</button>
+                <button class="role-tab-btn" onclick="switchRoleTab('appearance')">外观样式</button>
+                <button class="role-tab-btn" onclick="switchRoleTab('advanced')">高级功能</button>
+            `;
+            
+            const tabBasic = document.createElement('div'); tabBasic.id = 'role-tab-basic'; tabBasic.className = 'role-tab-content active';
+            const tabApp = document.createElement('div'); tabApp.id = 'role-tab-appearance'; tabApp.className = 'role-tab-content';
+            const tabAdv = document.createElement('div'); tabAdv.id = 'role-tab-advanced'; tabAdv.className = 'role-tab-content';
+
+            const children = Array.from(container.children);
+            children.forEach(child => {
+                if (child.tagName === 'BUTTON' || child.id === 'role-chat-actions') return;
+                const html = child.innerHTML.toLowerCase();
+                if (html.includes('color') || html.includes('bg') || html.includes('css') || html.includes('style') || html.includes('外观') || html.includes('颜色') || html.includes('气泡') || html.includes('背景')) {
+                    tabApp.appendChild(child);
+                } else if (html.includes('limit') || html.includes('auto') || html.includes('tts') || html.includes('translation') || html.includes('高级') || html.includes('自动') || html.includes('限制') || html.includes('拉黑')) {
+                    tabAdv.appendChild(child);
+                } else {
+                    tabBasic.appendChild(child);
+                }
+            });
+
+            container.insertBefore(tabAdv, container.firstChild);
+            container.insertBefore(tabApp, container.firstChild);
+            container.insertBefore(tabBasic, container.firstChild);
+            container.insertBefore(tabsHeader, container.firstChild);
+        }
+
+        window.switchRoleTab = function(tabId) {
+            document.querySelectorAll('.role-tab-btn').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('.role-tab-content').forEach(c => c.classList.remove('active'));
+            event.target.classList.add('active');
+            document.getElementById('role-tab-' + tabId).classList.add('active');
+        };
+
         function openRoleModal(id = null) { 
+        initRoleEditTabs();
         updateRoleWbPreview();
         const isEditing = id !== null; 
         const role = isEditing ? roles.find(r => r.id === id) : {}; 
