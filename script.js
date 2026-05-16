@@ -2908,7 +2908,7 @@ ${promptText}
                 <div class="view-header">
                     <button class="glass-icon-btn" onclick="closeTheaterView()"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg></button>
                     <div class="chat-title-glass"><div id="chat-title" style="font-style:normal;">小剧场生成</div></div>
-                    <div style="width:34px;"></div>
+                    <button class="text-btn" onclick="openSubApiModal('theater')">ENGINE<span>引擎</span></button>
                 </div>
                 <div class="view-content" style="display: flex; flex-direction: column; gap: 15px;">
                     <div style="font-size: 12px; color: var(--text-secondary);">请输入小剧场指令 / 设定：</div>
