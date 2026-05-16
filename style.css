@@ -571,7 +571,7 @@ body {
         .app-bottom-nav .nav-item span { font-size: 9px; font-weight: 600; }
         .ctx-btn.danger { color: var(--bg-color); background: var(--text-color); }
         .ctx-btn.danger:active { opacity: 0.8; }
-        .modal-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 9998; display: none; justify-content: center; align-items: center; }
+        .modal-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 10005 !important; display: none; justify-content: center; align-items: center; }
         .modal { background: var(--bg-color); width: 90%; max-width: 350px; max-height: 85vh; border-radius: 0; border: 1px solid var(--border-color); padding: 25px 20px; display: flex; flex-direction: column; gap: 8px; overflow-y: auto; }
         .modal h3 { font-family: var(--font-serif); font-size: 22px; color: var(--text-color); text-align: center; font-weight: 600; margin-bottom: 5px; display: flex; flex-direction: column; }
         .modal h3 span { font-family: var(--font-sans); font-size: 9px; letter-spacing: 2px; color: var(--text-secondary); text-transform: uppercase; margin-top: 4px; }
@@ -1107,14 +1107,18 @@ html, body {
     padding: 6px 0 !important;
     display: none;
     flex-direction: column !important;
-    background: var(--glass-bg) !important;
-    backdrop-filter: blur(25px) saturate(180%) !important;
-    -webkit-backdrop-filter: blur(25px) saturate(180%) !important;
+    background: rgba(255, 255, 255, 0.2) !important;
+    backdrop-filter: blur(35px) saturate(200%) !important;
+    -webkit-backdrop-filter: blur(35px) saturate(200%) !important;
     border-radius: 14px !important;
     box-shadow: 0 10px 30px rgba(0,0,0,0.15) !important;
-    border: 0.5px solid rgba(255,255,255,0.2) !important;
+    border: 0.5px solid rgba(255, 255, 255, 0.3) !important;
     bottom: 50px !important;
     left: 0 !important;
+}
+[data-theme="dark"] #attachment-popup {
+    background: rgba(0, 0, 0, 0.3) !important;
+    border: 0.5px solid rgba(255, 255, 255, 0.1) !important;
 }
 .attach-btn {
     display: flex !important;
@@ -2427,7 +2431,7 @@ body.is-app .to-page { padding-bottom: calc(70px + env(safe-area-inset-bottom)) 
     background-color: transparent !important;
     backdrop-filter: none !important;
     border-radius: 20px;
-    border: 1px solid #e0e0e0 !important;
+    border: none !important;
     padding: 0 8px;
     margin: 0;
     font-size: 11px;
@@ -2436,7 +2440,6 @@ body.is-app .to-page { padding-bottom: calc(70px + env(safe-area-inset-bottom)) 
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    border-left: 1px solid #e0e0e0 !important;
 }
 
 #chat-view.theme-quote-sms .msg-row.me .quote-block {
