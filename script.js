@@ -326,6 +326,7 @@ document.addEventListener('touchmove', function(e) {
         masks = DB.get('masks', [{id: 'default', name: 'Default', content: 'I am an observer.'}]);
         memories = DB.get('memories', {});
         memoirStyles = DB.get('memoirStyles', []);
+        migrateMemoriesToAdvanced();
         weatherData = DB.get('weather', { city: 'VOID', temp: '20', condition: 'CLEAR', quality: 'OPTIMAL', humidity: '50', clothing: 'MINIMAL' });
         albums = DB.get('albums', []);
         stickers = DB.get('stickers', []);
@@ -4970,7 +4971,7 @@ ${activeMask.content}
 </user_persona>
 
 ${(globalWbs || localWbs) ? `<world_lore>\n【重要世界观与规则，必须严格遵守】\n${globalWbs}\n${localWbs}\n</world_lore>` : ''}
-${memories[role.id] ? `<shared_memory>\n${memories[role.id]}\n</shared_memory>` : ''}
+${(advancedMemories[role.id] && (advancedMemories[role.id].coreMemories.length > 0 || advancedMemories[role.id].episodicMemories.length > 0)) ? `<shared_memory>\n${[...advancedMemories[role.id].coreMemories, ...advancedMemories[role.id].episodicMemories.slice(-5)].map(m => m.content).join('\n')}\n</shared_memory>` : ''}
 ${wallContext}${eiLetterContext}
 
 <context>
@@ -6191,30 +6192,103 @@ function addStickerToGroup() { const url = $('#sticker-url').value.trim(); const
         document.getElementById('sticker-suggestions').style.display = 'none';
     }
     
-    function renderMemoryView() {
-    const list = $('#memory-character-list');
-    if (roles.length === 0) {
-        list.innerHTML = `<div style="text-align:center; color:var(--text-secondary); padding: 40px; font-size:10px; letter-spacing:2px;">VOID.</div>`;
+function migrateMemoriesToAdvanced() {
+    let migrated = false;
+    Object.keys(memories).forEach(roleId => {
+        initRoleMemory(roleId);
+        const legacyMem = memories[roleId];
+        if (legacyMem) {
+            let contentToMigrate = '';
+            if (typeof legacyMem === 'string') {
+                contentToMigrate = legacyMem;
+            } else if (Array.isArray(legacyMem)) {
+                contentToMigrate = legacyMem.map(m => m.content).join('\n\n');
+            }
+            if (contentToMigrate.trim() !== '') {
+                const exists = advancedMemories[roleId].coreMemories.some(m => m.content === contentToMigrate);
+                if (!exists) {
+                    advancedMemories[roleId].coreMemories.push({ content: contentToMigrate, time: new Date().toLocaleString('zh-CN'), auto: false, type: 'legacy' });
+                    migrated = true;
+                }
+            }
+            delete memories[roleId];
+        }
+    });
+    if (migrated) {
+        DB.set('advancedMemories', advancedMemories);
+        DB.set('memories', memories);
+    }
+}
+
+function renderMemoryView() {
+    const roleSelect = $('#memory-role-select');
+    if (roleSelect.options.length === 0) {
+        roleSelect.innerHTML = roles.map(r => `<option value="${r.id}">${getDisplayName(r)}</option>`).join('');
+        if (currentChatRoleId) roleSelect.value = currentChatRoleId;
+    }
+    
+    const roleId = roleSelect.value;
+    const filter = $('#memory-filter-select').value;
+    const query = $('#memory-search-input').value.trim().toLowerCase();
+    const list = $('#memory-timeline-list');
+    
+    if (!roleId) {
+        list.innerHTML = `<div style="text-align:center; color:var(--text-secondary); padding: 40px; font-size:10px; letter-spacing:2px;">请先创建角色</div>`;
         return;
     }
-    list.innerHTML = roles.map(r => {
-        const streak = getChatStreak(r.id);
-        const mem = advancedMemories[r.id];
-        const coreCount = mem ? mem.coreMemories.length : 0;
-        const episodicCount = mem ? mem.episodicMemories.length : 0;
-        const plotCount = mem ? mem.plotSummaries.length : 0;
-        return `
-        <div class="list-item" style="flex-direction:column; align-items:flex-start; gap:8px; padding:3px 0;">
-            <div style="display:flex; align-items:center; width:100%; gap:12px;">
-                <img class="avatar" src="${r.avatar || DEFAULT_AVATAR}">
-                <div style="flex:1;">
-                    <div class="item-name">${getDisplayName(r)}</div>
-                    <div class="item-desc">${streak > 0 ? '🔥 连续 '+streak+' 天' : '暂无连续记录'} · 核心${coreCount} 情景${episodicCount} 剧情${plotCount}</div>
+    
+    initRoleMemory(roleId);
+    const mem = advancedMemories[roleId];
+    let allMems = [];
+    
+    const addMems = (arr, type, label) => {
+        if (arr) arr.forEach((m, i) => allMems.push({ ...m, type, label, originalIndex: i }));
+    };
+    
+    if (filter === 'all' || filter === 'core') addMems(mem.coreMemories, 'core', '核心');
+    if (filter === 'all' || filter === 'episodic') addMems(mem.episodicMemories, 'episodic', '情景');
+    if (filter === 'all' || filter === 'plot') addMems(mem.plotSummaries, 'plot', '剧情');
+    
+    if (query) {
+        allMems = allMems.filter(m => m.content.toLowerCase().includes(query));
+    }
+    
+    allMems.sort((a, b) => new Date(b.time.replace(/\./g, '/')) - new Date(a.time.replace(/\./g, '/')));
+    
+    if (allMems.length === 0) {
+        list.innerHTML = `<div style="text-align:center; color:var(--text-secondary); padding: 40px; font-size:10px; letter-spacing:2px;">暂无记忆数据</div>`;
+        return;
+    }
+    
+    list.innerHTML = allMems.map(m => `
+        <div style="background: var(--gray-light); border: 1px solid var(--border-color); border-radius: 12px; padding: 12px; position: relative;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                <div style="display: flex; gap: 6px; align-items: center;">
+                    <span style="font-size: 9px; font-weight: 600; background: var(--text-color); color: var(--bg-color); padding: 2px 6px; border-radius: 4px;">${m.label}</span>
+                    <span style="font-size: 9px; color: var(--text-secondary);">${m.time} ${m.auto ? '[自动]' : '[手动]'}</span>
                 </div>
-                <button class="btn-edit" onclick="openAdvancedMemoryEditor('${r.id}')">VIEW</button>
+                <div style="display: flex; gap: 8px;">
+                    <button style="background: none; border: none; color: var(--text-color); font-size: 10px; cursor: pointer; font-weight: 600;" onclick="editMemoryItem('${roleId}', '${m.type}', ${m.originalIndex})">编辑</button>
+                    <button style="background: none; border: none; color: #ff4d4d; font-size: 10px; cursor: pointer; font-weight: 600;" onclick="deleteMemoryItem('${roleId}', '${m.type}', ${m.originalIndex})">删除</button>
+                </div>
             </div>
-        </div>`;
-    }).join('');
+            <div style="font-size: 11px; line-height: 1.6; color: var(--text-color); white-space: pre-wrap;">${escapeHTML(m.content)}</div>
+        </div>
+    `).join('');
+}
+
+function exportRoleMemories(roleId) {
+    if (!roleId) return;
+    const role = roles.find(r => r.id === roleId);
+    const mem = advancedMemories[roleId];
+    if (!mem) return alert("暂无记忆可导出");
+    const data = JSON.stringify(mem, null, 2);
+    const blob = new Blob([data], {type: 'application/json'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `memory_${role.realName}_${Date.now()}.json`;
+    a.click();
+    URL.revokeObjectURL(a.href);
 }
 function openAdvancedMemoryEditor(roleId) {
     currentMemoryRoleId = roleId;
@@ -10630,22 +10704,16 @@ async function autoGenerateSummary(roleId, type = 'episodic') {
         const determinedType = parsedResult.type;
         const now = new Date().toLocaleString('zh-CN');
         
-        if (determinedType === 'core') {
-            advancedMemories[roleId].coreMemories.push({ content: summary, time: now, auto: true });
-        } else if (determinedType === 'episodic') {
-            advancedMemories[roleId].episodicMemories.push({ content: summary, time: now, auto: true });
-        } else {
-            advancedMemories[roleId].plotSummaries.push({ content: summary, time: now, auto: true });
+        /* 智能去重逻辑：检查是否已存在高度相似的记忆 */
+        const targetArray = determinedType === 'core' ? advancedMemories[roleId].coreMemories : (determinedType === 'episodic' ? advancedMemories[roleId].episodicMemories : advancedMemories[roleId].plotSummaries);
+        const isDuplicate = targetArray.some(m => m.content === summary || m.content.includes(summary.substring(0, 20)));
+        
+        if (!isDuplicate) {
+            targetArray.push({ content: summary, time: now, auto: true });
         }
+        
         advancedMemories[roleId].lastSummarizedIndex = endIndex;
         DB.set('advancedMemories', advancedMemories);
-        
-        let currentLegacyMem = memories[roleId] || '';
-        if (Array.isArray(currentLegacyMem)) {
-            currentLegacyMem = currentLegacyMem.map(m => m.content).join('\n\n');
-        }
-        memories[roleId] = currentLegacyMem + (currentLegacyMem ? '\n\n' : '') + `[${now} 总结 (第${startIndex}-${endIndex}条)]\n${summary}`;
-        DB.set('memories', memories);
         
         if ($('#role-realname').dataset.id === roleId) {
             const progressEl = document.getElementById('role-summary-progress');
@@ -18180,9 +18248,12 @@ async function saveEiMemory() {
         
         initRoleMemory(role.id);
         
-        /* 优化：只保存到情景记忆，不再重复保存到传统记忆 */
-        advancedMemories[role.id].episodicMemories.push({ content: `[情绪岛记忆] ${summary}`, time: new Date().toLocaleString(), auto: true });
-        DB.set('advancedMemories', advancedMemories);
+        /* 优化：只保存到情景记忆，不再重复保存到传统记忆，并增加去重 */
+        const isDuplicate = advancedMemories[role.id].episodicMemories.some(m => m.content.includes(summary.substring(0, 20)));
+        if (!isDuplicate) {
+            advancedMemories[role.id].episodicMemories.push({ content: `[情绪岛记忆] ${summary}`, time: new Date().toLocaleString(), auto: true });
+            DB.set('advancedMemories', advancedMemories);
+        }
         
         eiChatHistory = [];
         showInAppNotification(role.id, '记忆已封存', `本次情绪岛交流已保存至 ${role.realName} 的情景记忆中。`, role.avatar);
