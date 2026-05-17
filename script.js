@@ -4875,6 +4875,20 @@ function toInitApp(){
             const relationshipContext = role.relationshipDate ? `\n- 你们的定情时间是：${role.relationshipDate}。你们已经在一起了。` : '\n- 你们目前还没有在一起（未确定恋爱关系）。';
             const tzContext = role.timezone ? `\n- 你的所在时区/国家：${role.timezone}。` : '';
             const currencyContext = role.currency ? `\n- 你的常用货币：${role.currency}。` : '';
+            
+            /* 注入角色关系网上下文 */
+            window.roleRelations = DB.get('roleRelations', []);
+            const relatedRels = window.roleRelations.filter(rel => rel.role1 === role.id || rel.role2 === role.id);
+            let networkContext = '';
+            if (relatedRels.length > 0) {
+                networkContext = '\n[角色关系网 (你与其他人的关系)]\n' + relatedRels.map(rel => {
+                    const r1 = roles.find(r => r.id === rel.role1);
+                    const r2 = roles.find(r => r.id === rel.role2);
+                    if (!r1 || !r2) return '';
+                    const otherName = r1.id === role.id ? r2.realName : r1.realName;
+                    return `- 你与 ${otherName} 的关系是【${rel.type}】：${rel.desc}`;
+                }).filter(Boolean).join('\n');
+            }
 
             const wallContext = (typeof eiWallData !== 'undefined' && eiWallData.length > 0) ? `\n[情绪岛漂流墙最新留言]\n${eiWallData.slice(0, 5).map(w => `${w.authorName}: ${w.text}`).join('\n')}\n(你可以根据这些留言质问用户，或者对其他人的留言发表看法)` : '';
             const eiLetters = (typeof eiDrawerData !== 'undefined') ? eiDrawerData.filter(d => d.type === 'letter' && d.roleName === getDisplayName(role)).slice(0, 2).map(l => `用户写给你的信: ${l.content}`).join('\n') : '';
@@ -4978,7 +4992,7 @@ ${wallContext}${eiLetterContext}
 <context>
 - 当前设备真实时间: ${exactTimeStr} (请严格感知当前时间，精确到秒，体现活人感)
 - 距离用户上一条消息已经过去了 ${silenceDuration || '一段时间'}。
-- 用户当前位置: ${userIPLocation} / ${weatherAddr} / ${addrStr}${relationshipContext}${tzContext}${currencyContext}
+- 用户当前位置: ${userIPLocation} / ${weatherAddr} / ${addrStr}${relationshipContext}${tzContext}${currencyContext}${networkContext}
 </context>
 
 <rules>
@@ -8249,7 +8263,7 @@ window.newRoleTempWbs = null;
             return ` 
             <div id="feed-card-${f.id}" style="padding: 20px; border-bottom: 1px solid var(--gray-light);"> 
                 <div style="display:flex; align-items:center; margin-bottom: 12px;"> 
-                    <img src="${authorAvatar}" style="width:36px; height:36px; border-radius:0; border:1px solid var(--border-color); object-fit:cover; margin-right:12px;"> 
+                    <img src="${authorAvatar}" style="width:36px; height:36px; border-radius:0; border:1px solid var(--border-color); object-fit:cover; margin-right:12px; cursor:pointer;" onclick="if(!${isUserPost}) window.openRoleFeedProfile('${f.roleId}')"> 
                     <div> 
                         <div style="font-family:var(--font-serif); font-size:16px; font-weight:600; color:var(--text-color);">${authorName}</div> 
                         <div style="font-size:9px; color:var(--text-secondary); letter-spacing:1px;">${f.time}</div> 
@@ -8503,10 +8517,50 @@ window.newRoleTempWbs = null;
                 const data = await response.json(); 
                 const content = data.choices[0].message.content.trim().replace(/["'""'']/g, ''); 
                 const safeId = 'feed_' + Date.now() + '_' + Math.floor(Math.random() * 10000); 
-                feeds.push({ id: safeId, roleId: role.id, content: content, time: now.toLocaleString('en-US', { month:'short', day:'numeric', hour: '2-digit', minute: '2-digit', hour12: false }), rawTime: now.getTime(), likes: 0, liked: false, comments: [] }); 
+                
+                /* 自动生成NPC评论逻辑 */
+                const npcNames = ['路人甲', '匿名用户', '吃瓜群众', '神秘人', '圈内好友'];
+                const npcComments = ['前排围观！', '确实是这样...', '有点意思。', '抱抱~', '太真实了吧！', '蹲一个后续。'];
+                let generatedComments = [];
+                if (Math.random() > 0.2) {
+                    const commentCount = Math.floor(Math.random() * 3) + 1;
+                    for (let i = 0; i < commentCount; i++) {
+                        generatedComments.push({
+                            role: 'npc',
+                            author: npcNames[Math.floor(Math.random() * npcNames.length)],
+                            content: npcComments[Math.floor(Math.random() * npcComments.length)],
+                            time: new Date().getTime() - Math.floor(Math.random() * 10000)
+                        });
+                    }
+                }
+
+                feeds.push({ id: safeId, roleId: role.id, content: content, time: now.toLocaleString('en-US', { month:'short', day:'numeric', hour: '2-digit', minute: '2-digit', hour12: false }), rawTime: now.getTime(), likes: Math.floor(Math.random() * 50 + 5), liked: false, comments: generatedComments }); 
                 DB.set('feeds', feeds);
                 
                 showSystemNotification(role.id, '新动态', `${getDisplayName(role)} 发布了一条新动态`, role.avatar);
+
+                /* 动态触发语音通话逻辑 */
+                if (content.match(/打电[话话]|语音|接电话|听.*声音/)) {
+                    setTimeout(() => {
+                        const callId = 'CALL_' + Date.now();
+                        const payload = { id: callId, status: '等待接听' };
+                        const msgContent = `[INCOMING_CALL:${encodeURIComponent(JSON.stringify(payload))}]`;
+                        if (!chats[role.id]) chats[role.id] = [];
+                        chats[role.id].push({ 
+                            role: 'ai', 
+                            content: msgContent, 
+                            time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }), 
+                            rawTime: Date.now(), 
+                            mode: 'online' 
+                        });
+                        DB.set('chats', chats);
+                        showSystemNotification(role.id, '语音通话邀请', `${getDisplayName(role)} 给你打来了一个电话`, role.avatar);
+                        if (confirm(`${getDisplayName(role)} 在动态中提到了打电话，并向你发起了语音通话邀请！\n是否立即前往聊天界面接听？`)) {
+                            closeApp('feed');
+                            openChat(role.id);
+                        }
+                    }, 2000);
+                }
             } 
         } catch (e) { 
             console.error(`Failed to generate feed for ${role.realName}:`, e); 
@@ -8530,6 +8584,343 @@ window.newRoleTempWbs = null;
     }
 
     function deleteFeed(id) { if(confirm('删除这条动态？')) { feeds = feeds.filter(f => f.id !== id); DB.set('feeds', feeds); renderFeeds(); } }
+
+    /* ==================== 北欧极简杂志风：角色动态主页与草稿箱 ==================== */
+    window.feedDrafts = DB.get('feedDrafts', []);
+    let currentFeedProfileRoleId = null;
+    let currentFeedProfileTab = 'published';
+
+    const SVG_HEART = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="width:12px; height:12px; vertical-align:middle; margin-right:4px;"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>`;
+    const SVG_COMMENT = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="width:12px; height:12px; vertical-align:middle; margin-right:4px;"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>`;
+    const SVG_LOCK = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="width:12px; height:12px; vertical-align:middle; margin-right:4px;"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>`;
+    const SVG_PUBLISH = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="width:12px; height:12px; vertical-align:middle; margin-right:4px;"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>`;
+    const SVG_DELETE = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="width:12px; height:12px; vertical-align:middle; margin-right:4px;"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>`;
+    const SVG_GENERATE = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="width:12px; height:12px; vertical-align:middle; margin-right:4px;"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path></svg>`;
+
+    window.openRoleFeedProfile = function(roleId) {
+        currentFeedProfileRoleId = roleId;
+        currentFeedProfileTab = 'published';
+        const role = roles.find(r => r.id === roleId);
+        if (!role) return;
+        
+        let modal = document.getElementById('modal-role-feed-profile');
+        if (!modal) {
+            const html = `
+            <div class="modal-overlay" id="modal-role-feed-profile">
+                <div class="modal" style="max-height: 90vh; padding: 0; overflow: hidden; display: flex; flex-direction: column; background: #fcfcfc; border-radius: 0; border: 1px solid #e5e5e5;">
+                    
+                    <!-- 北欧风头部 -->
+                    <div style="padding: 40px 20px 20px 20px; text-align: center; border-bottom: 1px solid #f0f0f0; flex-shrink: 0; position: relative;">
+                        <button style="position: absolute; top: 15px; right: 15px; background: transparent; border: none; font-size: 24px; color: #999; cursor: pointer; font-weight: 300;" onclick="closeModal('modal-role-feed-profile')">×</button>
+                        <img id="rfp-avatar" src="" style="width: 72px; height: 72px; border-radius: 0; object-fit: cover; border: 1px solid #e5e5e5; padding: 2px; background: #fff; margin: 0 auto 15px auto;">
+                        <div id="rfp-name" style="font-family: var(--font-serif); font-size: 22px; font-weight: 400; color: #111; letter-spacing: 2px; text-transform: uppercase;">Name</div>
+                        <div style="font-family: var(--font-sans); font-size: 8px; color: #999; margin-top: 6px; letter-spacing: 4px; text-transform: uppercase;">Personal Feed</div>
+                    </div>
+                    
+                    <!-- 极简 Tab 切换 -->
+                    <div style="display: flex; border-bottom: 1px solid #f0f0f0; flex-shrink: 0;">
+                        <div id="rfp-tab-published" style="flex: 1; text-align: center; padding: 15px 0; font-family: var(--font-sans); font-size: 9px; font-weight: 600; letter-spacing: 2px; cursor: pointer; color: #111; border-bottom: 1px solid #111; text-transform: uppercase;" onclick="switchFeedProfileTab('published')">Published</div>
+                        <div id="rfp-tab-drafts" style="flex: 1; text-align: center; padding: 15px 0; font-family: var(--font-sans); font-size: 9px; font-weight: 600; letter-spacing: 2px; cursor: pointer; color: #999; border-bottom: 1px solid transparent; text-transform: uppercase;" onclick="switchFeedProfileTab('drafts')">${SVG_LOCK} Drafts</div>
+                    </div>
+                    
+                    <!-- 列表区域 -->
+                    <div id="rfp-list" style="flex: 1; overflow-y: auto; padding: 0; background: #fff;"></div>
+                    
+                    <!-- 底部操作区 (仅在草稿箱显示) -->
+                    <div id="rfp-draft-actions" style="padding: 15px 20px; border-top: 1px solid #f0f0f0; flex-shrink: 0; display: none; background: #fcfcfc;">
+                        <button style="width: 100%; padding: 12px; background: #111; color: #fff; border: none; font-family: var(--font-sans); font-size: 9px; font-weight: 600; letter-spacing: 2px; text-transform: uppercase; cursor: pointer; display: flex; align-items: center; justify-content: center;" onclick="generateFeedDraft()">
+                            ${SVG_GENERATE} Generate Draft
+                        </button>
+                    </div>
+                </div>
+            </div>`;
+            document.body.insertAdjacentHTML('beforeend', html);
+            modal = document.getElementById('modal-role-feed-profile');
+        }
+        
+        document.getElementById('rfp-avatar').src = role.avatar || 'https://image.uglycat.cc/06gh2h.png';
+        document.getElementById('rfp-name').innerText = getDisplayName(role);
+        
+        renderFeedProfileList();
+        openModal('modal-role-feed-profile');
+    };
+
+    window.switchFeedProfileTab = function(tab) {
+        currentFeedProfileTab = tab;
+        const pubTab = document.getElementById('rfp-tab-published');
+        const draftTab = document.getElementById('rfp-tab-drafts');
+        
+        if (tab === 'published') {
+            pubTab.style.color = '#111'; pubTab.style.borderBottom = '1px solid #111';
+            draftTab.style.color = '#999'; draftTab.style.borderBottom = '1px solid transparent';
+            document.getElementById('rfp-draft-actions').style.display = 'none';
+        } else {
+            draftTab.style.color = '#111'; draftTab.style.borderBottom = '1px solid #111';
+            pubTab.style.color = '#999'; pubTab.style.borderBottom = '1px solid transparent';
+            document.getElementById('rfp-draft-actions').style.display = 'block';
+        }
+        renderFeedProfileList();
+    };
+
+    window.renderFeedProfileList = function() {
+        const listEl = document.getElementById('rfp-list');
+        
+        if (currentFeedProfileTab === 'published') {
+            const roleFeeds = feeds.filter(f => f.roleId === currentFeedProfileRoleId).sort((a, b) => b.rawTime - a.rawTime);
+            if (roleFeeds.length === 0) {
+                listEl.innerHTML = '<div style="text-align:center; color:#999; padding: 60px 20px; font-size:9px; letter-spacing:2px; text-transform:uppercase;">No Published Feeds</div>';
+            } else {
+                listEl.innerHTML = roleFeeds.map(f => `
+                    <div style="padding: 25px 20px; border-bottom: 1px solid #f5f5f5;">
+                        <div style="font-family: var(--font-sans); font-size: 8px; color: #999; margin-bottom: 12px; letter-spacing: 1px; text-transform: uppercase;">${f.time}</div>
+                        <div style="font-family: var(--font-serif); font-size: 15px; line-height: 1.8; color: #222;">${f.content.replace(/\n/g, '<br>')}</div>
+                        <div style="font-family: var(--font-sans); font-size: 9px; color: #999; margin-top: 15px; display: flex; gap: 15px;">
+                            <span>${SVG_HEART} ${f.likes || 0}</span>
+                            <span>${SVG_COMMENT} ${(f.comments || []).length}</span>
+                        </div>
+                    </div>
+                `).join('');
+            }
+        } else {
+            const roleDrafts = window.feedDrafts.filter(d => d.roleId === currentFeedProfileRoleId).sort((a, b) => b.rawTime - a.rawTime);
+            if (roleDrafts.length === 0) {
+                listEl.innerHTML = '<div style="text-align:center; color:#999; padding: 60px 20px; font-size:9px; letter-spacing:2px; text-transform:uppercase;">Draft Box is Empty</div>';
+            } else {
+                listEl.innerHTML = roleDrafts.map(d => `
+                    <div style="padding: 25px 20px; border-bottom: 1px solid #f5f5f5; background: #fafafa;">
+                        <div style="font-family: var(--font-sans); font-size: 8px; color: #999; margin-bottom: 12px; letter-spacing: 1px; text-transform: uppercase;">DRAFT · ${d.time}</div>
+                        <div style="font-family: var(--font-serif); font-size: 15px; line-height: 1.8; color: #555; font-style: italic;">${d.content.replace(/\n/g, '<br>')}</div>
+                        <div style="display: flex; gap: 10px; margin-top: 15px;">
+                            <button style="flex: 1; padding: 8px; background: transparent; border: 1px solid #111; color: #111; font-family: var(--font-sans); font-size: 8px; font-weight: 600; letter-spacing: 1px; text-transform: uppercase; cursor: pointer; display: flex; align-items: center; justify-content: center;" onclick="publishFeedDraft('${d.id}')">
+                                ${SVG_PUBLISH} Publish
+                            </button>
+                            <button style="flex: 1; padding: 8px; background: transparent; border: 1px solid #e5e5e5; color: #999; font-family: var(--font-sans); font-size: 8px; font-weight: 600; letter-spacing: 1px; text-transform: uppercase; cursor: pointer; display: flex; align-items: center; justify-content: center;" onclick="deleteFeedDraft('${d.id}')">
+                                ${SVG_DELETE} Delete
+                            </button>
+                        </div>
+                    </div>
+                `).join('');
+            }
+        }
+    };
+
+    window.generateFeedDraft = async function() {
+        const role = roles.find(r => r.id === currentFeedProfileRoleId);
+        if (!role) return;
+        if (!apiConfig.url) return alert('请先在 System -> Engine 中配置 API。');
+
+        const btn = document.querySelector('#rfp-draft-actions button');
+        const origHtml = btn.innerHTML;
+        btn.innerHTML = 'GENERATING...';
+        btn.disabled = true;
+
+        const memorySummary = memories[role.id] ? `\n[SHARED MEMORY]\n${memories[role.id]}` : ''; 
+        const recentChats = (chats[role.id] || []).slice(-10).map(m => `${m.role === 'user' ? 'ME' : role.realName}: ${m.content.replace(/<[^>]*>/g, '')}`).join('\n'); 
+        const chatContext = recentChats ? `\n[RECENT CHAT HISTORY]\n${recentChats}` : ''; 
+        
+        const prompt = `[CORE DIRECTIVE - 活人感动态发布]
+你是${role.realName}。请根据你的人设（${role.persona}）以及最近的记忆（${memorySummary}${chatContext}），写一条准备发在朋友圈/推文的日常动态草稿。
+【活人感要求】：
+1. 极度口语化、生活化，像真人随手写的。绝对禁止书面语、做作的描写。
+2. 可以是吐槽、分享正在做的事、或者无意义的碎碎念。
+3. 字数在 10-50 字之间。
+直接输出动态内容，不要加引号。`;
+
+        try {
+            const endpoint = getChatEndpoint(apiConfig.url);
+            const response = await fetch(endpoint, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiConfig.key}` }, body: JSON.stringify({ model: apiConfig.model, messages: [{ role: 'user', content: prompt }], max_tokens: 128000, temperature: 0.85 }) }); 
+            if (response.ok) { 
+                const data = await response.json(); 
+                const content = data.choices[0].message.content.trim().replace(/["'""'']/g, ''); 
+                const now = new Date();
+                const draftId = 'draft_' + Date.now() + '_' + Math.floor(Math.random() * 10000); 
+                
+                window.feedDrafts.unshift({ 
+                    id: draftId, 
+                    roleId: role.id, 
+                    content: content, 
+                    time: now.toLocaleString('en-US', { month:'short', day:'numeric', hour: '2-digit', minute: '2-digit', hour12: false }), 
+                    rawTime: now.getTime() 
+                }); 
+                DB.set('feedDrafts', window.feedDrafts);
+                renderFeedProfileList();
+            } 
+        } catch (e) { 
+            alert('生成草稿失败: ' + e.message);
+        } finally {
+            btn.innerHTML = origHtml;
+            btn.disabled = false;
+        }
+    };
+
+    window.publishFeedDraft = function(draftId) {
+        const draftIndex = window.feedDrafts.findIndex(d => d.id === draftId);
+        if (draftIndex === -1) return;
+        const draft = window.feedDrafts[draftIndex];
+        
+        const now = new Date();
+        const safeId = 'feed_' + Date.now() + '_' + Math.floor(Math.random() * 10000); 
+        
+        /* 自动生成NPC评论逻辑 */
+        const npcNames = ['路人甲', '匿名用户', '吃瓜群众', '神秘人', '圈内好友'];
+        const npcComments = ['前排围观！', '确实是这样...', '有点意思。', '抱抱~', '太真实了吧！', '蹲一个后续。'];
+        let generatedComments = [];
+        if (Math.random() > 0.2) {
+            const commentCount = Math.floor(Math.random() * 3) + 1;
+            for (let i = 0; i < commentCount; i++) {
+                generatedComments.push({
+                    role: 'npc',
+                    author: npcNames[Math.floor(Math.random() * npcNames.length)],
+                    content: npcComments[Math.floor(Math.random() * npcComments.length)],
+                    time: new Date().getTime() - Math.floor(Math.random() * 10000)
+                });
+            }
+        }
+
+        feeds.push({ 
+            id: safeId, 
+            roleId: draft.roleId, 
+            content: draft.content, 
+            time: now.toLocaleString('en-US', { month:'short', day:'numeric', hour: '2-digit', minute: '2-digit', hour12: false }), 
+            rawTime: now.getTime(), 
+            likes: Math.floor(Math.random() * 50 + 5), 
+            liked: false, 
+            comments: generatedComments 
+        }); 
+        DB.set('feeds', feeds);
+        
+        window.feedDrafts.splice(draftIndex, 1);
+        DB.set('feedDrafts', window.feedDrafts);
+        
+        renderFeedProfileList();
+        if (document.getElementById('view-feed').classList.contains('active')) {
+            renderFeeds();
+        }
+        alert('草稿已成功发布为动态！');
+    };
+
+    window.deleteFeedDraft = function(draftId) {
+        if (!confirm('确定删除这条草稿吗？')) return;
+        window.feedDrafts = window.feedDrafts.filter(d => d.id !== draftId);
+        DB.set('feedDrafts', window.feedDrafts);
+        renderFeedProfileList();
+    };
+
+    /* ==================== 角色关系网 (Role Network) ==================== */
+    window.roleRelations = DB.get('roleRelations', []);
+
+    window.openRoleNetworkModal = function() {
+        let modal = document.getElementById('modal-role-network');
+        if (!modal) {
+            const html = `
+            <div class="modal-overlay" id="modal-role-network">
+                <div class="modal" style="max-height: 85vh; display: flex; flex-direction: column;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; flex-shrink: 0;">
+                        <h3 style="margin:0;">Network <span>角色关系网</span></h3>
+                        <button class="text-btn" style="padding:0;" onclick="closeModal('modal-role-network')">CLOSE</button>
+                    </div>
+                    
+                    <div style="background: var(--gray-light); padding: 15px; border-radius: 8px; border: 1px solid var(--border-color); margin-bottom: 15px; flex-shrink: 0;">
+                        <div style="font-size: 10px; font-weight: bold; margin-bottom: 10px; color: var(--text-color);">ADD RELATIONSHIP / 添加关系</div>
+                        <div style="display: flex; gap: 10px; margin-bottom: 10px;">
+                            <select id="rn-role1" style="flex: 1; padding: 8px; border: 1px solid var(--border-color); background: var(--bg-color); color: var(--text-color); font-size: 11px; outline: none;"></select>
+                            <select id="rn-type" style="width: 80px; padding: 8px; border: 1px solid var(--border-color); background: var(--bg-color); color: var(--text-color); font-size: 11px; outline: none;">
+                                <option value="友好">友好</option>
+                                <option value="敌对">敌对</option>
+                                <option value="暧昧">暧昧</option>
+                                <option value="亲属">亲属</option>
+                                <option value="主从">主从</option>
+                                <option value="宿敌">宿敌</option>
+                                <option value="其他">其他</option>
+                            </select>
+                            <select id="rn-role2" style="flex: 1; padding: 8px; border: 1px solid var(--border-color); background: var(--bg-color); color: var(--text-color); font-size: 11px; outline: none;"></select>
+                        </div>
+                        <input type="text" id="rn-desc" placeholder="关系描述 (例如: 因为某件往事结仇)" style="width: 100%; padding: 8px; border: 1px solid var(--border-color); background: var(--bg-color); color: var(--text-color); font-size: 11px; outline: none; margin-bottom: 10px;">
+                        <button class="action-btn primary" style="width: 100%; margin: 0;" onclick="saveRoleRelation()">ADD RELATION / 添加</button>
+                    </div>
+                    
+                    <div style="font-size: 10px; font-weight: bold; margin-bottom: 10px; color: var(--text-secondary); letter-spacing: 1px;">EXISTING RELATIONS / 已有关系</div>
+                    <div id="rn-list" style="flex: 1; overflow-y: auto; border: 1px solid var(--border-color); border-radius: 8px; padding: 10px; background: var(--bg-color);"></div>
+                </div>
+            </div>`;
+            document.body.insertAdjacentHTML('beforeend', html);
+            modal = document.getElementById('modal-role-network');
+        }
+        
+        const roleOptions = roles.map(r => `<option value="${r.id}">${getDisplayName(r)}</option>`).join('');
+        document.getElementById('rn-role1').innerHTML = roleOptions;
+        document.getElementById('rn-role2').innerHTML = roleOptions;
+        
+        renderRoleNetworkList();
+        openModal('modal-role-network');
+    };
+
+    window.renderRoleNetworkList = function() {
+        const listEl = document.getElementById('rn-list');
+        if (window.roleRelations.length === 0) {
+            listEl.innerHTML = '<div style="text-align:center; color:var(--text-secondary); padding: 20px; font-size:10px;">暂无关系数据</div>';
+            return;
+        }
+        
+        listEl.innerHTML = window.roleRelations.map(rel => {
+            const r1 = roles.find(r => r.id === rel.role1);
+            const r2 = roles.find(r => r.id === rel.role2);
+            if (!r1 || !r2) return '';
+            
+            let typeColor = 'var(--text-color)';
+            if (rel.type === '敌对' || rel.type === '宿敌') typeColor = '#ff4d4d';
+            if (rel.type === '友好' || rel.type === '亲属') typeColor = '#22c55e';
+            if (rel.type === '暧昧') typeColor = '#e05a8a';
+            
+            return `
+            <div style="padding: 10px; border-bottom: 1px solid var(--gray-light); display: flex; justify-content: space-between; align-items: center;">
+                <div style="flex: 1; overflow: hidden;">
+                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
+                        <span style="font-size: 12px; font-weight: bold; color: var(--text-color);">${getDisplayName(r1)}</span>
+                        <span style="font-size: 9px; font-weight: bold; color: ${typeColor}; border: 1px solid ${typeColor}; padding: 1px 4px; border-radius: 4px;">${rel.type}</span>
+                        <span style="font-size: 12px; font-weight: bold; color: var(--text-color);">${getDisplayName(r2)}</span>
+                    </div>
+                    <div style="font-size: 10px; color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${rel.desc || '无描述'}</div>
+                </div>
+                <button style="background: none; border: none; color: #ff4d4d; font-size: 10px; font-weight: bold; cursor: pointer; padding: 5px;" onclick="deleteRoleRelation('${rel.id}')">DEL</button>
+            </div>`;
+        }).join('');
+    };
+
+    window.saveRoleRelation = function() {
+        const role1 = document.getElementById('rn-role1').value;
+        const role2 = document.getElementById('rn-role2').value;
+        const type = document.getElementById('rn-type').value;
+        const desc = document.getElementById('rn-desc').value.trim();
+        
+        if (role1 === role2) return alert("不能与自己建立关系！");
+        
+        // 检查是否已存在相同的关系对
+        const exists = window.roleRelations.find(r => (r.role1 === role1 && r.role2 === role2) || (r.role1 === role2 && r.role2 === role1));
+        if (exists) {
+            if (!confirm("这两个角色之间已经存在关系，是否覆盖？")) return;
+            window.roleRelations = window.roleRelations.filter(r => r.id !== exists.id);
+        }
+        
+        window.roleRelations.push({
+            id: 'rel_' + Date.now(),
+            role1: role1,
+            role2: role2,
+            type: type,
+            desc: desc
+        });
+        
+        DB.set('roleRelations', window.roleRelations);
+        document.getElementById('rn-desc').value = '';
+        renderRoleNetworkList();
+    };
+
+    window.deleteRoleRelation = function(id) {
+        if (!confirm("确定删除这条关系吗？")) return;
+        window.roleRelations = window.roleRelations.filter(r => r.id !== id);
+        DB.set('roleRelations', window.roleRelations);
+        renderRoleNetworkList();
+    };
 
         function toggleForumWb(wbId) {
         if (!settings.forumSelectedWbIds) settings.forumSelectedWbIds = [];
