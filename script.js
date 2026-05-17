@@ -2178,6 +2178,20 @@ function updateKeepAliveUI(isOn) {
                 const isMe = m.role === 'user';
                 return `<div class="msg-row card-row ${isMe ? 'me' : 'ai'} ${isSelectionMode ? 'selection-mode' : ''}" onclick="handleMsgClick(${realIndex})" ${touchHandlers}>${checkboxHtml}${isMe ? '' : aiAvatarTag}<div class="msg-wrapper"><div class="will-card" onclick="if(isSelectionMode) return; readWill(${realIndex})"><div class="will-card-title">A Letter</div><div class="will-card-desc">TAP TO READ</div></div><div class="msg-status">${displayTime}</div></div>${isMe ? userAvatarTag : ''}</div>`;
             }
+            
+            // 渲染名片卡片
+            if (contentHtml.startsWith('[CONTACT_CARD:')) {
+                try {
+                    const raw = contentHtml.slice(14, -1);
+                    const card = JSON.parse(decodeURIComponent(raw).replace(/&quot;/g, '"'));
+                    const isMe = m.role === 'user';
+                    const targetRole = roles.find(r => r.id === card.roleId);
+                    const targetName = targetRole ? getDisplayName(targetRole) : card.name;
+                    const targetAvatar = targetRole ? (targetRole.avatar || DEFAULT_AVATAR) : DEFAULT_AVATAR;
+                    
+                    return `<div class="msg-row card-row ${isMe ? 'me' : 'ai'} ${isSelectionMode ? 'selection-mode' : ''}" onclick="handleMsgClick(${realIndex})" ${touchHandlers}>${checkboxHtml}${isMe ? '' : aiAvatarTag}<div class="msg-wrapper"><div class="share-card" onclick="if(isSelectionMode) return; openChat('${card.roleId}')" style="display: flex; align-items: center; gap: 10px;"><img src="${targetAvatar}" style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover;"><div style="flex: 1;"><div class="share-card-title" style="margin-bottom: 2px;">${targetName}</div><div class="share-card-desc" style="margin-bottom: 0;">个人名片</div></div></div><div class="msg-status">${displayTime}</div></div>${isMe ? userAvatarTag : ''}</div>`;
+                } catch(e) {}
+            }
             if (contentHtml.startsWith('[MUSIC_CARD:')) {
                 const invite = parseMusicCardContent(contentHtml) || {};
                 const isMe = m.role === 'user';
@@ -3522,9 +3536,12 @@ function renderCallMessage(name, text, isMe) {
             const timeStr = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
             const rawTime = now.getTime();
             
+            // 检查是否是因为异常中断
+            const isInterrupted = btn && btn.disabled;
+            
             const callData = {
                 duration: callSeconds,
-                status: callSeconds > 0 ? "已结束" : "已取消",
+                status: isInterrupted ? "异常中断" : (callSeconds > 0 ? "已结束" : "已取消"),
                 text: currentCallText || "无对话记录",
                 audioId: currentCallAudioId
             };
@@ -3541,7 +3558,11 @@ function renderCallMessage(name, text, isMe) {
                 const m = String(Math.floor(callSeconds / 60)).padStart(2, '0');
                 const s = String(callSeconds % 60).padStart(2, '0');
                 chats[currentChatRoleId].push({ role: 'system', content: "已接听电话", time: timeStr, rawTime: rawTime + 1, mode: currentChatMode });
-                chats[currentChatRoleId].push({ role: 'system', content: "已结束电话", time: timeStr, rawTime: rawTime + 2, mode: currentChatMode });
+                if (isInterrupted) {
+                    chats[currentChatRoleId].push({ role: 'system', content: "通话异常中断", time: timeStr, rawTime: rawTime + 2, mode: currentChatMode });
+                } else {
+                    chats[currentChatRoleId].push({ role: 'system', content: "已结束电话", time: timeStr, rawTime: rawTime + 2, mode: currentChatMode });
+                }
                 chats[currentChatRoleId].push({ role: 'system', content: `通话时长 ${m}分${s}秒`, time: timeStr, rawTime: rawTime + 3, mode: currentChatMode });
             } else {
                 chats[currentChatRoleId].push({ role: 'system', content: "通话已取消", time: timeStr, rawTime: rawTime + 1, mode: currentChatMode });
@@ -3822,7 +3843,7 @@ function renderCallMessage(name, text, isMe) {
             let textToEdit = msg.content;
             
             // 【核心修复】：如果是卡片类型，将其解码为易读的 JSON 格式供用户编辑
-            const cardRegex = /\[(THEATER_CARD|FORUM_CARD|FEED_CARD|MUSIC_CARD|PAY_REQUEST|TRANSFER|FAMILY_CARD|OURSPACE_INVITE|GIFT_TO_AI|INCOMING_CALL|RED_PACKET|TICKET):(.*?)\]/;
+            const cardRegex = /\[(THEATER_CARD|FORUM_CARD|FEED_CARD|MUSIC_CARD|PAY_REQUEST|TRANSFER|FAMILY_CARD|OURSPACE_INVITE|GIFT_TO_AI|INCOMING_CALL|RED_PACKET|TICKET|CONTACT_CARD):(.*?)\]/;
             const cardMatch = textToEdit.match(cardRegex);
             if (cardMatch) {
                 try {
@@ -3870,7 +3891,7 @@ function renderCallMessage(name, text, isMe) {
         
         if(newText) { 
             // 【核心修复】：检测用户编辑后的格式化 JSON 卡片，并重新编码
-            const editedCardRegex = /\[(THEATER_CARD|FORUM_CARD|FEED_CARD|MUSIC_CARD|PAY_REQUEST|TRANSFER|FAMILY_CARD|OURSPACE_INVITE|GIFT_TO_AI|INCOMING_CALL|RED_PACKET|TICKET):\s*(\{[\s\S]*?\})\s*\]/;
+            const editedCardRegex = /\[(THEATER_CARD|FORUM_CARD|FEED_CARD|MUSIC_CARD|PAY_REQUEST|TRANSFER|FAMILY_CARD|OURSPACE_INVITE|GIFT_TO_AI|INCOMING_CALL|RED_PACKET|TICKET|CONTACT_CARD):\s*(\{[\s\S]*?\})\s*\]/;
             const editedCardMatch = newText.match(editedCardRegex);
             if (editedCardMatch) {
                 try {
@@ -4995,7 +5016,7 @@ ${wallContext}${eiLetterContext}
 - 用户当前位置: ${userIPLocation} / ${weatherAddr} / ${addrStr}${relationshipContext}${tzContext}${currencyContext}${networkContext}
 </context>
 
-<rules>
+        <rules>
 1. 【去油腻】绝对禁止使用：轻笑、挑眉、眼眸深邃、喉结滚动、丫头、女人、呵、嘴角勾起一抹邪魅的弧度。说话必须口语化、自然。
 2. 【互动反应】对转账、礼物、代付、一起听歌、动态分享等系统提示，必须给出符合人设的真实反应。
 3. 【情侣空间】收到绑定邀请且同意时，回复必须包含隐藏指令 [ACCEPT_OURSPACE:配对码]，并且你必须在回复的文字中，自己编造一个全新的 6 位数字发给用户，让用户去输入。
@@ -5006,6 +5027,7 @@ ${wallContext}${eiLetterContext}
 8. 【专属音乐空间】你的网易云音乐账号是：${roleMusicAcc}，密码是：${roleMusicPwd}。如果用户问你要，请自然地告诉TA。${stickerPrompt}
 9. 【主动打电话】如果你有急事、想听用户的声音，或者想主动发起语音通话，请在回复中包含隐藏指令 [INCOMING_CALL]。
 10. 【角色思考】如果你输出 <thought> 标签，里面的内容必须是你（${role.realName}）的第一人称内心独白和真实想法，绝对不能以AI助手的身份进行分析！
+11. 【推荐名片】如果你想向用户推荐其他角色，或者用户向你索要其他角色的联系方式，请在回复中包含隐藏指令 [CONTACT_CARD:{"roleId":"目标角色的ID","name":"目标角色的名字"}]。你可以从你们的共同记忆或关系网中寻找合适的角色推荐。
 ${modeRules}
 </rules>
 
@@ -5070,6 +5092,9 @@ ${modeRules}
                 });
                 text = text.replace(/\[TICKET:(.*?)\]/g, (match, p1) => {
                     try { const data = JSON.parse(decodeURIComponent(p1)); return `[系统提示：用户向你分享了一张票根：${data.title} (${data.subtitle})]`; } catch(e) { return '[收到一张票根]'; }
+                });
+                text = text.replace(/\[CONTACT_CARD:(.*?)\]/g, (match, p1) => {
+                    try { const data = JSON.parse(decodeURIComponent(p1)); return `[系统提示：你向用户推荐了名片：${data.name}]`; } catch(e) { return '[推荐了一张名片]'; }
                 });
                 text = text.replace(/\[FORUM_CARD:(.*?)\]/g, (match, p1) => {
                     try { 
@@ -5470,6 +5495,27 @@ ${modeRules}
                 }
             }
             
+            // 解析名片指令
+            const contactMatch = fullReply.match(/\[CONTACT_CARD:\s*(\{.*?\})\s*\]/s);
+            if (contactMatch) {
+                try {
+                    const contactJsonStr = contactMatch[1];
+                    JSON.parse(contactJsonStr); 
+                    fullReply = fullReply.replace(contactMatch[0], ''); 
+                    
+                    const msgContent = `[CONTACT_CARD:${encodeURIComponent(contactJsonStr)}]`;
+                    chats[targetRoleId].push({ 
+                        role: 'ai', 
+                        content: msgContent, 
+                        time: timeStr, 
+                        rawTime: now.getTime() + 2, 
+                        mode: 'online' 
+                    });
+                } catch (e) {
+                    console.warn("AI 生成的名片 JSON 格式有误", e);
+                }
+            }
+            
             // 最终清理和分割
             let cleanDisplay = fullReply;
             
@@ -5505,7 +5551,7 @@ ${modeRules}
                     
                     // 如果是动作描写，且不是特殊卡片标签，则转为 system 消息
                     if (/^(\*.*?\*|\(.*?\)|（.*?）|【.*?】|\[.*?\])$/.test(trimmed)) {
-                        if (!trimmed.startsWith('[VIRTUAL_IMG:') && !trimmed.startsWith('[VOICE:') && !trimmed.startsWith('[REAL_CALL:') && !trimmed.startsWith('[MUSIC_CARD:') && !trimmed.startsWith('[THEATER_CARD:') && !trimmed.startsWith('[FORUM_CARD:') && !trimmed.startsWith('[FEED_CARD:') && !trimmed.startsWith('[PAY_REQUEST:') && !trimmed.startsWith('[TRANSFER:') && !trimmed.startsWith('[FAMILY_CARD:') && !trimmed.startsWith('[OURSPACE_INVITE:') && !trimmed.startsWith('[GIFT_TO_AI:') && !trimmed.startsWith('[INCOMING_CALL:') && !trimmed.startsWith('[RED_PACKET:') && !trimmed.startsWith('[TICKET:') && !trimmed.startsWith('[WILL_CARD:')) {
+                        if (!trimmed.startsWith('[VIRTUAL_IMG:') && !trimmed.startsWith('[VOICE:') && !trimmed.startsWith('[REAL_CALL:') && !trimmed.startsWith('[MUSIC_CARD:') && !trimmed.startsWith('[THEATER_CARD:') && !trimmed.startsWith('[FORUM_CARD:') && !trimmed.startsWith('[FEED_CARD:') && !trimmed.startsWith('[PAY_REQUEST:') && !trimmed.startsWith('[TRANSFER:') && !trimmed.startsWith('[FAMILY_CARD:') && !trimmed.startsWith('[OURSPACE_INVITE:') && !trimmed.startsWith('[GIFT_TO_AI:') && !trimmed.startsWith('[INCOMING_CALL:') && !trimmed.startsWith('[RED_PACKET:') && !trimmed.startsWith('[TICKET:') && !trimmed.startsWith('[WILL_CARD:') && !trimmed.startsWith('[CONTACT_CARD:')) {
                             msgRole = 'system';
                         }
                     }
@@ -8836,7 +8882,10 @@ window.newRoleTempWbs = null;
                             <select id="rn-role2" style="flex: 1; padding: 8px; border: 1px solid var(--border-color); background: var(--bg-color); color: var(--text-color); font-size: 11px; outline: none;"></select>
                         </div>
                         <input type="text" id="rn-desc" placeholder="关系描述 (例如: 因为某件往事结仇)" style="width: 100%; padding: 8px; border: 1px solid var(--border-color); background: var(--bg-color); color: var(--text-color); font-size: 11px; outline: none; margin-bottom: 10px;">
-                        <button class="action-btn primary" style="width: 100%; margin: 0;" onclick="saveRoleRelation()">ADD RELATION / 添加</button>
+                        <div style="display: flex; gap: 10px;">
+                            <button class="action-btn primary" style="flex: 1; margin: 0;" onclick="saveRoleRelation()">ADD RELATION / 添加</button>
+                            <button class="action-btn" id="btn-generate-network" style="flex: 1; margin: 0;" onclick="generateRoleNetwork()">GENERATE / 自动生成</button>
+                        </div>
                     </div>
                     
                     <div style="font-size: 10px; font-weight: bold; margin-bottom: 10px; color: var(--text-secondary); letter-spacing: 1px;">EXISTING RELATIONS / 已有关系</div>
@@ -8913,6 +8962,84 @@ window.newRoleTempWbs = null;
         DB.set('roleRelations', window.roleRelations);
         document.getElementById('rn-desc').value = '';
         renderRoleNetworkList();
+    };
+
+    // 自动生成角色关系网
+    window.generateRoleNetwork = async function() {
+        if (!apiConfig.url) return alert("请先在 System -> Engine 中配置 API");
+        
+        const btn = document.getElementById('btn-generate-network');
+        if (btn) {
+            btn.innerText = 'GENERATING...';
+            btn.disabled = true;
+        }
+
+        const prompt = `你是一个小说设定生成器。请根据以下已有的角色列表，为他们之间随机生成 3-5 条有趣、有戏剧冲突的角色关系。
+        【已有角色】：
+        ${roles.map(r => `- ${r.realName} (${r.persona.substring(0, 50)}...)`).join('\n')}
+        
+        要求返回严格的 JSON 格式：
+        {
+            "relations": [
+                {
+                    "role1_name": "角色1的名字",
+                    "role2_name": "角色2的名字",
+                    "type": "友好/敌对/暧昧/亲属/主从/宿敌/其他",
+                    "desc": "关系描述（例如：因为某件往事结仇，或者暗恋对方多年）"
+                }
+            ]
+        }
+        注意：
+        1. 角色名字必须完全匹配已有角色列表中的名字。
+        2. 不要生成角色自己和自己的关系。
+        3. 直接输出 JSON，不要加任何其他文字。`;
+
+        try {
+            const endpoint = getChatEndpoint(apiConfig.url);
+            const response = await fetch(endpoint, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiConfig.key}` },
+                body: JSON.stringify({ model: apiConfig.model, messages: [{ role: 'user', content: prompt }], max_tokens: 128000, temperature: 0.85 })
+            });
+            const data = await response.json();
+            const result = JSON.parse(extractJSON(data.choices[0].message.content));
+            
+            let addedCount = 0;
+            if (result.relations && result.relations.length > 0) {
+                result.relations.forEach(rel => {
+                    const r1 = roles.find(r => r.realName === rel.role1_name);
+                    const r2 = roles.find(r => r.realName === rel.role2_name);
+                    if (r1 && r2 && r1.id !== r2.id) {
+                        const exists = window.roleRelations.find(r => (r.role1 === r1.id && r.role2 === r2.id) || (r.role1 === r2.id && r.role2 === r1.id));
+                        if (!exists) {
+                            window.roleRelations.push({
+                                id: 'rel_' + Date.now() + Math.floor(Math.random() * 1000),
+                                role1: r1.id,
+                                role2: r2.id,
+                                type: rel.type || '其他',
+                                desc: rel.desc || '无描述'
+                            });
+                            addedCount++;
+                        }
+                    }
+                });
+                
+                if (addedCount > 0) {
+                    DB.set('roleRelations', window.roleRelations);
+                    renderRoleNetworkList();
+                    alert(`成功生成了 ${addedCount} 条角色关系！`);
+                } else {
+                    alert('生成的角色关系已存在或角色匹配失败。');
+                }
+            }
+        } catch (e) {
+            alert('生成失败: ' + e.message);
+        } finally {
+            if (btn) {
+                btn.innerText = 'AI GENERATE / 自动生成';
+                btn.disabled = false;
+            }
+        }
     };
 
     window.deleteRoleRelation = function(id) {
@@ -11403,6 +11530,9 @@ function checkAllAutoMsgRoles() {
             });
             textContent = textContent.replace(/\[TICKET:(.*?)\]/g, (match, p1) => {
                 try { const data = JSON.parse(decodeURIComponent(p1)); return `[系统提示：用户向你分享了一张票根：${data.title} (${data.subtitle})]`; } catch(e) { return '[收到一张票根]'; }
+            });
+            textContent = textContent.replace(/\[CONTACT_CARD:(.*?)\]/g, (match, p1) => {
+                try { const data = JSON.parse(decodeURIComponent(p1)); return `[系统提示：你向用户推荐了名片：${data.name}]`; } catch(e) { return '[推荐了一张名片]'; }
             });
             textContent = textContent.replace(/\[FORUM_CARD:(.*?)\]/g, (match, p1) => {
                 try { 
