@@ -8761,11 +8761,11 @@ window.newRoleTempWbs = null;
         btn.disabled = true;
 
         const memorySummary = memories[role.id] ? `\n[SHARED MEMORY]\n${memories[role.id]}` : ''; 
-        const recentChats = (chats[role.id] || []).slice(-10).map(m => `${m.role === 'user' ? 'ME' : role.realName}: ${m.content.replace(/<[^>]*>/g, '')}`).join('\n'); 
+        const recentChats = (chats[role.id] || []).slice(-10).map(m => `${m.role === 'user' ? 'ME' : getDisplayName(role)}: ${m.content.replace(/<[^>]*>/g, '')}`).join('\n'); 
         const chatContext = recentChats ? `\n[RECENT CHAT HISTORY]\n${recentChats}` : ''; 
         
         const prompt = `[CORE DIRECTIVE - 活人感动态发布]
-你是${role.realName}。请根据你的人设（${role.persona}）以及最近的记忆（${memorySummary}${chatContext}），写一条准备发在朋友圈/推文的日常动态草稿。
+你是${getDisplayName(role)}。请根据你的人设（${role.persona || ''}）以及最近的记忆（${memorySummary}${chatContext}），写一条准备发在朋友圈/推文的日常动态草稿。
 【活人感要求】：
 1. 极度口语化、生活化，像真人随手写的。绝对禁止书面语、做作的描写。
 2. 可以是吐槽、分享正在做的事、或者无意义的碎碎念。
@@ -8976,7 +8976,7 @@ window.newRoleTempWbs = null;
 
         const prompt = `你是一个小说设定生成器。请根据以下已有的角色列表，为他们之间随机生成 3-5 条有趣、有戏剧冲突的角色关系。
         【已有角色】：
-        ${roles.map(r => `- ${r.realName} (${r.persona.substring(0, 50)}...)`).join('\n')}
+        ${roles.map(r => `- ${getDisplayName(r)} (${(r.persona||'').substring(0, 50)}...)`).join('\n')}
         
         要求返回严格的 JSON 格式：
         {
@@ -9007,8 +9007,8 @@ window.newRoleTempWbs = null;
             let addedCount = 0;
             if (result.relations && result.relations.length > 0) {
                 result.relations.forEach(rel => {
-                    const r1 = roles.find(r => r.realName === rel.role1_name);
-                    const r2 = roles.find(r => r.realName === rel.role2_name);
+                    const r1 = roles.find(r => getDisplayName(r) === rel.role1_name);
+                    const r2 = roles.find(r => getDisplayName(r) === rel.role2_name);
                     if (r1 && r2 && r1.id !== r2.id) {
                         const exists = window.roleRelations.find(r => (r.role1 === r1.id && r.role2 === r2.id) || (r.role1 === r2.id && r.role2 === r1.id));
                         if (!exists) {
@@ -9036,7 +9036,7 @@ window.newRoleTempWbs = null;
             alert('生成失败: ' + e.message);
         } finally {
             if (btn) {
-                btn.innerText = 'AI GENERATE / 自动生成';
+                btn.innerText = 'GENERATE / 自动生成';
                 btn.disabled = false;
             }
         }
@@ -11410,6 +11410,26 @@ function checkAllAutoMsgRoles() {
         }
     });
 }
+
+function sendAutoMsgFallback(roleId, role) {
+    const fallbackMsgs = ['在干嘛呢？', '今天好累啊...', '突然想你了', '吃饭了吗？', '（戳一戳）'];
+    const msg = fallbackMsgs[Math.floor(Math.random() * fallbackMsgs.length)];
+    if (!chats[roleId]) chats[roleId] = [];
+    const now = new Date();
+    chats[roleId].push({
+        role: 'ai',
+        content: msg,
+        time: now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }),
+        rawTime: now.getTime(),
+        mode: 'online',
+        isAutoMsg: true
+    });
+    DB.set('chats', chats);
+    if (currentChatRoleId === roleId) renderMessages();
+    renderRecent();
+    showSystemNotification(roleId, getDisplayName(role), msg, role.avatar);
+}
+
     async function generateAutoMsg(roleId) {
         const role = roles.find(r => r.id === roleId);
         if (!role) return;
