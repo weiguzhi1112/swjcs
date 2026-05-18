@@ -2394,34 +2394,36 @@ body.is-app .to-page { padding-bottom: calc(70px + env(safe-area-inset-bottom)) 
     padding-right: 5px;
 }
 /* ========== 引用消息相关样式 ========== */
-/* 默认引用样式（类似微信） */
+/* 默认引用样式（类似QQ：北欧极简灰色圆角背景，增加留白） */
 .quote-block {
-    font-size: 0.85em;
+    font-size: 11px;
     color: var(--text-secondary);
-    border-left: 2px solid var(--border-color);
-    padding-left: 6px;
-    margin-bottom: 6px;
+    background-color: var(--gray-light);
+    padding: 8px 12px;
+    border-radius: 8px;
+    margin-bottom: 10px;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
     max-width: 100%;
-    display: block;
-    position: relative; /* 确保默认模式下不脱离文档流 */
+    display: inline-block;
+    position: relative;
+    border: 1px solid var(--border-color);
 }
 
-/* 短信引用样式 */
+/* 短信引用样式（修复间距与重叠，增加空气感） */
 #chat-view.theme-quote-sms .msg-row:has(.quote-block) .msg-bubble {
     position: relative !important;
-    margin-top: 18px !important; /* 参考遗梦：缩小间距 */
-    margin-bottom: 0px !important; /* 修复时间戳重叠 */
+    margin-top: 38px !important; /* 增加顶部留白，往下推，防止与引用气泡重叠 */
+    margin-bottom: 0px !important; 
 }
 
 #chat-view.theme-quote-sms .msg-row:has(.quote-block) .msg-bubble::before {
     content: '' !important;
     position: absolute !important;
-    width: 28px !important; 
-    height: 28px !important; 
-    top: -8px !important; 
+    width: 24px !important;
+    height: 24px !important;
+    top: -16px !important; /* 调整连接线位置，使其自然衔接 */
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1024 1024' width='128' height='128'%3E%3Cpath d='M896 208a48 48 0 0 1 48 48v448A240 240 0 0 1 704 944H256a48 48 0 0 1 0-96h448A144 144 0 0 0 848 704V256a48 48 0 0 1 48-48z' fill='%23d9d9d9'%3E%3C/path%3E%3C/svg%3E") !important;
     background-repeat: no-repeat !important;
     background-size: contain !important;
@@ -2429,17 +2431,17 @@ body.is-app .to-page { padding-bottom: calc(70px + env(safe-area-inset-bottom)) 
     z-index: 10 !important;
     display: block !important;
     border: none !important;
-    background-color: transparent !important; /* 修复黑块 */
+    background-color: transparent !important;
 }
 
 #chat-view.theme-quote-sms .msg-row.me:has(.quote-block) .msg-bubble::before {
-    left: -25px !important; 
+    left: -20px !important;
     right: auto !important;
     transform: scaleX(-1) !important;
 }
 
 #chat-view.theme-quote-sms .msg-row.ai:has(.quote-block) .msg-bubble::before {
-    right: -25px !important; 
+    right: -20px !important;
     left: auto !important;
     transform: none !important;
 }
@@ -2455,23 +2457,23 @@ body.is-app .to-page { padding-bottom: calc(70px + env(safe-area-inset-bottom)) 
 }
 
 #chat-view.theme-quote-sms .quote-block {
-    position: absolute !important; /* 短信模式下绝对定位 */
-    top: -18px !important; 
+    position: absolute !important;
+    top: -34px !important; /* 往上移动，拉开与发送气泡的距离，体现留白 */
     left: 0 !important;
     z-index: 0;
-    min-width: 100px; 
-    max-width: 180px; 
-    height: 24px !important; 
-    background-color: transparent !important; 
-    backdrop-filter: none !important; 
-    -webkit-backdrop-filter: none !important;
-    border-radius: 20px !important; 
-    border: 1px solid #e0e0e0 !important; 
-    padding: 0 8px !important; 
+    min-width: 60px;
+    max-width: 180px;
+    height: 26px !important;
+    background-color: var(--gray-light) !important;
+    backdrop-filter: blur(15px) !important;
+    -webkit-backdrop-filter: blur(15px) !important;
+    border-radius: 13px !important;
+    border: 1px solid var(--border-color) !important;
+    padding: 0 12px !important;
     margin: 0 !important;
-    font-size: 11px !important; 
-    color: #555 !important; 
-    line-height: 24px !important; 
+    font-size: 11px !important;
+    color: var(--text-secondary) !important;
+    line-height: 24px !important;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
