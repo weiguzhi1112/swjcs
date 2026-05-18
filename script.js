@@ -1927,12 +1927,6 @@ function updateKeepAliveUI(isOn) {
             if (sendBtn) sendBtn.innerHTML = '<span></span>';
         }
         
-        if (role.quoteStyle === 'sms') {
-            $('#chat-view').classList.add('theme-quote-sms');
-        } else {
-            $('#chat-view').classList.remove('theme-quote-sms');
-        }
-        
         chatInput.value = chatInput.value; 
 
         switchChatMode(role.lastChatMode || role.defaultChatMode || 'online'); 
@@ -6752,11 +6746,6 @@ function updateRoleWbPreview() {
         $('#role-input-text-color').value = isEditing && role.inputTextColor ? role.inputTextColor : (settings.theme === 'dark' ? '#ffffff' : '#000000');
         $('#role-system-text-color').value = isEditing && role.systemTextColor ? role.systemTextColor : '#888888';
         $('#role-bubble-style').value = isEditing && role.bubbleStyle ? role.bubbleStyle : 'flat';
-        if (!document.getElementById('role-quote-style')) {
-            const quoteHtml = '<div class="setting-group"><label>QUOTE STYLE / 引用样式</label><select id="role-quote-style"><option value="default">默认样式</option><option value="sms">短信样式</option></select></div>';
-            $('#role-bubble-style').parentNode.insertAdjacentHTML('afterend', quoteHtml);
-        }
-        $('#role-quote-style').value = isEditing && role.quoteStyle ? role.quoteStyle : 'default';
         $('#role-magazine-theme').checked = isEditing ? !!role.magazineTheme : false;
         $('#role-accent-color').value = isEditing && role.accentColor ? role.accentColor : (settings.theme === 'dark' ? '#ffffff' : '#000000');
         $('#role-attachment-color').value = isEditing && role.attachmentColor ? role.attachmentColor : (settings.theme === 'dark' ? '#ffffff' : '#000000');
@@ -6914,7 +6903,6 @@ function updateRoleWbPreview() {
             inputTextColor: $('#role-input-text-color').value,
             systemTextColor: $('#role-system-text-color').value,
             bubbleStyle: $('#role-bubble-style').value,
-            quoteStyle: $('#role-quote-style') ? $('#role-quote-style').value : 'default',
             magazineTheme: $('#role-magazine-theme').checked,
             accentColor: $('#role-accent-color').value,
             attachmentColor: $('#role-attachment-color').value,
@@ -7001,7 +6989,6 @@ window.newRoleTempWbs = null;
             inputTextColor: $('#role-input-text-color').value,
             systemTextColor: $('#role-system-text-color').value,
             bubbleStyle: $('#role-bubble-style').value,
-            quoteStyle: $('#role-quote-style') ? $('#role-quote-style').value : 'default',
             magazineTheme: $('#role-magazine-theme').checked,
             accentColor: $('#role-accent-color').value,
             attachmentColor: $('#role-attachment-color').value,
@@ -10271,6 +10258,16 @@ ${knowUser ? `注意：你清楚地知道回复你的人就是 ${userName}，请
         DB.set('musicCreds', window.musicCreds);
         checkMusicRoleLogin();
     }
+
+    window.musicRoleLogout = function() {
+        if (confirm('确定要退出该角色的音乐账号吗？')) {
+            if (window.musicCreds[window.currentMusicAccount]) {
+                window.musicCreds[window.currentMusicAccount].isLoggedIn = false;
+                DB.set('musicCreds', window.musicCreds);
+            }
+            checkMusicRoleLogin();
+        }
+    };
 
     function getMusicHeartIcon(id, name, artist, picUrl) {
         const isFav = window.musicFavorites.some(f => f.id == id);
@@ -14269,6 +14266,16 @@ function onAiAvatarDblClick() {
         checkWalletLogin();
     }
 
+    window.walletLogout = function() {
+        if (confirm('确定要退出当前角色的钱包账号吗？')) {
+            if (currentWalletAccount !== 'ME' && walletCreds[currentWalletAccount]) {
+                walletCreds[currentWalletAccount].isLoggedIn = false;
+                DB.set('walletCreds', walletCreds);
+            }
+            checkWalletLogin();
+        }
+    };
+
     function renderWalletMain() {
         const data = walletData[currentWalletAccount];
         const content = $('#wallet-main-view');
@@ -14283,7 +14290,10 @@ function onAiAvatarDblClick() {
                     <span style="font-size: 10px; color: var(--text-secondary); font-weight: 600; letter-spacing: 1px;">每日自动刷新账单</span>
                     <input type="checkbox" ${data.autoRefresh ? 'checked' : ''} onchange="toggleWalletAutoRefresh(this.checked)" style="width:auto; accent-color: var(--text-color);">
                 </div>
-                <button class="action-btn" style="margin:0; padding:4px 8px; font-size:8px; border-radius:8px;" onclick="generateWalletAssets()">手动刷新</button>
+                <div style="display:flex; gap:5px;">
+                    <button class="action-btn" style="margin:0; padding:4px 8px; font-size:8px; border-radius:8px;" onclick="generateWalletAssets()">手动刷新</button>
+                    ${currentWalletAccount !== 'ME' ? `<button class="action-btn" style="margin:0; padding:4px 8px; font-size:8px; border-radius:8px; border-color:#ff4d4d; color:#ff4d4d;" onclick="window.walletLogout()">退出账号</button>` : ''}
+                </div>
             </div>
             <div class="wallet-card" style="background-image: url('${data.mainBg}')">
                 <div class="wallet-card-title">
