@@ -2364,12 +2364,12 @@ function updateKeepAliveUI(isOn) {
             
             contentHtml = contentHtml.replace(/\[VIRTUAL_IMG:(.*?)\]/g, `<div class="virtual-img-box" data-text="$1" onclick="revealVirtualText(this)">【图片被小猫吃掉啦】</div>`);
 
-            /* 动作描写自动转为系统提示颜色 */
+            /* 动作描写自动转为斜体，颜色跟随气泡文字颜色 */
             contentHtml = contentHtml.replace(/(\*.*?\*|\(.*?\)|（.*?）|\[.*?\]|【.*?】)/g, function(match) {
                 if (match.startsWith('[VIRTUAL_IMG:') || match.startsWith('[VOICE:') || match.startsWith('[REAL_CALL:') || match.startsWith('[MUSIC_CARD:') || match.startsWith('[THEATER_CARD:') || match.startsWith('[FORUM_CARD:') || match.startsWith('[FEED_CARD:') || match.startsWith('[PAY_REQUEST:') || match.startsWith('[TRANSFER:') || match.startsWith('[FAMILY_CARD:') || match.startsWith('[OURSPACE_INVITE:') || match.startsWith('[GIFT_TO_AI:') || match.startsWith('[INCOMING_CALL:') || match.startsWith('[RED_PACKET:') || match.startsWith('[TICKET:') || match.startsWith('[WILL_CARD:')) {
                     return match;
                 }
-                return `<span style="color: var(--system-text-color, #888888); font-style: italic;">${match}</span>`;
+                return `<span style="color: inherit; font-style: italic; opacity: 0.85;">${match}</span>`;
             });
 
                     if (m.role === 'ai') {
@@ -5271,12 +5271,20 @@ ${modeRules}
                                         cleanDisplay = cleanDisplay.replace(/<thought>([\s\S]*?)(<\/thought>|$)/gi, '<div style="opacity:0.6; font-size:0.85em; border-left:2px solid currentColor; padding-left:8px; margin-bottom:8px; font-style:italic; white-space:pre-wrap;">$1</div>');
                                     }
                                     
-                                    // 实时分割气泡并去除句号
-                                    let displayLines = cleanDisplay.split('\n').map(s => s.trim()).filter(s => s);
-                                    displayLines = displayLines.map(s => {
-                                        if (s.endsWith('。') || s.endsWith('.')) return s.slice(0, -1);
-                                        return s;
-                                    });
+                                    // 实时分割气泡并去除句号 (根据模式区分)
+                                    let displayLines = [];
+                                    if (finalChatMode === 'offline') {
+                                        // 线下模式：不分割气泡，保留句号，段落间加空行
+                                        let offlineText = cleanDisplay.split('\n').map(s => s.trim()).filter(s => s).join('\n\n');
+                                        if (offlineText) displayLines = [offlineText];
+                                    } else {
+                                        // 线上模式：分割气泡，去除句号
+                                        displayLines = cleanDisplay.split('\n').map(s => s.trim()).filter(s => s);
+                                        displayLines = displayLines.map(s => {
+                                            if (s.endsWith('。') || s.endsWith('.')) return s.slice(0, -1);
+                                            return s;
+                                        });
+                                    }
 
                                     if (displayLines.length === 0) displayLines = ['<div class="bubble-typing-indicator"><div></div><div></div><div></div></div>'];
 
@@ -5524,11 +5532,19 @@ ${modeRules}
                 cleanDisplay = cleanDisplay.replace(/<thought>([\s\S]*?)<\/thought>/gi, '<div style="opacity:0.6; font-size:0.85em; border-left:2px solid currentColor; padding-left:8px; margin-bottom:8px; font-style:italic; white-space:pre-wrap;">$1</div>').trim();
             }
 
-            let finalLines = cleanDisplay.split('\n').map(s => s.trim()).filter(s => s);
-            finalLines = finalLines.map(s => {
-                if (s.endsWith('。') || s.endsWith('.')) return s.slice(0, -1);
-                return s;
-            });
+            let finalLines = [];
+            if (finalChatMode === 'offline') {
+                // 线下模式：不分割气泡，保留句号，段落间加空行
+                let offlineText = cleanDisplay.split('\n').map(s => s.trim()).filter(s => s).join('\n\n');
+                if (offlineText) finalLines = [offlineText];
+            } else {
+                // 线上模式：分割气泡，去除句号
+                finalLines = cleanDisplay.split('\n').map(s => s.trim()).filter(s => s);
+                finalLines = finalLines.map(s => {
+                    if (s.endsWith('。') || s.endsWith('.')) return s.slice(0, -1);
+                    return s;
+                });
+            }
 
             if (finalLines.length === 0) finalLines = ['(沉默)'];
 
@@ -5538,31 +5554,46 @@ ${modeRules}
 
             let msgIndexOffset = 0;
             finalLines.forEach((line, idx) => {
-                // 核心修复：将动作描写剥离出气泡，作为独立的系统旁白
-                const parts = line.split(/(\*.*?\*|\(.*?\)|（.*?）|【.*?】|\[.*?\])/g).filter(p => p.trim());
-                parts.forEach((part, pIdx) => {
-                    const trimmed = part.trim();
-                    let msgRole = 'ai';
-                    
-                    // 如果是动作描写，且不是特殊卡片标签，则转为 system 消息
-                    if (/^(\*.*?\*|\(.*?\)|（.*?）|【.*?】|\[.*?\])$/.test(trimmed)) {
-                        if (!trimmed.startsWith('[VIRTUAL_IMG:') && !trimmed.startsWith('[VOICE:') && !trimmed.startsWith('[REAL_CALL:') && !trimmed.startsWith('[MUSIC_CARD:') && !trimmed.startsWith('[THEATER_CARD:') && !trimmed.startsWith('[FORUM_CARD:') && !trimmed.startsWith('[FEED_CARD:') && !trimmed.startsWith('[PAY_REQUEST:') && !trimmed.startsWith('[TRANSFER:') && !trimmed.startsWith('[FAMILY_CARD:') && !trimmed.startsWith('[OURSPACE_INVITE:') && !trimmed.startsWith('[GIFT_TO_AI:') && !trimmed.startsWith('[INCOMING_CALL:') && !trimmed.startsWith('[RED_PACKET:') && !trimmed.startsWith('[TICKET:') && !trimmed.startsWith('[WILL_CARD:') && !trimmed.startsWith('[CONTACT_CARD:')) {
-                            msgRole = 'system';
-                        }
-                    }
-                    
+                // 线下模式不剥离动作描写，直接作为一个整体气泡
+                if (finalChatMode === 'offline') {
                     let newMsg = {
-                        role: msgRole,
-                        content: trimmed,
-                        rawContent: (idx === 0 && pIdx === 0) ? rawFullReply : undefined,
+                        role: 'ai',
+                        content: line,
+                        rawContent: (idx === 0) ? rawFullReply : undefined,
                         time: timeStr,
                         rawTime: now.getTime() + msgIndexOffset,
                         mode: finalChatMode
                     };
-                    if (idx === 0 && pIdx === 0 && currentQuote) newMsg.quote = currentQuote;
+                    if (idx === 0 && currentQuote) newMsg.quote = currentQuote;
                     chats[targetRoleId].push(newMsg);
                     msgIndexOffset++;
-                });
+                } else {
+                    // 线上模式：将动作描写剥离出气泡，作为独立的系统旁白
+                    const parts = line.split(/(\*.*?\*|\(.*?\)|（.*?）|【.*?】|\[.*?\])/g).filter(p => p.trim());
+                    parts.forEach((part, pIdx) => {
+                        const trimmed = part.trim();
+                        let msgRole = 'ai';
+                        
+                        // 如果是动作描写，且不是特殊卡片标签，则转为 system 消息
+                        if (/^(\*.*?\*|\(.*?\)|（.*?）|【.*?】|\[.*?\])$/.test(trimmed)) {
+                            if (!trimmed.startsWith('[VIRTUAL_IMG:') && !trimmed.startsWith('[VOICE:') && !trimmed.startsWith('[REAL_CALL:') && !trimmed.startsWith('[MUSIC_CARD:') && !trimmed.startsWith('[THEATER_CARD:') && !trimmed.startsWith('[FORUM_CARD:') && !trimmed.startsWith('[FEED_CARD:') && !trimmed.startsWith('[PAY_REQUEST:') && !trimmed.startsWith('[TRANSFER:') && !trimmed.startsWith('[FAMILY_CARD:') && !trimmed.startsWith('[OURSPACE_INVITE:') && !trimmed.startsWith('[GIFT_TO_AI:') && !trimmed.startsWith('[INCOMING_CALL:') && !trimmed.startsWith('[RED_PACKET:') && !trimmed.startsWith('[TICKET:') && !trimmed.startsWith('[WILL_CARD:') && !trimmed.startsWith('[CONTACT_CARD:')) {
+                                msgRole = 'system';
+                            }
+                        }
+                        
+                        let newMsg = {
+                            role: msgRole,
+                            content: trimmed,
+                            rawContent: (idx === 0 && pIdx === 0) ? rawFullReply : undefined,
+                            time: timeStr,
+                            rawTime: now.getTime() + msgIndexOffset,
+                            mode: finalChatMode
+                        };
+                        if (idx === 0 && pIdx === 0 && currentQuote) newMsg.quote = currentQuote;
+                        chats[targetRoleId].push(newMsg);
+                        msgIndexOffset++;
+                    });
+                }
             });
             
             for (let i = chats[targetRoleId].length - 1; i >= 0; i--) {
@@ -5693,44 +5724,48 @@ ${modeRules}
     async function fetchRealWeather() {
         const btn = document.getElementById('btn-real-weather');
         const origText = btn.innerHTML;
-        btn.innerHTML = 'LOCATING...<span>定位中...</span>';
+        btn.innerHTML = 'FETCHING...<span>获取中...</span>';
         btn.disabled = true;
-        
-        if (mapConfig.key && mapConfig.securityCode) {
-            if (!window.AMap) {
-                window._AMapSecurityConfig = { securityJsCode: mapConfig.securityCode };
-                await new Promise((resolve, reject) => {
-                    const script = document.createElement('script');
-                    script.src = `https://webapi.amap.com/maps?v=2.0&key=${mapConfig.key}&plugin=AMap.Geolocation,AMap.Weather`;
-                    script.onload = resolve;
-                    script.onerror = reject;
-                    document.head.appendChild(script);
-                });
+
+        const realCityInput = document.getElementById('weather-realCity');
+        const realCity = realCityInput ? realCityInput.value.trim() : '';
+
+        if (!realCity) {
+            alert("请先在上方【真实映射 (REAL CITY)】输入框中填写城市名称（如：北京、上海），然后再点击获取。");
+            btn.innerHTML = origText; 
+            btn.disabled = false;
+            return;
+        }
+
+        try {
+            const geoRes = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(realCity)}&count=1&language=zh`);
+            const geoData = await geoRes.json();
+            if (!geoData.results || geoData.results.length === 0) {
+                throw new Error(`找不到名为“${realCity}”的城市，请尝试输入更准确的名称。`);
             }
+            const lat = geoData.results[0].latitude;
+            const lon = geoData.results[0].longitude;
+            const resolvedCity = geoData.results[0].name;
+
+            const weatherRes = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,apparent_temperature,precipitation,weather_code,wind_speed_10m`);
+            const weatherJson = await weatherRes.json();
             
-            AMap.plugin(['AMap.Geolocation', 'AMap.Weather'], function() {
-                const geolocation = new AMap.Geolocation({ enableHighAccuracy: true, timeout: 10000 });
-                geolocation.getCurrentPosition(function(status, result) {
-                    if (status === 'complete') {
-                        const city = result.addressComponent.city || result.addressComponent.province;
-                        const adcode = result.addressComponent.adcode;
-                        
-                        const weather = new AMap.Weather();
-                        weather.getLive(adcode, function(err, data) {
-                            if (!err) {
-                                updateWeatherData(city, data.temperature, data.temperature, data.weather, data.humidity, data.windPower, '0', result.position.lat, result.position.lng);
-                                btn.innerHTML = origText; btn.disabled = false;
-                            } else {
-                                fallbackWeather(btn, origText);
-                            }
-                        });
-                    } else {
-                        fallbackWeather(btn, origText);
-                    }
-                });
-            });
-        } else {
-            fallbackWeather(btn, origText);
+            const current = weatherJson.current;
+            let condition = '晴';
+            const code = current.weather_code;
+            if (code === 1 || code === 2 || code === 3) condition = '多云';
+            else if (code >= 45 && code <= 48) condition = '雾';
+            else if (code >= 51 && code <= 67) condition = '雨';
+            else if (code >= 71 && code <= 77) condition = '雪';
+            else if (code >= 80 && code <= 82) condition = '阵雨';
+            else if (code >= 95) condition = '雷暴';
+
+            updateWeatherData(resolvedCity, current.temperature_2m, current.apparent_temperature, condition, current.relative_humidity_2m, current.wind_speed_10m, current.precipitation, lat, lon);
+        } catch (e) {
+            alert('获取天气失败: ' + e.message);
+        } finally {
+            btn.innerHTML = origText; 
+            btn.disabled = false;
         }
     }
 
@@ -8573,26 +8608,13 @@ window.newRoleTempWbs = null;
                 const content = data.choices[0].message.content.trim().replace(/["'""'']/g, ''); 
                 const safeId = 'feed_' + Date.now() + '_' + Math.floor(Math.random() * 10000); 
                 
-                /* 自动生成NPC评论逻辑 */
-                const npcNames = ['路人甲', '匿名用户', '吃瓜群众', '神秘人', '圈内好友'];
-                const npcComments = ['前排围观！', '确实是这样...', '有点意思。', '抱抱~', '太真实了吧！', '蹲一个后续。'];
-                let generatedComments = [];
-                if (Math.random() > 0.2) {
-                    const commentCount = Math.floor(Math.random() * 3) + 1;
-                    for (let i = 0; i < commentCount; i++) {
-                        generatedComments.push({
-                            role: 'npc',
-                            author: npcNames[Math.floor(Math.random() * npcNames.length)],
-                            content: npcComments[Math.floor(Math.random() * npcComments.length)],
-                            time: new Date().getTime() - Math.floor(Math.random() * 10000)
-                        });
-                    }
-                }
-
-                feeds.push({ id: safeId, roleId: role.id, content: content, time: now.toLocaleString('en-US', { month:'short', day:'numeric', hour: '2-digit', minute: '2-digit', hour12: false }), rawTime: now.getTime(), likes: Math.floor(Math.random() * 50 + 5), liked: false, comments: generatedComments }); 
+                feeds.push({ id: safeId, roleId: role.id, content: content, time: now.toLocaleString('en-US', { month:'short', day:'numeric', hour: '2-digit', minute: '2-digit', hour12: false }), rawTime: now.getTime(), likes: Math.floor(Math.random() * 50 + 5), liked: false, comments: [] }); 
                 DB.set('feeds', feeds);
                 
                 showSystemNotification(role.id, '新动态', `${getDisplayName(role)} 发布了一条新动态`, role.avatar);
+                
+                /* 异步生成相关的 NPC 评论 */
+                generateNpcCommentsForFeed(safeId);
 
                 /* 动态触发语音通话逻辑 */
                 if (content.match(/打电[话话]|语音|接电话|听.*声音/)) {
@@ -8820,22 +8842,6 @@ window.newRoleTempWbs = null;
         const now = new Date();
         const safeId = 'feed_' + Date.now() + '_' + Math.floor(Math.random() * 10000); 
         
-        /* 自动生成NPC评论逻辑 */
-        const npcNames = ['路人甲', '匿名用户', '吃瓜群众', '神秘人', '圈内好友'];
-        const npcComments = ['前排围观！', '确实是这样...', '有点意思。', '抱抱~', '太真实了吧！', '蹲一个后续。'];
-        let generatedComments = [];
-        if (Math.random() > 0.2) {
-            const commentCount = Math.floor(Math.random() * 3) + 1;
-            for (let i = 0; i < commentCount; i++) {
-                generatedComments.push({
-                    role: 'npc',
-                    author: npcNames[Math.floor(Math.random() * npcNames.length)],
-                    content: npcComments[Math.floor(Math.random() * npcComments.length)],
-                    time: new Date().getTime() - Math.floor(Math.random() * 10000)
-                });
-            }
-        }
-
         feeds.push({ 
             id: safeId, 
             roleId: draft.roleId, 
@@ -8844,9 +8850,12 @@ window.newRoleTempWbs = null;
             rawTime: now.getTime(), 
             likes: Math.floor(Math.random() * 50 + 5), 
             liked: false, 
-            comments: generatedComments 
+            comments: [] 
         }); 
         DB.set('feeds', feeds);
+        
+        /* 异步生成相关的 NPC 评论 */
+        generateNpcCommentsForFeed(safeId);
         
         window.feedDrafts.splice(draftIndex, 1);
         DB.set('feedDrafts', window.feedDrafts);
@@ -8987,25 +8996,32 @@ window.newRoleTempWbs = null;
             btn.disabled = true;
         }
 
-        const prompt = `你是一个小说设定生成器。请根据以下已有的角色列表，为他们之间随机生成 3-5 条有趣、有戏剧冲突的角色关系。
+        const prompt = `你是一个小说设定生成器。请根据以下已有的角色列表，为他们之间生成 3-5 条有趣、有戏剧冲突的角色关系。
         【已有角色】：
         ${roles.map(r => `- ID: ${r.id}, 名字: ${getDisplayName(r)} (${(r.persona||'').substring(0, 50)}...)`).join('\n')}
         
+        【重要指令】：
+        除了已有角色之间的关系，你还可以创造 1-2 个全新的 NPC 角色，并让他们与已有角色建立关系！
+        
         要求返回严格的 JSON 格式：
         {
+            "new_npcs": [
+                {
+                    "id": "npc_随机英文名",
+                    "name": "NPC名字",
+                    "persona": "详细的人设背景描述（不少于50字）"
+                }
+            ],
             "relations": [
                 {
-                    "role1_id": "角色1的ID",
-                    "role2_id": "角色2的ID",
+                    "role1_id": "角色1的ID（可以是已有角色ID，也可以是上面新创的NPC ID）",
+                    "role2_id": "角色2的ID（同上）",
                     "type": "友好/敌对/暧昧/亲属/主从/宿敌/其他",
                     "desc": "关系描述（例如：因为某件往事结仇，或者暗恋对方多年）"
                 }
             ]
         }
-        注意：
-        1. 角色ID必须完全匹配已有角色列表中的ID。
-        2. 不要生成角色自己和自己的关系。
-        3. 直接输出 JSON，不要加任何其他文字。`;
+        注意：直接输出 JSON，不要加任何其他文字。`;
 
         try {
             const endpoint = getChatEndpoint(apiConfig.url);
@@ -9017,6 +9033,27 @@ window.newRoleTempWbs = null;
             const data = await response.json();
             const result = JSON.parse(extractJSON(data.choices[0].message.content));
             
+            let addedNpcCount = 0;
+            if (result.new_npcs && result.new_npcs.length > 0) {
+                result.new_npcs.forEach(npc => {
+                    if (!roles.find(r => r.id === npc.id)) {
+                        roles.push({
+                            id: npc.id,
+                            realName: npc.name,
+                            remark: '',
+                            avatar: 'https://api.dicebear.com/9.x/micah/svg?seed=' + npc.name,
+                            persona: npc.persona,
+                            activeMaskId: 'default'
+                        });
+                        addedNpcCount++;
+                    }
+                });
+                if (addedNpcCount > 0) {
+                    DB.set('roles', roles);
+                    renderContacts(); // 刷新通讯录
+                }
+            }
+
             let addedCount = 0;
             if (result.relations && result.relations.length > 0) {
                 result.relations.forEach(rel => {
@@ -9037,10 +9074,10 @@ window.newRoleTempWbs = null;
                     }
                 });
                 
-                if (addedCount > 0) {
+                if (addedCount > 0 || addedNpcCount > 0) {
                     DB.set('roleRelations', window.roleRelations);
                     renderRoleNetworkList();
-                    alert(`成功生成了 ${addedCount} 条角色关系！`);
+                    alert(`成功生成了 ${addedCount} 条角色关系！\n同时创造了 ${addedNpcCount} 个新 NPC 角色（已加入通讯录）。`);
                 } else {
                     alert('生成的角色关系已存在或角色匹配失败。');
                 }
@@ -18936,3 +18973,47 @@ function recordOurSpaceAction(actionDesc) {
     const roleId = ourSpaceData.partnerId;
     recordSystemActionToChat(roleId, `[心动日常动态：用户刚刚在专属空间里${actionDesc}]`);
 }
+    async function generateNpcCommentsForFeed(feedId) {
+        const feed = feeds.find(f => f.id === feedId);
+        if (!feed || !apiConfig.url) return;
+        const role = roles.find(r => r.id === feed.roleId);
+        const authorName = role ? role.realName : (settings.userName || 'ME');
+
+        const prompt = `用户 "${authorName}" 刚刚发布了一条动态：\n"${feed.content}"\n请作为路人、网友或TA的朋友，根据这条动态的具体内容，生成 1-3 条相关的简短评论（可以是吐槽、捧场、关心等）。
+        要求返回严格的JSON格式：
+        {
+            "comments": [
+                {"author": "随机网友名字(如: 吃瓜群众/某某某)", "content": "评论内容"}
+            ]
+        }
+        直接输出JSON，不要加任何其他文字。`;
+        
+        try {
+            const endpoint = getChatEndpoint(apiConfig.url);
+            const res = await fetch(endpoint, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiConfig.key}` },
+                body: JSON.stringify({ model: apiConfig.model, messages: [{ role: 'user', content: prompt }], max_tokens: 128000, temperature: 0.85 })
+            });
+            const data = await res.json();
+            const result = JSON.parse(extractJSON(data.choices[0].message.content));
+            
+            if (result.comments && result.comments.length > 0) {
+                const now = new Date().getTime();
+                result.comments.forEach((c, i) => {
+                    feed.comments.push({
+                        role: 'npc',
+                        author: c.author,
+                        content: c.content,
+                        time: now - (10000 - i * 2000)
+                    });
+                });
+                DB.set('feeds', feeds);
+                if (document.getElementById('view-feed').classList.contains('active')) {
+                    renderFeeds();
+                }
+            }
+        } catch (e) { 
+            console.error("NPC评论生成失败", e); 
+        }
+    }
