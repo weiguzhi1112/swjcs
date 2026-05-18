@@ -2406,38 +2406,40 @@ body.is-app .to-page { padding-bottom: calc(70px + env(safe-area-inset-bottom)) 
     text-overflow: ellipsis;
     max-width: 100%;
     display: block;
+    position: relative; /* 确保默认模式下不脱离文档流 */
 }
 
 /* 短信引用样式 */
 #chat-view.theme-quote-sms .msg-row:has(.quote-block) .msg-bubble {
     position: relative !important;
-    margin-top: 30px !important; 
+    margin-top: 18px !important; /* 参考遗梦：缩小间距 */
+    margin-bottom: 0px !important; /* 修复时间戳重叠 */
 }
 
 #chat-view.theme-quote-sms .msg-row:has(.quote-block) .msg-bubble::before {
     content: '' !important;
     position: absolute !important;
-    width: 24px !important;
-    height: 24px !important;
-    top: -12px !important;
+    width: 28px !important; 
+    height: 28px !important; 
+    top: -8px !important; 
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1024 1024' width='128' height='128'%3E%3Cpath d='M896 208a48 48 0 0 1 48 48v448A240 240 0 0 1 704 944H256a48 48 0 0 1 0-96h448A144 144 0 0 0 848 704V256a48 48 0 0 1 48-48z' fill='%23d9d9d9'%3E%3C/path%3E%3C/svg%3E") !important;
     background-repeat: no-repeat !important;
     background-size: contain !important;
-    background-color: transparent !important;
     pointer-events: none !important;
     z-index: 10 !important;
     display: block !important;
     border: none !important;
+    background-color: transparent !important; /* 修复黑块 */
 }
 
 #chat-view.theme-quote-sms .msg-row.me:has(.quote-block) .msg-bubble::before {
-    left: -20px !important;
+    left: -25px !important; 
     right: auto !important;
     transform: scaleX(-1) !important;
 }
 
 #chat-view.theme-quote-sms .msg-row.ai:has(.quote-block) .msg-bubble::before {
-    right: -20px !important;
+    right: -25px !important; 
     left: auto !important;
     transform: none !important;
 }
@@ -2453,29 +2455,28 @@ body.is-app .to-page { padding-bottom: calc(70px + env(safe-area-inset-bottom)) 
 }
 
 #chat-view.theme-quote-sms .quote-block {
-    position: absolute;
-    top: -26px !important;
+    position: absolute !important; /* 短信模式下绝对定位 */
+    top: -18px !important; 
     left: 0 !important;
     z-index: 0;
-    min-width: 60px;
-    max-width: 180px;
-    height: 24px;
-    background-color: var(--gray-light) !important;
-    backdrop-filter: blur(10px) !important;
-    -webkit-backdrop-filter: blur(10px) !important;
-    border-radius: 12px;
-    border: 1px solid var(--border-color) !important;
-    padding: 0 10px;
-    margin: 0;
-    font-size: 10px;
-    color: var(--text-secondary);
-    line-height: 22px;
+    min-width: 100px; 
+    max-width: 180px; 
+    height: 24px !important; 
+    background-color: transparent !important; 
+    backdrop-filter: none !important; 
+    -webkit-backdrop-filter: none !important;
+    border-radius: 20px !important; 
+    border: 1px solid #e0e0e0 !important; 
+    padding: 0 8px !important; 
+    margin: 0 !important;
+    font-size: 11px !important; 
+    color: #555 !important; 
+    line-height: 24px !important; 
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
     cursor: pointer;
     pointer-events: auto;
-    border-left: 1px solid var(--border-color) !important;
 }
 /* 移除前世今生界面的气泡小尾巴 */
 #reinc-chat-messages .msg-bubble::before,
