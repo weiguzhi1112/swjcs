@@ -10217,6 +10217,12 @@ ${knowUser ? `注意：你清楚地知道回复你的人就是 ${userName}，请
             $('#music-role-view').style.display = 'block';
             checkMusicRoleLogin();
         }
+
+        /* 记录账号切换行为到当前聊天 */
+        if (currentChatRoleId) {
+            const roleName = window.currentMusicAccount === 'ME' ? '自己的' : (roles.find(r => r.id === window.currentMusicAccount)?.realName || '别人');
+            recordSystemActionToChat(currentChatRoleId, `[系统提示：用户刚刚在音乐App中切换到了 ${roleName} 的账号]`);
+        }
     }
 
     function checkMusicRoleLogin() {
@@ -14198,6 +14204,12 @@ function onAiAvatarDblClick() {
     function switchWalletAccount() {
         currentWalletAccount = $('#wallet-account-switcher').value;
         checkWalletLogin();
+
+        /* 记录账号切换行为到当前聊天 */
+        if (currentChatRoleId) {
+            const roleName = currentWalletAccount === 'ME' ? '自己的' : (roles.find(r => r.id === currentWalletAccount)?.realName || '别人');
+            recordSystemActionToChat(currentChatRoleId, `[系统提示：用户刚刚在钱包App中切换到了 ${roleName} 的账号]`);
+        }
     }
 
     function checkWalletLogin() {
@@ -15490,6 +15502,7 @@ function onAiAvatarDblClick() {
         if(!text) return;
         ourSpaceData.diaries.unshift({mood, text, time: new Date().toLocaleString('zh-CN'), author: settings.userName || 'ME', comments: []}); 
         DB.set('ourSpaceData', ourSpaceData); osRenderDiaries(); closeModal('modal-os-diary'); osAddIntimacy(5);
+        recordOurSpaceAction(`写下了一篇心情为“${mood}”的共享日记：${text}`);
     }
 
     function osRenderWishes() {
@@ -15507,6 +15520,7 @@ function onAiAvatarDblClick() {
     function osSaveWish() {
         const text = document.getElementById('os-inp-wish-text').value;
         if(!text) return; ourSpaceData.wishes.push({text, done:false, author: settings.userName || 'ME', comments: []}); DB.set('ourSpaceData', ourSpaceData); osRenderWishes(); closeModal('modal-os-wish');
+        recordOurSpaceAction(`在愿望清单中添加了一个新愿望：${text}`);
     }
     function osToggleWish(i) { ourSpaceData.wishes[i].done = !ourSpaceData.wishes[i].done; DB.set('ourSpaceData', ourSpaceData); osRenderWishes(); if(ourSpaceData.wishes[i].done) osAddIntimacy(10); }
 
@@ -15531,6 +15545,7 @@ function onAiAvatarDblClick() {
         const amount = document.getElementById('os-inp-bill-amount').value;
         if(!desc || !amount) return;
         ourSpaceData.bills.unshift({desc, amount, time: new Date().toLocaleDateString(), author: settings.userName || 'ME', comments: []}); DB.set('ourSpaceData', ourSpaceData); osRenderBills(); closeModal('modal-os-bill');
+        recordOurSpaceAction(`在情侣记账中记录了一笔支出：${desc}，金额：¥${amount}`);
     }
 
     function osRenderCapsules() {
@@ -15557,6 +15572,7 @@ function onAiAvatarDblClick() {
         const date = document.getElementById('os-inp-cap-date').value;
         if(!text || !date) return;
         ourSpaceData.capsules.push({text, date, author: settings.userName || 'ME', comments: []}); DB.set('ourSpaceData', ourSpaceData); osRenderCapsules(); closeModal('modal-os-capsule');
+        recordOurSpaceAction(`埋下了一颗时光胶囊，设定在 ${date} 解锁。`);
     }
 
     function osRenderLetters() {
@@ -15575,6 +15591,7 @@ function onAiAvatarDblClick() {
         const text = document.getElementById('os-inp-letter-text').value;
         if(!title || !text) return;
         ourSpaceData.letters.unshift({title, text, author: settings.userName || 'ME', comments: []}); DB.set('ourSpaceData', ourSpaceData); osRenderLetters(); closeModal('modal-os-letter'); osAddIntimacy(10);
+        recordOurSpaceAction(`写了一封名为《${title}》的电子情书。`);
     }
 
     function osRenderFirsts() {
@@ -15595,6 +15612,7 @@ function onAiAvatarDblClick() {
         const imgVirtual = document.getElementById('os-inp-first-img').value;
         if(!title || !imgVirtual) return alert('请填写完整');
         ourSpaceData.firsts.unshift({title, imgVirtual, time: new Date().toLocaleDateString(), author: settings.userName || 'ME', comments: []}); DB.set('ourSpaceData', ourSpaceData); osRenderFirsts(); closeModal('modal-os-firsts'); osAddIntimacy(15);
+        recordOurSpaceAction(`记录了你们的第一次：${title}`);
     }
 
     function osRenderMe() {
@@ -18890,3 +18908,21 @@ window.toGenerateCategory = function(category) {
         }
     }
 };
+function recordSystemActionToChat(roleId, content) {
+    if (!roleId || !chats[roleId]) return;
+    const now = new Date();
+    chats[roleId].push({
+        role: 'system',
+        content: content,
+        time: now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }),
+        rawTime: now.getTime(),
+        mode: 'online'
+    });
+    DB.set('chats', chats);
+}
+
+function recordOurSpaceAction(actionDesc) {
+    if (!ourSpaceData.isPaired || !ourSpaceData.partnerId) return;
+    const roleId = ourSpaceData.partnerId;
+    recordSystemActionToChat(roleId, `[心动日常动态：用户刚刚在专属空间里${actionDesc}]`);
+}
