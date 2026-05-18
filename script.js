@@ -334,6 +334,7 @@ document.addEventListener('touchmove', function(e) {
         apiPresets = DB.get('apiPresets', []);
         apiConfig = DB.get('api', { url: '', key: '', model: 'gpt-4o', maxTokens: 128000, temperature: 0.8, topP: 1.0 });
         feeds = DB.get('feeds', []);
+        window.feedDrafts = DB.get('feedDrafts', []);
                 reincBank = DB.get('reincBank', [
             { name: '鼠标', past: '宫廷玉如意', present: '天天被手摸，偶尔还被摔' }, 
             { name: '水杯', past: '太上老君的炼丹炉', present: '天天被灌水，冷暖自知' },
@@ -2865,7 +2866,7 @@ ${promptText}
                 payload = {
                     title: result.title || "专属小剧场",
                     epigraph: result.epigraph || "",
-                    content: result.content || "生成内容为空"
+                    content: (result.content || "生成内容为空").replace(/\n/g, '<br>')
                 };
             } catch (parseError) {
                 payload = {
@@ -6329,8 +6330,8 @@ function renderMemoryView() {
                     <span style="font-size: 9px; color: var(--text-secondary);">${m.time} ${m.auto ? '[自动]' : '[手动]'}</span>
                 </div>
                 <div style="display: flex; gap: 8px;">
-                    <button style="background: none; border: none; color: var(--text-color); font-size: 10px; cursor: pointer; font-weight: 600;" onclick="editMemoryItem('${roleId}', '${m.type}', ${m.originalIndex})">编辑</button>
-                    <button style="background: none; border: none; color: #ff4d4d; font-size: 10px; cursor: pointer; font-weight: 600;" onclick="deleteMemoryItem('${roleId}', '${m.type}', ${m.originalIndex})">删除</button>
+                    <button style="background: none; border: none; color: var(--text-color); font-size: 10px; cursor: pointer; font-weight: 600;" onclick="${m.type === 'legacy' ? `editLegacyMemoryItem('${roleId}', ${m.originalIndex})` : `editMemoryItem('${roleId}', '${m.type}', ${m.originalIndex})`}">编辑</button>
+                    <button style="background: none; border: none; color: #ff4d4d; font-size: 10px; cursor: pointer; font-weight: 600;" onclick="${m.type === 'legacy' ? `deleteLegacyMemoryItem('${roleId}', ${m.originalIndex})` : `deleteMemoryItem('${roleId}', '${m.type}', ${m.originalIndex})`}">删除</button>
                 </div>
             </div>
             <div style="font-size: 11px; line-height: 1.6; color: var(--text-color); white-space: pre-wrap;">${escapeHTML(m.content)}</div>
@@ -6495,10 +6496,23 @@ function deleteMemoryItem(roleId, tab, index) {
     if (key && advancedMemories[roleId] && advancedMemories[roleId][key]) {
         advancedMemories[roleId][key].splice(index, 1);
         DB.set('advancedMemories', advancedMemories);
-        if (document.getElementById('mem-tab-content')) {
-            switchMemoryTab(roleId, tab);
-        } else {
+        if ($('#view-memory').classList.contains('active')) {
             renderMemoryView();
+        } else {
+            switchMemoryTab(roleId, tab);
+        }
+    }
+}
+
+function deleteLegacyMemoryItem(roleId, index) {
+    if (!confirm('删除这条传统记忆？')) return;
+    if (memories[roleId] && Array.isArray(memories[roleId])) {
+        memories[roleId].splice(index, 1);
+        DB.set('memories', memories);
+        if ($('#view-memory').classList.contains('active')) {
+            renderMemoryView();
+        } else {
+            switchMemoryTab(roleId, 'legacy');
         }
     }
 }
@@ -6543,10 +6557,10 @@ function saveMemoryEdit() {
         DB.set('advancedMemories', advancedMemories);
     }
     
-    if (document.getElementById('mem-tab-content')) {
-        switchMemoryTab(roleId, tab);
-    } else {
+    if ($('#view-memory').classList.contains('active')) {
         renderMemoryView();
+    } else {
+        switchMemoryTab(roleId, tab);
     }
     closeModal('modal-memory-edit');
 }
@@ -7491,16 +7505,15 @@ window.newRoleTempWbs = null;
                             if (tagType === 'PAY_REQUEST') card.status = '待支付';
                             if (tagType === 'ORDER_RECEIPT_CARD') card.status = '已支付';
                             if (tagType === 'TRANSFER' || tagType === 'FAMILY_CARD') card.status = '待接收';
-                            if (tagType === 'OURSPACE_INVITE') card.status = '等待对方回复配对码';
-                            needsFix = true;
-                        }
-                        if (needsFix) {
-                            msg.content = msg.content.replace(tagMatch[0], `[${tagType}:${encodeURIComponent(JSON.stringify(card))}]`);
-                            fixCount++;
-                        }
+                        if (tagType === 'OURSPACE_INVITE') card.status = '等待对方回复配对码';
+                        needsFix = true;
                     }
-                } catch(e) {}
-            }
+                    if (needsFix) {
+                        msg.content = msg.content.replace(tagMatch[0], `[${tagType}:${encodeURIComponent(JSON.stringify(card))}]`);
+                        fixCount++;
+                    }
+                }
+            } catch(e) {}
         }
 
         const jsonArrayRegex = /\[\s*\{.*?\}\s*\]/g;
@@ -8762,8 +8775,8 @@ window.newRoleTempWbs = null;
     window.generateFeedDraft = async function() {
         const role = roles.find(r => r.id === currentFeedProfileRoleId);
         if (!role) return;
-        if (!window.feedDrafts) window.feedDrafts = []; // 确保数组已初始化
-        if (!apiConfig.url) return alert('请先在 System -> Engine 中配置 API。');
+        const api = getSubApi('feed');
+        if (!api.url) return alert('请先在 System -> Engine 中配置 API。');
 
         const btn = document.querySelector('#rfp-draft-actions button');
         const origHtml = btn.innerHTML;
@@ -8783,14 +8796,15 @@ window.newRoleTempWbs = null;
 直接输出动态内容，不要加引号。`;
 
         try {
-            const endpoint = getChatEndpoint(apiConfig.url);
-            const response = await fetch(endpoint, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiConfig.key}` }, body: JSON.stringify({ model: apiConfig.model, messages: [{ role: 'user', content: prompt }], max_tokens: 128000, temperature: 0.85 }) }); 
+            const endpoint = getChatEndpoint(api.url);
+            const response = await fetch(endpoint, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${api.key}` }, body: JSON.stringify({ model: api.model, messages: [{ role: 'user', content: prompt }], max_tokens: 128000, temperature: 0.85 }) }); 
             if (response.ok) { 
                 const data = await response.json(); 
                 const content = data.choices[0].message.content.trim().replace(/["'""'']/g, ''); 
                 const now = new Date();
                 const draftId = 'draft_' + Date.now() + '_' + Math.floor(Math.random() * 10000); 
                 
+                if (!window.feedDrafts) window.feedDrafts = [];
                 window.feedDrafts.unshift({ 
                     id: draftId, 
                     roleId: role.id, 
@@ -8800,7 +8814,9 @@ window.newRoleTempWbs = null;
                 }); 
                 DB.set('feedDrafts', window.feedDrafts);
                 renderFeedProfileList();
-            } 
+            } else {
+                throw new Error(await parseApiError(response));
+            }
         } catch (e) { 
             alert('生成草稿失败: ' + e.message);
         } finally {
@@ -8986,21 +9002,21 @@ window.newRoleTempWbs = null;
 
         const prompt = `你是一个小说设定生成器。请根据以下已有的角色列表，为他们之间随机生成 3-5 条有趣、有戏剧冲突的角色关系。
         【已有角色】：
-        ${roles.map(r => `- ${getDisplayName(r)} (${(r.persona||'').substring(0, 50)}...)`).join('\n')}
+        ${roles.map(r => `- ID: ${r.id}, 名字: ${getDisplayName(r)} (${(r.persona||'').substring(0, 50)}...)`).join('\n')}
         
         要求返回严格的 JSON 格式：
         {
             "relations": [
                 {
-                    "role1_name": "角色1的名字",
-                    "role2_name": "角色2的名字",
+                    "role1_id": "角色1的ID",
+                    "role2_id": "角色2的ID",
                     "type": "友好/敌对/暧昧/亲属/主从/宿敌/其他",
                     "desc": "关系描述（例如：因为某件往事结仇，或者暗恋对方多年）"
                 }
             ]
         }
         注意：
-        1. 角色名字必须完全匹配已有角色列表中的名字。
+        1. 角色ID必须完全匹配已有角色列表中的ID。
         2. 不要生成角色自己和自己的关系。
         3. 直接输出 JSON，不要加任何其他文字。`;
 
@@ -9012,16 +9028,13 @@ window.newRoleTempWbs = null;
                 body: JSON.stringify({ model: apiConfig.model, messages: [{ role: 'user', content: prompt }], max_tokens: 128000, temperature: 0.85 })
             });
             const data = await response.json();
-            let contentStr = data.choices[0].message.content.trim();
-            // 清理可能存在的 markdown 标记
-            contentStr = contentStr.replace(/```json/g, '').replace(/```/g, '').trim();
-            const result = JSON.parse(extractJSON(contentStr));
+            const result = JSON.parse(extractJSON(data.choices[0].message.content));
             
             let addedCount = 0;
             if (result.relations && result.relations.length > 0) {
                 result.relations.forEach(rel => {
-                    const r1 = roles.find(r => getDisplayName(r) === rel.role1_name);
-                    const r2 = roles.find(r => getDisplayName(r) === rel.role2_name);
+                    const r1 = roles.find(r => r.id === rel.role1_id || getDisplayName(r) === rel.role1_name);
+                    const r2 = roles.find(r => r.id === rel.role2_id || getDisplayName(r) === rel.role2_name);
                     if (r1 && r2 && r1.id !== r2.id) {
                         const exists = window.roleRelations.find(r => (r.role1 === r1.id && r.role2 === r2.id) || (r.role1 === r2.id && r.role2 === r1.id));
                         if (!exists) {
@@ -17717,8 +17730,9 @@ async function initiateWillProcess(force = false) {
     let fullMemory = memories[role.id] || '';
     if (advancedMemories[role.id]) {
         const adv = advancedMemories[role.id];
-if (adv.coreMemories) fullMemory += '\n' + adv.coreMemories.map(m => m ? m.content : '').join('\n');
-if (adv.episodicMemories) fullMemory += '\n' + adv.episodicMemories.slice(-5).map(m => m ? m.content : '').join('\n');
+        if (adv.coreMemories) fullMemory += '\n' + adv.coreMemories.map(m => m.content).join('\n');
+        if (adv.episodicMemories) fullMemory += '\n' + adv.episodicMemories.slice(-5).map(m => m.content).join('\n');
+    }
     const memorySummary = fullMemory ? `\n[你们的共同记忆]\n${fullMemory.substring(0, 1000)}` : '暂无深刻记忆';
 
     /* 获取当前角色绑定的面具名 */
