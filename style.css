@@ -2394,10 +2394,11 @@ body.is-app .to-page { padding-bottom: calc(70px + env(safe-area-inset-bottom)) 
     padding-right: 5px;
 }
 /* ========== 引用消息相关样式 ========== */
+/* 调整了 margin-top 和 top，缩小引用气泡与发送消息的间隔 */
 #chat-view.theme-quote-sms .msg-row:has(.quote-block) .msg-bubble {
     position: relative !important;
-    margin-top: 30px !important;
-    margin-bottom: -33px !important;
+    margin-top: 22px !important; 
+    margin-bottom: -25px !important; 
 }
 #chat-view.theme-quote-sms .msg-row:has(.quote-block) .msg-bubble::before {
     content: '' !important;
@@ -2433,7 +2434,7 @@ body.is-app .to-page { padding-bottom: calc(70px + env(safe-area-inset-bottom)) 
 }
 #chat-view.theme-quote-sms .quote-block {
     position: absolute;
-    top: -28px !important;
+    top: -20px !important; /* 向上移动，减小间距 */
     left: 0 !important;
     z-index: 0;
     min-width: 100px;

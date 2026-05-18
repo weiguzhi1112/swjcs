@@ -6495,7 +6495,11 @@ function deleteMemoryItem(roleId, tab, index) {
     if (key && advancedMemories[roleId] && advancedMemories[roleId][key]) {
         advancedMemories[roleId][key].splice(index, 1);
         DB.set('advancedMemories', advancedMemories);
-        switchMemoryTab(roleId, tab);
+        if (document.getElementById('mem-tab-content')) {
+            switchMemoryTab(roleId, tab);
+        } else {
+            renderMemoryView();
+        }
     }
 }
 
@@ -6539,7 +6543,11 @@ function saveMemoryEdit() {
         DB.set('advancedMemories', advancedMemories);
     }
     
-    switchMemoryTab(roleId, tab);
+    if (document.getElementById('mem-tab-content')) {
+        switchMemoryTab(roleId, tab);
+    } else {
+        renderMemoryView();
+    }
     closeModal('modal-memory-edit');
 }
 
@@ -8753,6 +8761,7 @@ window.newRoleTempWbs = null;
     window.generateFeedDraft = async function() {
         const role = roles.find(r => r.id === currentFeedProfileRoleId);
         if (!role) return;
+        if (!window.feedDrafts) window.feedDrafts = []; // 确保数组已初始化
         if (!apiConfig.url) return alert('请先在 System -> Engine 中配置 API。');
 
         const btn = document.querySelector('#rfp-draft-actions button');
@@ -9002,7 +9011,10 @@ window.newRoleTempWbs = null;
                 body: JSON.stringify({ model: apiConfig.model, messages: [{ role: 'user', content: prompt }], max_tokens: 128000, temperature: 0.85 })
             });
             const data = await response.json();
-            const result = JSON.parse(extractJSON(data.choices[0].message.content));
+            let contentStr = data.choices[0].message.content.trim();
+            // 清理可能存在的 markdown 标记
+            contentStr = contentStr.replace(/```json/g, '').replace(/```/g, '').trim();
+            const result = JSON.parse(extractJSON(contentStr));
             
             let addedCount = 0;
             if (result.relations && result.relations.length > 0) {
@@ -9664,7 +9676,10 @@ ${extraLorePrompt}
 
             if (!response.ok) throw new Error(await parseApiError(response));
             const data = await response.json();
-            const result = JSON.parse(extractJSON(data.choices[0].message.content));
+            let contentStr = data.choices[0].message.content.trim();
+            // 清理可能存在的 markdown 标记
+            contentStr = contentStr.replace(/```json/g, '').replace(/```/g, '').trim();
+            const result = JSON.parse(extractJSON(contentStr));
 
             const now = new Date();
             result.posts.forEach(p => {
@@ -10584,7 +10599,10 @@ ${knowUser ? `注意：你清楚地知道回复你的人就是 ${userName}，请
                 body: JSON.stringify({ model: apiConfig.model, messages: [{ role: 'user', content: prompt }], max_tokens: 128000, temperature: 0.85 })
             });
             const data = await response.json();
-            const result = JSON.parse(extractJSON(data.choices[0].message.content));
+            let contentStr = data.choices[0].message.content.trim();
+            // 清理可能存在的 markdown 标记
+            contentStr = contentStr.replace(/```json/g, '').replace(/```/g, '').trim();
+            const result = JSON.parse(extractJSON(contentStr));
             
             let realSongs = [];
             for (let s of result.songs) {
@@ -14737,7 +14755,10 @@ function onAiAvatarDblClick() {
                 body: JSON.stringify({ model: api.model, messages: [{ role: 'user', content: prompt }], max_tokens: 128000, temperature: 0.85 })
             });
             const data = await response.json();
-            const result = JSON.parse(extractJSON(data.choices[0].message.content));
+            let contentStr = data.choices[0].message.content.trim();
+            // 清理可能存在的 markdown 标记
+            contentStr = contentStr.replace(/```json/g, '').replace(/```/g, '').trim();
+            const result = JSON.parse(extractJSON(contentStr));
             
             const currentData = walletData[currentWalletAccount] || { mainBg: '', familyCards: [], bills: [], autoRefresh: true };
             const newBankCards = (result.bankCards || []).map((c, i) => {
@@ -15654,7 +15675,10 @@ ${typeMap[type].format}
                 body: JSON.stringify({ model: api.model, messages: [{ role: 'user', content: prompt }], max_tokens: 128000, temperature: 0.85 })
             });
             const data = await response.json();
-            const result = JSON.parse(extractJSON(data.choices[0].message.content));
+            let contentStr = data.choices[0].message.content.trim();
+            // 清理可能存在的 markdown 标记
+            contentStr = contentStr.replace(/```json/g, '').replace(/```/g, '').trim();
+            const result = JSON.parse(extractJSON(contentStr));
             
             const authorName = role.realName || 'Entity'; 
             const timeStr = new Date().toLocaleString('zh-CN');
@@ -17704,9 +17728,8 @@ async function initiateWillProcess(force = false) {
     let fullMemory = memories[role.id] || '';
     if (advancedMemories[role.id]) {
         const adv = advancedMemories[role.id];
-        if (adv.coreMemories) fullMemory += '\n' + adv.coreMemories.map(m => m.content).join('\n');
-        if (adv.episodicMemories) fullMemory += '\n' + adv.episodicMemories.slice(-5).map(m => m.content).join('\n');
-    }
+if (adv.coreMemories) fullMemory += '\n' + adv.coreMemories.map(m => m ? m.content : '').join('\n');
+if (adv.episodicMemories) fullMemory += '\n' + adv.episodicMemories.slice(-5).map(m => m ? m.content : '').join('\n');
     const memorySummary = fullMemory ? `\n[你们的共同记忆]\n${fullMemory.substring(0, 1000)}` : '暂无深刻记忆';
 
     /* 获取当前角色绑定的面具名 */
