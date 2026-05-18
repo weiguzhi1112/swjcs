@@ -9676,10 +9676,7 @@ ${extraLorePrompt}
 
             if (!response.ok) throw new Error(await parseApiError(response));
             const data = await response.json();
-            let contentStr = data.choices[0].message.content.trim();
-            // 清理可能存在的 markdown 标记
-            contentStr = contentStr.replace(/```json/g, '').replace(/```/g, '').trim();
-            const result = JSON.parse(extractJSON(contentStr));
+            const result = JSON.parse(extractJSON(data.choices[0].message.content));
 
             const now = new Date();
             result.posts.forEach(p => {
@@ -10599,10 +10596,7 @@ ${knowUser ? `注意：你清楚地知道回复你的人就是 ${userName}，请
                 body: JSON.stringify({ model: apiConfig.model, messages: [{ role: 'user', content: prompt }], max_tokens: 128000, temperature: 0.85 })
             });
             const data = await response.json();
-            let contentStr = data.choices[0].message.content.trim();
-            // 清理可能存在的 markdown 标记
-            contentStr = contentStr.replace(/```json/g, '').replace(/```/g, '').trim();
-            const result = JSON.parse(extractJSON(contentStr));
+            const result = JSON.parse(extractJSON(data.choices[0].message.content));
             
             let realSongs = [];
             for (let s of result.songs) {
@@ -14755,10 +14749,7 @@ function onAiAvatarDblClick() {
                 body: JSON.stringify({ model: api.model, messages: [{ role: 'user', content: prompt }], max_tokens: 128000, temperature: 0.85 })
             });
             const data = await response.json();
-            let contentStr = data.choices[0].message.content.trim();
-            // 清理可能存在的 markdown 标记
-            contentStr = contentStr.replace(/```json/g, '').replace(/```/g, '').trim();
-            const result = JSON.parse(extractJSON(contentStr));
+            const result = JSON.parse(extractJSON(data.choices[0].message.content));
             
             const currentData = walletData[currentWalletAccount] || { mainBg: '', familyCards: [], bills: [], autoRefresh: true };
             const newBankCards = (result.bankCards || []).map((c, i) => {
@@ -15675,10 +15666,7 @@ ${typeMap[type].format}
                 body: JSON.stringify({ model: api.model, messages: [{ role: 'user', content: prompt }], max_tokens: 128000, temperature: 0.85 })
             });
             const data = await response.json();
-            let contentStr = data.choices[0].message.content.trim();
-            // 清理可能存在的 markdown 标记
-            contentStr = contentStr.replace(/```json/g, '').replace(/```/g, '').trim();
-            const result = JSON.parse(extractJSON(contentStr));
+            const result = JSON.parse(extractJSON(data.choices[0].message.content));
             
             const authorName = role.realName || 'Entity'; 
             const timeStr = new Date().toLocaleString('zh-CN');
